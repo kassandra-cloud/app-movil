@@ -1,5 +1,5 @@
 package com.example.proyecto
-
+import VotacionesScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -36,10 +36,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.proyecto.ui.VotacionesScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.viewmodel.AppScreen
 import com.example.proyecto.viewmodel.LoginViewModel
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,7 +75,11 @@ fun MainScreen(
                     Text("Sesión no válida. Inicia sesión nuevamente.")
                 }
             } else {
-                VotacionesScreen(token = token)
+                VotacionesScreen(
+                    token = token,
+                    onBack = { viewModel.goBackToMainMenu() } // ← vuelve al menú principal
+                    // alternativamente: onBack = { viewModel.navigateTo(AppScreen.MAIN_MENU) }
+                )
             }
         }
 

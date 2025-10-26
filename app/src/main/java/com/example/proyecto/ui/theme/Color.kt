@@ -2,10 +2,19 @@ package com.example.proyecto.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Pasteles estilo mockup
+val Lavender = Color(0xFFF1E9FF)
+val Lilac    = Color(0xFFD9C8FF)
+val Peach    = Color(0xFFFFE7F0)
+val Sky      = Color(0xFFE7F3FF)
+val Mint     = Color(0xFFEAFBF4)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val Primary  = Color(0xFF7B61FF)   // morado principal
+val Secondary= Color(0xFF79E3D8)   // aqua
+val Tertiary = Color(0xFFFFB3C7)   // rosado
+
+// Texto
+val TextPrimary   = Color(0xFF1E1E28)
+val TextSecondary = Color(0xFF61667A)
+val CardBg        = Color(0xFFFFFFFF)
+val ChipBg        = Color(0xFFF4F2FF)

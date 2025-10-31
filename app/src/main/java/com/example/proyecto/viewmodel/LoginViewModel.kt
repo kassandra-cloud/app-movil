@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.example.proyecto.data.ActaDto
+import com.example.proyecto.data.AppScreen
 
 enum class AppScreen {
     LOGIN,
@@ -22,10 +24,11 @@ data class LoginUiState(
     val isLoading: Boolean = false,
     val isLoggedIn: Boolean = false,
     val currentUser: String? = null,
-    val token: String? = null,                    // 👈 AÑADIDO
+    val token: String? = null,
     val currentScreen: AppScreen = AppScreen.LOGIN,
     val errorMessage: String? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    val selectedActa: ActaDto? = null
 )
 
 class LoginViewModel : ViewModel() {
@@ -129,5 +132,27 @@ class LoginViewModel : ViewModel() {
 
     fun goBackToMainMenu() {
         _uiState.value = _uiState.value.copy(currentScreen = AppScreen.MAIN_MENU)
+    }
+    // dentro de LoginViewModel
+    fun openActaDetalle(acta: ActaDto) {
+        // No permitir navegar si el acta no está aprobada
+        if (!acta.aprobada) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "El acta aún no está aprobada."
+            )
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(
+            selectedActa = acta,
+            currentScreen = AppScreen.ACTA_DETALLE
+        )
+    }
+
+    fun closeActaDetalle() {
+        _uiState.value = _uiState.value.copy(
+            selectedActa = null,
+            currentScreen = AppScreen.ACTAS
+        )
     }
 }

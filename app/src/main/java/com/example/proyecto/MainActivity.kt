@@ -3,7 +3,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,10 +27,25 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -35,10 +60,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.proyecto.data.AppScreen
+import com.example.proyecto.data.AppScreen.ACTAS
+import com.example.proyecto.data.AppScreen.ACTA_DETALLE
+import com.example.proyecto.data.AppScreen.ASISTENCIA
+import com.example.proyecto.data.AppScreen.LOGIN
+import com.example.proyecto.data.AppScreen.MAIN_MENU
+import com.example.proyecto.data.AppScreen.TALLERES
+import com.example.proyecto.data.AppScreen.VOTACION
 import com.example.proyecto.ui.VotacionesScreen
+import com.example.proyecto.ui.actas.ActasScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
-import com.example.proyecto.viewmodel.AppScreen
 import com.example.proyecto.viewmodel.LoginViewModel
+import com.example.proyecto.ui.actas.ActaDetalleScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -60,17 +94,19 @@ fun MainScreen(
     val token = uiState.token   // ← clave para VotacionesScreen
 
     when (uiState.currentScreen) {
-        AppScreen.LOGIN -> LoginScreen(viewModel = viewModel)
+        LOGIN -> LoginScreen(viewModel = viewModel)
 
-        AppScreen.MAIN_MENU -> MainMenuScreen(viewModel = viewModel)
+        MAIN_MENU -> MainMenuScreen(viewModel = viewModel)
 
-        AppScreen.ACTAS -> ActasScreen(viewModel = viewModel)
+        ACTAS -> ActasScreen(
+            onVerActa = { acta -> viewModel.openActaDetalle(acta) }
+        )
 
-        AppScreen.ASISTENCIA -> AsistenciaScreen(viewModel = viewModel)
+        ASISTENCIA -> AsistenciaScreen(viewModel = viewModel)
 
-        AppScreen.VOTACION -> {
+        VOTACION -> {
             if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(AppScreen.LOGIN) }
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Sesión no válida. Inicia sesión nuevamente.")
                 }
@@ -81,9 +117,25 @@ fun MainScreen(
                     // alternativamente: onBack = { viewModel.navigateTo(AppScreen.MAIN_MENU) }
                 )
             }
+
+        }
+        AppScreen.ACTA_DETALLE -> {
+            val acta = uiState.selectedActa
+            if (acta == null) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(AppScreen.ACTAS) }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Sin acta seleccionada")
+                }
+            } else {
+                ActaDetalleScreen(
+                    acta = acta,
+                    onBack = { viewModel.closeActaDetalle() }
+                )
+            }
         }
 
-        AppScreen.TALLERES -> TalleresScreen(viewModel = viewModel)
+        TALLERES -> TalleresScreen(viewModel = viewModel)
+        ACTA_DETALLE -> TODO()
     }
 }
 
@@ -459,8 +511,8 @@ fun MainMenuScreen(
             ) {
                 item {
                     ModuleCard(
-                        title = "Actas",
-                        description = "Ver y gestionar actas",
+                        title = "Reuniones",
+                        description = "Vizualizar actas y asistencia",
                         icon = Icons.Default.List,
                         color = Color(0xFF2196F3),
                         onClick = { viewModel.navigateTo(AppScreen.ACTAS) }
@@ -469,8 +521,8 @@ fun MainMenuScreen(
 
                 item {
                     ModuleCard(
-                        title = "Asistencia",
-                        description = "Control de asistencia",
+                        title = "foro",
+                        description = "Espacio de debate",
                         icon = Icons.Default.Person,
                         color = Color(0xFF4CAF50),
                         onClick = { viewModel.navigateTo(AppScreen.ASISTENCIA) }
@@ -566,7 +618,7 @@ fun ModuleCard(
 }
 
 @Composable
-fun ActasScreen(viewModel: LoginViewModel) {
+fun ActasPlaceholderScreen(viewModel: LoginViewModel) {
     ModuleScreen(
         title = "Actas",
         description = "Aquí puedes ver y gestionar todas las actas disponibles",
@@ -736,7 +788,5 @@ fun MainMenuScreenPreview() {
 @Preview(showBackground = true)
 @Composable
 fun ActasScreenPreview() {
-    ProyectoTheme {
-        ActasScreen(viewModel())
-    }
+    ProyectoTheme { ActasScreen() }
 }

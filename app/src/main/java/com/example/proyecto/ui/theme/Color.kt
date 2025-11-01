@@ -1,5 +1,6 @@
 package com.example.proyecto.ui.theme
 
+import androidx.compose.ui.graphics.Brush // <-- IMPORT NECESARIO
 import androidx.compose.ui.graphics.Color
 
 // Pasteles estilo mockup
@@ -18,3 +19,16 @@ val TextPrimary   = Color(0xFF1E1E28)
 val TextSecondary = Color(0xFF61667A)
 val CardBg        = Color(0xFFFFFFFF)
 val ChipBg        = Color(0xFFF4F2FF)
+
+// --- 🎨 TU NUEVA PALETA DE COLORES ---
+val tuColorPrincipal = Color(0xFF6C63FF) // Púrpura (de VotacionesScreen)
+val tuColorSecundario = Color(0xFF8EC5FC) // Celeste (de VotacionesScreen)
+val tuColorFondo = Color(0xFFF8F9FA) // Gris muy claro (para contenido)
+
+// Gradiente de fondo para pantallas principales (Login, Menú)
+val tuGradienteFondo = Brush.linearGradient(
+    colors = listOf(
+        Color(0xFFE0C3FC), // Lila
+        Color(0xFF8EC5FC)  // Celeste
+    )
+)

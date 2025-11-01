@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.LazyColumn // <-- Import para Lista
+import androidx.compose.foundation.lazy.items // <-- Import para Lista
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer // <-- Import para rotar
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -74,6 +75,19 @@ import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 
+// --- 🎨 TU NUEVA PALETA DE COLORES ---
+val tuColorPrincipal = Color(0xFF6C63FF) // Púrpura (de VotacionesScreen)
+val tuColorSecundario = Color(0xFF8EC5FC) // Celeste (de VotacionesScreen)
+val tuColorFondo = Color(0xFFF8F9FA) // Gris muy claro (para contenido)
+
+// Gradiente de fondo para pantallas principales (Login, Menú)
+val tuGradienteFondo = Brush.linearGradient(
+    colors = listOf(
+        Color(0xFFE0C3FC), // Lila
+        Color(0xFF8EC5FC)  // Celeste
+    )
+)
+// ---
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,7 +105,7 @@ fun MainScreen(
     viewModel: LoginViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val token = uiState.token   // ← clave para VotacionesScreen
+    val token = uiState.token
 
     when (uiState.currentScreen) {
         LOGIN -> LoginScreen(viewModel = viewModel)
@@ -99,7 +113,8 @@ fun MainScreen(
         MAIN_MENU -> MainMenuScreen(viewModel = viewModel)
 
         ACTAS -> ActasScreen(
-            onVerActa = { acta -> viewModel.openActaDetalle(acta) }
+            onVerActa = { acta -> viewModel.openActaDetalle(acta) },
+            onBack = { viewModel.goBackToMainMenu() }
         )
 
         ASISTENCIA -> AsistenciaScreen(viewModel = viewModel)
@@ -113,16 +128,15 @@ fun MainScreen(
             } else {
                 VotacionesScreen(
                     token = token,
-                    onBack = { viewModel.goBackToMainMenu() } // ← vuelve al menú principal
-                    // alternativamente: onBack = { viewModel.navigateTo(AppScreen.MAIN_MENU) }
+                    onBack = { viewModel.goBackToMainMenu() }
                 )
             }
 
         }
-        AppScreen.ACTA_DETALLE -> {
+        ACTA_DETALLE -> {
             val acta = uiState.selectedActa
             if (acta == null) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(AppScreen.ACTAS) }
+                LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Sin acta seleccionada")
                 }
@@ -135,7 +149,6 @@ fun MainScreen(
         }
 
         TALLERES -> TalleresScreen(viewModel = viewModel)
-        ACTA_DETALLE -> TODO()
     }
 }
 
@@ -149,7 +162,6 @@ fun LoginScreen(
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     val uiState by viewModel.uiState.collectAsState()
 
-    // Limpiar mensajes cuando el usuario empiece a escribir
     LaunchedEffect(username, password) {
         if (uiState.errorMessage != null || uiState.successMessage != null) {
             viewModel.clearMessages()
@@ -159,14 +171,7 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF667eea), // Azul púrpura
-                        Color(0xFF764ba2)  // Púrpura
-                    )
-                )
-            )
+            .background(tuGradienteFondo)
     ) {
         Column(
             modifier = Modifier
@@ -193,7 +198,7 @@ fun LoginScreen(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = "Usuario",
-                        tint = Color(0xFF667eea),
+                        tint = tuColorPrincipal,
                         modifier = Modifier.size(50.dp)
                     )
                 }
@@ -219,7 +224,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -237,7 +242,7 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = "Usuario",
-                                tint = Color(0xFF667eea)
+                                tint = tuColorPrincipal
                             )
                         },
                         keyboardOptions = KeyboardOptions(
@@ -246,9 +251,9 @@ fun LoginScreen(
                         ),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF667eea),
+                            focusedBorderColor = tuColorPrincipal,
                             unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedLabelColor = Color(0xFF667eea)
+                            focusedLabelColor = tuColorPrincipal
                         ),
                         enabled = !uiState.isLoading
                     )
@@ -267,7 +272,7 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Contraseña",
-                                tint = Color(0xFF667eea)
+                                tint = tuColorPrincipal
                             )
                         },
                         keyboardOptions = KeyboardOptions(
@@ -283,9 +288,9 @@ fun LoginScreen(
                         ),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF667eea),
+                            focusedBorderColor = tuColorPrincipal,
                             unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedLabelColor = Color(0xFF667eea)
+                            focusedLabelColor = tuColorPrincipal
                         ),
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -299,6 +304,17 @@ fun LoginScreen(
                         enabled = !uiState.isLoading
                     )
 
+                    // Mensaje de error integrado
+                    if (uiState.errorMessage != null) {
+                        Text(
+                            text = uiState.errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     Button(
                         onClick = { viewModel.login(username, password) },
                         modifier = Modifier
@@ -306,7 +322,7 @@ fun LoginScreen(
                             .height(56.dp),
                         enabled = !uiState.isLoading && username.isNotBlank() && password.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF667eea),
+                            containerColor = tuColorPrincipal,
                             contentColor = Color.White,
                             disabledContainerColor = Color(0xFFB0BEC5)
                         ),
@@ -330,91 +346,6 @@ fun LoginScreen(
                             )
                         }
                     }
-
-                    Button(
-                        onClick = { viewModel.testConnection() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        enabled = !uiState.isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50),
-                            contentColor = Color.White,
-                            disabledContainerColor = Color(0xFFB0BEC5)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 6.dp,
-                            pressedElevation = 10.dp
-                        )
-                    ) {
-                        Text(
-                            text = "Probar Conexión",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-
-            // Mensajes
-            uiState.successMessage?.let { message ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 20.dp, start = 16.dp, end = 16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E8)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Éxito",
-                            tint = Color(0xFF4CAF50),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = message,
-                            color = Color(0xFF2E7D32),
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            }
-
-            uiState.errorMessage?.let { message ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 20.dp, start = 16.dp, end = 16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Build,
-                            contentDescription = "Error",
-                            tint = Color(0xFFE53935),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = message,
-                            color = Color(0xFFC62828),
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
                 }
             }
         }
@@ -430,14 +361,7 @@ fun MainMenuScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFFE8F5E8), // Verde muy claro
-                        Color(0xFFC8E6C9)  // Verde claro
-                    )
-                )
-            )
+            .background(tuGradienteFondo)
     ) {
         Column(
             modifier = Modifier
@@ -449,14 +373,14 @@ fun MainMenuScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(horizontal = 20.dp, vertical = 16.dp), // Padding ajustado
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -465,15 +389,17 @@ fun MainMenuScreen(
                             text = "¡Bienvenido!",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32)
+                            color = tuColorPrincipal
                         )
+                        // --- 💡 MEJORA 1: Texto de usuario más grande ---
                         Text(
                             text = "Hola, ${uiState.currentUser}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFF1976D2)
+                            style = MaterialTheme.typography.titleMedium, // Más grande
+                            color = Color.Gray
                         )
                     }
 
+                    // --- 💡 MEJORA 2: Botón "Salir" con Texto ---
                     Button(
                         onClick = { viewModel.logout() },
                         colors = ButtonDefaults.buttonColors(
@@ -482,50 +408,41 @@ fun MainMenuScreen(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
+                        Text("Salir", fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Default.ExitToApp,
-                            contentDescription = "Cerrar Sesión",
+                            contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
-            // Título del menú
-            Text(
-                text = "Módulos Disponibles",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1976D2),
-                modifier = Modifier
-                    .padding(bottom = 16.dp)
-                    .align(Alignment.CenterHorizontally)
-            )
+            // --- 💡 MEJORA 3: Título "Módulos" eliminado ---
 
-            // Grid de módulos
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+            // Lista de módulos
+            LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
                     ModuleCard(
                         title = "Reuniones",
-                        description = "Vizualizar actas y asistencia",
+                        description = "Visualizar actas",
                         icon = Icons.Default.List,
                         color = Color(0xFF2196F3),
-                        onClick = { viewModel.navigateTo(AppScreen.ACTAS) }
+                        onClick = { viewModel.navigateTo(ACTAS) }
                     )
                 }
 
                 item {
                     ModuleCard(
-                        title = "foro",
+                        title = "Foro",
                         description = "Espacio de debate",
                         icon = Icons.Default.Person,
                         color = Color(0xFF4CAF50),
-                        onClick = { viewModel.navigateTo(AppScreen.ASISTENCIA) }
+                        onClick = { viewModel.navigateTo(ASISTENCIA) }
                     )
                 }
 
@@ -535,7 +452,7 @@ fun MainMenuScreen(
                         description = "Sistema de votaciones",
                         icon = Icons.Default.CheckCircle,
                         color = Color(0xFFFF9800),
-                        onClick = { viewModel.navigateTo(AppScreen.VOTACION) }
+                        onClick = { viewModel.navigateTo(VOTACION) }
                     )
                 }
 
@@ -545,7 +462,7 @@ fun MainMenuScreen(
                         description = "Visualizar talleres",
                         icon = Icons.Default.Build,
                         color = Color(0xFF9C27B0),
-                        onClick = { viewModel.navigateTo(AppScreen.TALLERES) }
+                        onClick = { viewModel.navigateTo(TALLERES) }
                     )
                 }
             }
@@ -564,26 +481,23 @@ fun ModuleCard(
 ) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(140.dp),
+            .fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp), // <-- Más redondeado
         onClick = onClick
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // Icono
             Card(
-                modifier = Modifier
-                    .size(50.dp)
-                    .padding(bottom = 12.dp),
+                modifier = Modifier.size(50.dp),
                 colors = CardDefaults.cardColors(containerColor = color),
-                shape = RoundedCornerShape(25.dp)
+                shape = RoundedCornerShape(16.dp) // <-- Esquinas del icono
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -598,41 +512,47 @@ fun ModuleCard(
                 }
             }
 
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF212121),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+            Spacer(Modifier.width(16.dp))
 
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF757575),
-                textAlign = TextAlign.Center
+            // Columna para el texto
+            Column(modifier = Modifier.weight(1f)) {
+                // --- 💡 MEJORA 4: Texto de título más grande ---
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF212121),
+                    textAlign = TextAlign.Start,
+                )
+
+                // --- 💡 MEJORA 5: Descripción más legible ---
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium, // Más grande
+                    color = Color(0xFF616161), // Más oscuro
+                    textAlign = TextAlign.Start,
+                )
+            }
+
+            // --- 💡 MEJORA 6: Indicador de flecha más claro ---
+            Icon(
+                imageVector = Icons.Default.ArrowBack, // Usamos un ícono base
+                contentDescription = null,
+                tint = Color.Gray.copy(alpha = 0.4f),
+                modifier = Modifier
+                    .size(24.dp)
+                    .graphicsLayer(rotationZ = 180f) // Lo rotamos 180 grados
             )
         }
     }
 }
 
-@Composable
-fun ActasPlaceholderScreen(viewModel: LoginViewModel) {
-    ModuleScreen(
-        title = "Actas",
-        description = "Aquí puedes ver y gestionar todas las actas disponibles",
-        icon = Icons.Default.List,
-        color = Color(0xFF2196F3),
-        onBack = { viewModel.goBackToMainMenu() }
-    )
-}
 
 @Composable
 fun AsistenciaScreen(viewModel: LoginViewModel) {
     ModuleScreen(
-        title = "Asistencia",
-        description = "Control y registro de asistencia de participantes",
+        title = "Foro",
+        description = "Espacio de debate y comunicación",
         icon = Icons.Default.Person,
         color = Color(0xFF4CAF50),
         onBack = { viewModel.goBackToMainMenu() }
@@ -651,7 +571,7 @@ fun TalleresScreen(viewModel: LoginViewModel) {
 }
 
 @Composable
-fun ModuleScreen(
+fun ModuleScreen( // Pantalla genérica para módulos en desarrollo
     title: String,
     description: String,
     icon: ImageVector,
@@ -661,14 +581,7 @@ fun ModuleScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFFF5F5F5),
-                        Color(0xFFE0E0E0)
-                    )
-                )
-            )
+            .background(tuGradienteFondo)
     ) {
         Column(
             modifier = Modifier
@@ -685,7 +598,7 @@ fun ModuleScreen(
                 Button(
                     onClick = onBack,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF757575),
+                        containerColor = tuColorPrincipal,
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(12.dp)
@@ -703,7 +616,7 @@ fun ModuleScreen(
                     text = title,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF212121)
+                    color = Color.White
                 )
             }
 
@@ -783,10 +696,4 @@ fun MainMenuScreenPreview() {
     ProyectoTheme {
         MainMenuScreen()
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ActasScreenPreview() {
-    ProyectoTheme { ActasScreen() }
 }

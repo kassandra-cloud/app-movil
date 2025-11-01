@@ -7,7 +7,8 @@ data class ActaDto(
     val aprobada: Boolean,
     val reunion_titulo: String,
     val reunion_fecha: String,
-    val reunion_tipo: String
+    val reunion_tipo: String,
+    val resumen: String?
 )
 
 data class ReunionDto(

@@ -1,10 +1,7 @@
 package com.example.proyecto.ui.actas
 
-// Imports añadidos
 import androidx.activity.compose.BackHandler
-import androidx.compose.material.icons.filled.ArrowBack
-// ---
-
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -45,50 +43,57 @@ fun ActasScreen(
 
     var actaPreview by remember { mutableStateOf<ActaDto?>(null) }
 
+    // 1) Primer fetch (spinner solo si no hay datos)
     LaunchedEffect(Unit) { vm.cargarActas() }
+
+    // 2) Auto-refresh silencioso (no mostramos ninguna barra/loader)
+    LaunchedEffect("auto-refresh-actas") {
+        while (true) {
+            delay(10_000)        // 10s (puedes bajar a 5_000)
+            vm.cargarActas()     // el loader de pantalla NO se usa si ya hay datos
+        }
+    }
+
     BackHandler { onBack() }
 
-    // Definimos el gradiente inspirado en tu imagen
-    val gradientBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFFDCD8FF), // Un lila muy claro
-            Color(0xFFC0B8FF)  // Un lila un poco más oscuro
-        )
-    )
+    val gradientBrush = remember {
+        Brush.verticalGradient(listOf(Color(0xFFDCD8FF), Color(0xFFC0B8FF)))
+    }
 
-    // El Box aplica el fondo de gradiente a toda la pantalla
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(gradientBrush)
     ) {
         when {
-            loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            // Loader solo en primera carga
+            loading && actas.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
+
             error != null -> Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(16.dp), contentAlignment = Alignment.Center
+                Modifier.fillMaxSize().padding(16.dp),
+                contentAlignment = Alignment.Center
             ) {
                 ErrorBox(
                     message = error ?: "Error",
                     onDismiss = { vm.limpiarError() },
-                    onRetry = { vm.refrescar() }
+                    onRetry   = { vm.cargarActas() }
                 )
             }
+
             actas.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("No hay reuniones/actas disponibles.")
             }
-            // 3. Estructura cambiada a Column
+
             else -> Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp) // <-- Padding general
+                    .padding(16.dp)
             ) {
-                // 4. LazyColumn ahora tiene weight(1f)
+                // 👇 Sin barra de progreso para que no se note el refresco
+
                 LazyColumn(
-                    // Se quita el padding de aquí
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
@@ -129,25 +134,22 @@ fun ActasScreen(
                                     Spacer(Modifier.height(8.dp))
                                 }
 
+                                // 👇 Nada de “cargando…”. Solo mostramos cuando ya hay datos.
                                 val asistentes = asistenciasMap[a.reunion]
-                                when {
-                                    asistentes == null ->
-                                        Text("Tu asistencia: cargando…", style = MaterialTheme.typography.bodySmall)
-                                    else -> {
-                                        val tuRegistro = asistentes.firstOrNull { asis ->
-                                            val nu = norm(asis.nombre_usuario)
-                                            val nc = norm(asis.nombre_completo)
-                                            val rut = norm(asis.rut)
-                                            cu.isNotEmpty() && (nu == cu || nc.contains(cu) || cu.contains(nc) || rut == cu)
-                                        }
-                                        when {
-                                            tuRegistro == null ->
-                                                Text("Tu asistencia: — sin registro", style = MaterialTheme.typography.bodySmall)
-                                            tuRegistro.presente ->
-                                                TuAsistenciaRow("Presente", true)
-                                            else ->
-                                                TuAsistenciaRow("Ausente", false)
-                                        }
+                                if (asistentes != null) {
+                                    val tuRegistro = asistentes.firstOrNull { asis ->
+                                        val nu = norm(asis.nombre_usuario)
+                                        val nc = norm(asis.nombre_completo)
+                                        val rut = norm(asis.rut)
+                                        cu.isNotEmpty() && (nu == cu || nc.contains(cu) || cu.contains(nc) || rut == cu)
+                                    }
+                                    when {
+                                        tuRegistro == null ->
+                                            Text("Tu asistencia: — sin registro", style = MaterialTheme.typography.bodySmall)
+                                        tuRegistro.presente ->
+                                            TuAsistenciaRow("Presente", true)
+                                        else ->
+                                            TuAsistenciaRow("Ausente", false)
                                     }
                                 }
 
@@ -158,10 +160,9 @@ fun ActasScreen(
                                     onClick = { if (puedeVerActa) onVerActa(a) },
                                     enabled = puedeVerActa,
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(50) // Botón "Ver acta" sigue siendo píldora
-                                ) {
-                                    Text("Ver acta")
-                                }
+                                    shape = RoundedCornerShape(50)
+                                ) { Text("Ver acta") }
+
                                 if (!puedeVerActa) {
                                     Text(
                                         text = "Disponible cuando el acta esté aprobada",
@@ -173,26 +174,23 @@ fun ActasScreen(
                             }
                         }
                     }
-                } // Fin de LazyColumn
+                }
 
-                // 5. Botón "Volver" añadido (estilo corregido)
-                Spacer(Modifier.height(8.dp)) // Spacer añadido
+                Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = onBack,
-                    modifier = Modifier.fillMaxWidth(), // Padding individual quitado
-                    shape = RoundedCornerShape(16.dp), // Forma corregida
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF)) // Color de VotacionesScreen
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))
                 ) {
                     Icon(Icons.Default.ArrowBack, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Volver")
                 }
-
-            } // Fin de Column
+            }
         }
     }
 
-    // Dialog de previsualización
     if (actaPreview != null) {
         ActaPreviewDialog(
             acta = actaPreview!!,
@@ -205,7 +203,6 @@ fun ActasScreen(
     }
 }
 
-// ... (Las funciones ActaPreviewDialog, TuAsistenciaRow, StatusPill, ErrorBox y norm NO CAMBIAN) ...
 @Composable
 private fun ActaPreviewDialog(
     acta: ActaDto,
@@ -214,37 +211,22 @@ private fun ActaPreviewDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        // Forma redondeada para el diálogo
         shape = RoundedCornerShape(24.dp),
-        title = {
-            Text(acta.reunion_titulo, fontWeight = FontWeight.Bold)
-        },
+        title = { Text(acta.reunion_titulo, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text("Fecha: ${acta.reunion_fecha}", style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    acta.resumen ?: "Sin resumen disponible.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(acta.resumen ?: "Sin resumen disponible.", style = MaterialTheme.typography.bodyMedium)
             }
         },
         confirmButton = {
-            Button(
-                onClick = { onVerActa(acta) },
-                enabled = acta.aprobada,
-                // Forma de píldora
-                shape = RoundedCornerShape(50)
-            ) {
+            Button(onClick = { onVerActa(acta) }, enabled = acta.aprobada, shape = RoundedCornerShape(50)) {
                 Text("Ver acta completa")
             }
         },
         dismissButton = {
-            OutlinedButton(
-                onClick = onDismiss,
-                // Forma de píldora
-                shape = RoundedCornerShape(50)
-            ) {
+            OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(50)) {
                 Text("Cerrar")
             }
         }
@@ -258,17 +240,9 @@ private fun TuAsistenciaRow(texto: String, presente: Boolean) {
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (presente) {
-            Icon(
-                Icons.Filled.CheckCircle,
-                contentDescription = "Presente",
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Icon(Icons.Filled.CheckCircle, contentDescription = "Presente", tint = MaterialTheme.colorScheme.primary)
         } else {
-            Icon(
-                Icons.Filled.Close,
-                contentDescription = "Ausente",
-                tint = MaterialTheme.colorScheme.error
-            )
+            Icon(Icons.Filled.Close, contentDescription = "Ausente", tint = MaterialTheme.colorScheme.error)
         }
         Text("Tu asistencia: $texto", style = MaterialTheme.typography.bodyMedium)
     }
@@ -281,14 +255,9 @@ private fun StatusPill(text: String, positive: Boolean) {
         else MaterialTheme.colorScheme.secondaryContainer,
         contentColor = if (positive) MaterialTheme.colorScheme.onPrimaryContainer
         else MaterialTheme.colorScheme.onSecondaryContainer,
-        // Forma de píldora
         shape = RoundedCornerShape(50)
     ) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelLarge
-        )
+        Text(text, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -296,29 +265,16 @@ private fun StatusPill(text: String, positive: Boolean) {
 private fun ErrorBox(message: String, onDismiss: () -> Unit, onRetry: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-        // Forma redondeada
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text(
-                "Error",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
+            Text("Error", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onErrorContainer)
             Spacer(Modifier.height(4.dp))
             Text(message, color = MaterialTheme.colorScheme.onErrorContainer)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    // Forma de píldora
-                    shape = RoundedCornerShape(50)
-                ) { Text("Cerrar") }
-                Button(
-                    onClick = onRetry,
-                    // Forma de píldora
-                    shape = RoundedCornerShape(50)
-                ) { Text("Reintentar") }
+                OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(50)) { Text("Cerrar") }
+                Button(onClick = onRetry, shape = RoundedCornerShape(50)) { Text("Reintentar") }
             }
         }
     }
@@ -330,164 +286,49 @@ private fun norm(s: String?): String =
         .replace(Regex("\\p{M}+"), "")
         .replace(Regex("[^a-z0-9]"), "")
 
-// ----------- PREVIEW PARA ANDROID STUDIO -----------
-// 6. Preview actualizado para reflejar la nueva estructura
 @Preview(showBackground = true)
 @Composable
 fun PreviewActasScreen() {
-
-    data class FakeAsistencia(
-        val nombre_usuario: String,
-        val nombre_completo: String,
-        val rut: String,
-        val presente: Boolean
-    )
-
     val actasEjemplo = listOf(
-        ActaDto(
-            reunion = 1,
-            contenido = "Contenido completo del acta de ejemplo.",
-            aprobada = true,
-            reunion_titulo = "Reunión de ejemplo",
-            reunion_fecha = "2025-11-01",
-            reunion_tipo = "Ordinaria",
-            resumen = "Este es un resumen de ejemplo para la previsualización de la acta. Aquí puedes ver cómo se muestra el texto resumido en la tarjeta y el diálogo."
-        ),
-        ActaDto(
-            reunion = 2,
-            contenido = "Otro contenido de acta.",
-            aprobada = false,
-            reunion_titulo = "Reunión pendiente",
-            reunion_fecha = "2025-10-15",
-            reunion_tipo = "Extraordinaria",
-            resumen = "Resumen breve de una acta no aprobada."
-        )
+        ActaDto(1, "Contenido", true,  "Reunión de ejemplo", "2025-11-01", "Ordinaria", "Resumen demo"),
+        ActaDto(2, "Contenido", false, "Reunión pendiente",  "2025-10-15", "Extraordinaria", "Resumen breve")
     )
-
-    val asistenciasFake = mapOf(
-        1 to listOf(
-            FakeAsistencia(
-                nombre_usuario = "usuario",
-                nombre_completo = "Usuario Ejemplo",
-                rut = "12345678-9",
-                presente = true
-            )
-        ),
-        2 to listOf(
-            FakeAsistencia(
-                nombre_usuario = "usuario",
-                nombre_completo = "Usuario Ejemplo",
-                rut = "12345678-9",
-                presente = false
-            )
-        )
-    )
-
-    val gradientBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFFDCD8FF), // Un lila muy claro
-            Color(0xFFC0B8FF)  // Un lila un poco más oscuro
-        )
-    )
-
+    val gradientBrush = Brush.verticalGradient(listOf(Color(0xFFDCD8FF), Color(0xFFC0B8FF)))
     MaterialTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(gradientBrush)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp) // Padding general
-            ) { // Columna principal
-                LazyColumn(
-                    // Se quita el padding de aquí
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f), // Con weight
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+        Box(Modifier.fillMaxSize().background(gradientBrush)) {
+            Column(Modifier.fillMaxSize().padding(16.dp)) {
+                LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(actasEjemplo, key = { it.reunion }) { a ->
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             elevation = CardDefaults.cardElevation(6.dp),
                             shape = RoundedCornerShape(24.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f))
                         ) {
                             Column(Modifier.padding(18.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        a.reunion_titulo,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    StatusPill(
-                                        text = if (a.aprobada) "Aprobada" else "No aprobada",
-                                        positive = a.aprobada
-                                    )
+                                    Text(a.reunion_titulo, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                    StatusPill(if (a.aprobada) "Aprobada" else "No aprobada", a.aprobada)
                                 }
                                 Spacer(Modifier.height(4.dp))
                                 Text(a.reunion_fecha, style = MaterialTheme.typography.bodySmall)
                                 Spacer(Modifier.height(10.dp))
-                                if (!a.resumen.isNullOrBlank()) {
-                                    Text(
-                                        a.resumen.take(120) + if (a.resumen.length > 120) "..." else "",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                }
-
-                                val asistencia = asistenciasFake[a.reunion]?.first()
-                                if (asistencia != null) {
-                                    if (asistencia.presente) {
-                                        TuAsistenciaRow("Presente", true)
-                                    } else {
-                                        TuAsistenciaRow("Ausente", false)
-                                    }
-                                } else {
-                                    Text("Tu asistencia: — sin registro", style = MaterialTheme.typography.bodySmall)
-                                }
-
+                                TuAsistenciaRow(if (a.aprobada) "Presente" else "Ausente", a.aprobada)
                                 Spacer(Modifier.height(12.dp))
-
-                                Button(
-                                    onClick = { },
-                                    enabled = a.aprobada,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(50) // Botón píldora
-                                ) {
+                                Button(onClick = { }, enabled = a.aprobada, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(50)) {
                                     Text("Ver acta")
-                                }
-                                if (!a.aprobada) {
-                                    Text(
-                                        text = "Disponible cuando el acta esté aprobada",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
                                 }
                             }
                         }
                     }
-                } // Fin de LazyColumn (preview)
-
-                // Botón "Volver" (preview)
-                Spacer(Modifier.height(8.dp)) // Spacer añadido
-                Button(
-                    onClick = { },
-                    modifier = Modifier.fillMaxWidth(), // Padding individual quitado
-                    shape = RoundedCornerShape(16.dp), // Forma corregida
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))
-                ) {
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = { }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))) {
                     Icon(Icons.Default.ArrowBack, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Volver")
                 }
-            } // Fin de Column (preview)
+            }
         }
     }
 }

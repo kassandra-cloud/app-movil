@@ -20,15 +20,22 @@ val TextSecondary = Color(0xFF61667A)
 val CardBg        = Color(0xFFFFFFFF)
 val ChipBg        = Color(0xFFF4F2FF)
 
-// --- 🎨 TU NUEVA PALETA DE COLORES ---
-val tuColorPrincipal = Color(0xFF6C63FF) // Púrpura (de VotacionesScreen)
-val tuColorSecundario = Color(0xFF8EC5FC) // Celeste (de VotacionesScreen)
+
+// Versiones más claras de los colores de tu web
+val webColorPrincipal = Color(0xFF33BACC) // Un cian más claro y brillante
+val webColorSecundario = Color(0xFF66D9CE) // Un aqua/cian mucho más claro
+
+// Asignamos el color principal de la app (para botones, iconos, etc.)
+val tuColorPrincipal = webColorPrincipal
+
+// El fondo para las tarjetas se mantiene
 val tuColorFondo = Color(0xFFF8F9FA) // Gris muy claro (para contenido)
 
 // Gradiente de fondo para pantallas principales (Login, Menú)
 val tuGradienteFondo = Brush.linearGradient(
     colors = listOf(
-        Color(0xFFE0C3FC), // Lila
-        Color(0xFF8EC5FC)  // Celeste
+        webColorPrincipal,
+        webColorSecundario
     )
 )
+// ---

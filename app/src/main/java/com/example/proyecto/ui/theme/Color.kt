@@ -1,41 +1,39 @@
 package com.example.proyecto.ui.theme
 
-import androidx.compose.ui.graphics.Brush // <-- IMPORT NECESARIO
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-// Pasteles estilo mockup
-val Lavender = Color(0xFFF1E9FF)
-val Lilac    = Color(0xFFD9C8FF)
-val Peach    = Color(0xFFFFE7F0)
-val Sky      = Color(0xFFE7F3FF)
-val Mint     = Color(0xFFEAFBF4)
+/**
+ * Objeto centralizado para gestionar la paleta de colores de la aplicación.
+ * Simplifica la paleta al esquema principal Cian/Menta y colores de utilidad.
+ */
+object AppColors {
 
-val Primary  = Color(0xFF7B61FF)   // morado principal
-val Secondary= Color(0xFF79E3D8)   // aqua
-val Tertiary = Color(0xFFFFB3C7)   // rosado
+    // 🔑 PALETA PRIMARIA (Cian/Menta)
+    val Principal = Color(0xFF33BACC) // Cian
+    val Secundario = Color(0xFF66D9CE) // Menta
 
-// Texto
-val TextPrimary   = Color(0xFF1E1E28)
-val TextSecondary = Color(0xFF61667A)
-val CardBg        = Color(0xFFFFFFFF)
-val ChipBg        = Color(0xFFF4F2FF)
+    // COLORES DE UTILIDAD
 
+    // Texto y Fondos
+    val TextPrimary = Color(0xFF1E1E28) // Texto oscuro principal
+    val GrisOscuroTexto = Color(0xFF616161) // Texto gris secundario
+    val CardBg = Color(0xFFFFFFFF) // Fondo de tarjetas (Blanco)
+    val GrisClaroFondo = Color(0xFFEEEEEE) // Gris muy claro (Para chips, como "No Aprobada")
 
-// Versiones más claras de los colores de tu web
-val webColorPrincipal = Color(0xFF33BACC) // Un cian más claro y brillante
-val webColorSecundario = Color(0xFF66D9CE) // Un aqua/cian mucho más claro
+    // Acentos Específicos (Dashboard y Botón Salir)
+    val BotonSalir = Color(0xFFF06292) // Rosa/Coral
 
-// Asignamos el color principal de la app (para botones, iconos, etc.)
-val tuColorPrincipal = webColorPrincipal
+    // Colores de Iconos del Dashboard (Basado en tu diseño)
+    val IconoReuniones = Color(0xFF42A5F5) // Azul
+    val IconoForo = Color(0xFF66BB6A) // Verde
+    val IconoVotacion = Color(0xFFFFB300) // Naranja/Ámbar
+    val IconoTalleres = Color(0xFFAA00FF) // Púrpura
 
-// El fondo para las tarjetas se mantiene
-val tuColorFondo = Color(0xFFF8F9FA) // Gris muy claro (para contenido)
-
-// Gradiente de fondo para pantallas principales (Login, Menú)
-val tuGradienteFondo = Brush.linearGradient(
-    colors = listOf(
-        webColorPrincipal,
-        webColorSecundario
-    )
-)
-// ---
+    // GRADIENTE UNIFORME
+    // Este degradado se usa en fondos y encabezados principales.
+    val GradientePrincipal: Brush
+        @Composable
+        get() = Brush.verticalGradient(listOf(Principal, Secundario))
+}

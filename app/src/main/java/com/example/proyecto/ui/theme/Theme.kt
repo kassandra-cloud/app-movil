@@ -8,15 +8,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+// ✅ CORRECCIÓN: Usamos las referencias del objeto AppColors
 private val LightColors = lightColorScheme(
-    primary = Primary,
+    primary = AppColors.Principal,       // Cian
     onPrimary = Color.White,
-    secondary = Secondary,
-    onSecondary = TextPrimary,
-    tertiary = Tertiary,
-    background = Lavender,
-    surface = CardBg,
-    onSurface = TextPrimary
+    secondary = AppColors.Secundario,    // Menta
+    onSecondary = AppColors.TextPrimary,
+    tertiary = AppColors.BotonSalir,     // Usaremos el rosa/coral para terciario
+    background = AppColors.CardBg,       // Fondo de aplicación principal (Blanco)
+    surface = AppColors.CardBg,          // Superficie de componentes (Blanco)
+    onSurface = AppColors.TextPrimary
 )
 
 @Composable
@@ -37,6 +38,7 @@ fun ProyectoTheme(
             extraLarge = RoundedCornerShape(36.dp)
         ),
         typography = Typography(
+            // Manteniendo tus definiciones de tipografía
             displayMedium = Typography().displayMedium.copy(lineHeight = 40.sp),
             titleLarge   = Typography().titleLarge.copy(fontSize = 22.sp),
             bodyLarge    = Typography().bodyLarge.copy(fontSize = 18.sp),

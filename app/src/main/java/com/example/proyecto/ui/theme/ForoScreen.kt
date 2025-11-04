@@ -11,14 +11,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +32,8 @@ import coil.compose.AsyncImage
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.MediaItem
 
+import com.example.proyecto.api.ApiClient
+import com.example.proyecto.data.ComentarioDto
 import com.example.proyecto.data.PublicacionDto
 import com.example.proyecto.viewmodel.ForoViewModel
 
@@ -106,6 +106,12 @@ private fun ErrorView(
     }
 }
 
+/** Convierte URL relativa del backend (p. ej. /media/x.jpg) a absoluta usando ApiClient.baseUrl */
+private fun absoluteUrl(url: String): String {
+    return if (url.startsWith("http", ignoreCase = true)) url
+    else ApiClient.baseUrl.trimEnd('/') + url
+}
+
 @Composable
 private fun PublicacionCard(
     p: PublicacionDto,
@@ -113,7 +119,7 @@ private fun PublicacionCard(
     vm: ForoViewModel,
     onImageClick: (String) -> Unit
 ) {
-    // Traer los comentarios al montar la card
+    // Cargar comentarios al montar
     LaunchedEffect(p.id) { vm.cargarComentarios(token, p.id) }
 
     val comentarios = vm.comentarios[p.id] ?: emptyList()
@@ -133,13 +139,13 @@ private fun PublicacionCard(
             if (imagenes.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 AsyncImage(
-                    model = imagenes.first().url,
+                    model = absoluteUrl(imagenes.first().url),
                     contentDescription = imagenes.first().nombre ?: "Imagen adjunta",
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable { onImageClick(imagenes.first().url) },
+                        .clickable { onImageClick(absoluteUrl(imagenes.first().url)) },
                     contentScale = ContentScale.Crop
                 )
                 if (imagenes.size > 1) {
@@ -147,13 +153,13 @@ private fun PublicacionCard(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(imagenes.drop(1)) { img ->
                             AsyncImage(
-                                model = img.url,
+                                model = absoluteUrl(img.url),
                                 contentDescription = img.nombre ?: "Imagen adjunta",
                                 modifier = Modifier
                                     .height(80.dp)
                                     .width(120.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .clickable { onImageClick(img.url) },
+                                    .clickable { onImageClick(absoluteUrl(img.url)) },
                                 contentScale = ContentScale.Crop
                             )
                         }
@@ -165,7 +171,7 @@ private fun PublicacionCard(
             val audios = p.adjuntos.filter { it.tipoArchivo.equals("audio", ignoreCase = true) }
             audios.forEach { a ->
                 Spacer(Modifier.height(10.dp))
-                AudioPlayer(url = a.url, titulo = a.nombre ?: "Audio")
+                AudioPlayer(url = absoluteUrl(a.url), titulo = a.nombre ?: "Audio")
             }
 
             // --- OTROS ADJUNTOS ---
@@ -185,24 +191,31 @@ private fun PublicacionCard(
             }
 
             Spacer(Modifier.height(10.dp))
-            Divider()
+            HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
-            // --- COMENTARIOS ---
+            // --- COMENTARIOS (con hilos estilo web) ---
             Text("Comentarios (${comentarios.size})", style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(6.dp))
-            comentarios.forEach { c ->
-                Text("• ${c.autor}: ${c.contenido}", style = MaterialTheme.typography.bodySmall)
-            }
+            ComentariosThread(
+                comentarios = comentarios,
+                onReply = { parentId, text ->
+                    vm.comentar(token = token, pubId = p.id, texto = text, parentId = parentId)
+                }
+            )
 
             if (errorSend != null) {
                 Spacer(Modifier.height(4.dp))
-                Text(errorSend, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                Text(
+                    errorSend,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // --- Composer (enviar comentario) ---
+            // --- Composer (nuevo comentario raíz) ---
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = reply,
@@ -215,7 +228,7 @@ private fun PublicacionCard(
                         onSend = {
                             val t = reply.trim()
                             if (t.isNotBlank() && !posteando) {
-                                vm.comentar(token, p.id, t)
+                                vm.comentar(token, p.id, t, parentId = null)
                                 reply = ""
                             }
                         }
@@ -226,7 +239,7 @@ private fun PublicacionCard(
                     onClick = {
                         val t = reply.trim()
                         if (t.isNotBlank() && !posteando) {
-                            vm.comentar(token, p.id, t)
+                            vm.comentar(token, p.id, t, parentId = null)
                             reply = ""
                         }
                     },
@@ -235,7 +248,7 @@ private fun PublicacionCard(
                     if (posteando) {
                         CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
                     } else {
-                        Icon(Icons.Filled.Send, contentDescription = "Enviar")
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar")
                     }
                 }
             }
@@ -245,6 +258,106 @@ private fun PublicacionCard(
         }
     }
 }
+
+/* ---------- Lista de comentarios con hilos (estilo web) ---------- */
+
+@Composable
+private fun ComentariosThread(
+    comentarios: List<ComentarioDto>,
+    onReply: (parentId: Int, text: String) -> Unit
+) {
+    val porPadre = remember(comentarios) { comentarios.groupBy { it.parent } }
+    val raiz = porPadre[null].orEmpty()
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        raiz.forEach { c ->
+            ComentarioItem(
+                c = c,
+                hijos = porPadre[c.id].orEmpty(),
+                onReply = onReply,
+                nivel = 0
+            )
+        }
+    }
+}
+
+@Composable
+private fun ComentarioItem(
+    c: ComentarioDto,
+    hijos: List<ComentarioDto>,
+    onReply: (parentId: Int, text: String) -> Unit,
+    nivel: Int
+) {
+    var abrirRespuesta by remember { mutableStateOf(false) }
+    var texto by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier.padding(start = if (nivel == 0) 0.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "@${c.autor}",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = "· ${c.fechaCreacion}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Text(text = c.contenido, style = MaterialTheme.typography.bodySmall)
+
+        TextButton(
+            onClick = { abrirRespuesta = !abrirRespuesta },
+            contentPadding = PaddingValues(0.dp)
+        ) { Text(if (abrirRespuesta) "Cancelar" else "Responder") }
+
+        if (abrirRespuesta) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = texto,
+                    onValueChange = { texto = it },
+                    placeholder = { Text("Escribe tu respuesta…") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        val t = texto.trim()
+                        if (t.isNotBlank()) {
+                            onReply(c.id, t)
+                            texto = ""
+                            abrirRespuesta = false
+                        }
+                    }
+                ) { Text("Enviar") }
+            }
+        }
+
+        if (hijos.isNotEmpty()) {
+            Column(
+                modifier = Modifier.padding(top = 4.dp, start = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                hijos.forEach { h ->
+                    ComentarioItem(
+                        c = h,
+                        hijos = emptyList(),   // 2 niveles, igual que la web
+                        onReply = onReply,
+                        nivel = nivel + 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+/* ------------------ Audio player ------------------ */
 
 @Composable
 private fun AudioPlayer(url: String, titulo: String) {
@@ -256,10 +369,7 @@ private fun AudioPlayer(url: String, titulo: String) {
         }
     }
     var playing by remember { mutableStateOf(false) }
-
-    DisposableEffect(Unit) {   // <-- import necesario
-        onDispose { player.release() }
-    }
+    DisposableEffect(Unit) { onDispose { player.release() } }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF6F6F6)),
@@ -271,11 +381,8 @@ private fun AudioPlayer(url: String, titulo: String) {
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             IconButton(onClick = {
-                if (player.isPlaying) {
-                    player.pause(); playing = false
-                } else {
-                    player.play(); playing = true
-                }
+                if (player.isPlaying) { player.pause(); playing = false }
+                else { player.play(); playing = true }
             }) {
                 Icon(
                     imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
@@ -286,6 +393,8 @@ private fun AudioPlayer(url: String, titulo: String) {
         }
     }
 }
+
+/* ---------------- Imagen fullscreen ---------------- */
 
 @Composable
 private fun FullscreenImage(url: String, onDismiss: () -> Unit) {

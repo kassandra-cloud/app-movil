@@ -8,5 +8,6 @@ data class TallerDto(
     val descripcion: String,
     @SerializedName("cupos_totales") val cuposTotales: Int,
     @SerializedName("inscritos_count") val inscritosCount: Int,
-    @SerializedName("cupos_disponibles") val cuposDisponibles: Int
+    @SerializedName("cupos_disponibles") val cuposDisponibles: Int,
+    @SerializedName("esta_inscrito") val estaInscrito: Boolean
 )

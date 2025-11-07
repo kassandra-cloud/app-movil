@@ -32,7 +32,7 @@ import java.text.Normalizer
 
 // 🔑 PALETA DE COLORES PRINCIPAL
 val tuColorPrincipal = Color(0xFF33BACC) // Azul/Cian
-val webColorSecundario = Color(0xFF66D9CE) // Menta
+val webColorSecundario = Color(0xFF66D9CE) // Menta (aunque ya casi no la usaremos directamente)
 val grisClaroFondo = Color(0xFFEEEEEE) // Fondo gris muy claro para "No Aprobada"
 val grisOscuroTexto = Color(0xFF616161) // Texto gris oscuro para "No Aprobada"
 
@@ -290,12 +290,14 @@ private fun TuAsistenciaRow(texto: String, presente: Boolean) {
 
 @Composable
 private fun StatusPill(text: String, positive: Boolean) {
-    val webColorSecundario = Color(0xFF66D9CE)
+    // Eliminamos la referencia a webColorSecundario aquí para asegurar que siempre use tuColorPrincipal para 'positive'
+    // val webColorSecundario = Color(0xFF66D9CE) // Comentado o eliminado
     val grisClaroFondo = Color(0xFFEEEEEE)
     val grisOscuroTexto = Color(0xFF616161)
 
     Surface(
-        color = if (positive) webColorSecundario else grisClaroFondo,
+        // Aseguramos que si es positivo (aprobada), use tuColorPrincipal (cian)
+        color = if (positive) tuColorPrincipal else grisClaroFondo,
         contentColor = if (positive) Color.White else grisOscuroTexto,
         shape = RoundedCornerShape(50)
     ) {
@@ -335,8 +337,8 @@ fun PreviewActasScreen() {
         ActaDto(2, "Contenido", false, "Reunión de planificación",  "2025-10-15", "Extraordinaria", "Resumen breve")
     )
     val tuColorPrincipal = Color(0xFF33BACC)
-    val webColorSecundario = Color(0xFF66D9CE)
-    val gradientBrush = Brush.verticalGradient(listOf(tuColorPrincipal, webColorSecundario))
+    // val webColorSecundario = Color(0xFF66D9CE) // Comentado también en el Preview
+    val gradientBrush = Brush.verticalGradient(listOf(tuColorPrincipal, Color(0xFF66D9CE))) // Puedes mantener el degradado con el secundario si te gusta
 
     MaterialTheme {
         Scaffold(
@@ -392,6 +394,7 @@ fun PreviewActasScreen() {
                         Column(Modifier.padding(16.dp)) { // Padding optimizado
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(a.reunion_titulo, style = MaterialTheme.typography.titleLarge.copy(color = tuColorPrincipal), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                // Esta llamada a StatusPill ahora usará la versión modificada
                                 StatusPill(if (a.aprobada) "Aprobada" else "No aprobada", a.aprobada)
                             }
                             Spacer(Modifier.height(4.dp))

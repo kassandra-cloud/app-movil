@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     // Cambia la IP/host según tu backend
-    private const val BASE_URL = "http://192.168.0.106:8000/"
+    private const val BASE_URL = "http://192.168.0.100:8000/"
 
     // Logger de red
     private val logging = HttpLoggingInterceptor().apply {

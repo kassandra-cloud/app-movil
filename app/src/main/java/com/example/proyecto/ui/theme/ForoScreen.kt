@@ -29,6 +29,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+// Añade esta línea:
+import androidx.compose.foundation.BorderStroke
+// --------------------
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.MediaItem
 
@@ -36,6 +39,13 @@ import com.example.proyecto.api.ApiClient
 import com.example.proyecto.data.ComentarioDto
 import com.example.proyecto.data.PublicacionDto
 import com.example.proyecto.viewmodel.ForoViewModel
+
+// ... (El resto del código de tu archivo ForoScreen.kt)
+// 🎨 PALETA DE COLORES
+val ColorPrincipal = Color(0xFF42A5F5) // Azul Vibrante
+val ColorSecundario = Color(0xFF1E88E5) // Azul Oscuro (para el degradado)
+val ColorGrisFondo = Color(0xFFF6F6F6) // Gris claro (fondo de componentes/anidados)
+val ColorGrisBorde = Color(0xFFE0E0E0) // Gris para separadores
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,18 +62,25 @@ fun ForoScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Foro") },
+                title = { Text("Foro", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = ColorPrincipal,
+                    scrolledContainerColor = ColorPrincipal
+                )
             )
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
-                state.cargando -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                state.cargando -> CircularProgressIndicator(
+                    Modifier.align(Alignment.Center),
+                    color = ColorPrincipal
+                )
                 state.error != null -> ErrorView(
                     mensaje = state.error ?: "Error",
                     onRetry = { vm.cargar(token) },
@@ -72,8 +89,8 @@ fun ForoScreen(
                 state.publicaciones.isEmpty() ->
                     Text("Sin publicaciones", Modifier.align(Alignment.Center))
                 else -> LazyColumn(
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp) // Más espacio entre publicaciones
                 ) {
                     items(state.publicaciones, key = { it.id }) { p ->
                         PublicacionCard(
@@ -102,7 +119,10 @@ private fun ErrorView(
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("No se pudo cargar.\n$mensaje")
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry) { Text("Reintentar") }
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(containerColor = ColorPrincipal)
+        ) { Text("Reintentar") }
     }
 }
 
@@ -119,31 +139,53 @@ private fun PublicacionCard(
     vm: ForoViewModel,
     onImageClick: (String) -> Unit
 ) {
-    // Cargar comentarios al montar
     LaunchedEffect(p.id) { vm.cargarComentarios(token, p.id) }
 
     val comentarios = vm.comentarios[p.id] ?: emptyList()
-    val posteando = vm.posting[p.id] == true
+    val posting = vm.posting[p.id] == true
     val errorSend = vm.postError[p.id]
 
     var reply by remember { mutableStateOf("") }
 
-    Card {
-        Column(Modifier.padding(16.dp)) {
-            Text(p.autor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(6.dp))
-            Text(p.contenido, style = MaterialTheme.typography.bodyMedium)
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White) // Aseguramos fondo blanco
+    ) {
+        Column(Modifier.padding(20.dp)) {
 
-            // --- IMÁGENES ---
+            // --- CABECERA DE LA PUBLICACIÓN (Autor y Contenido) ---
+            Text(
+                p.autor,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = ColorPrincipal
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(p.fechaCreacion, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) // Fecha más cerca del autor
+            Spacer(Modifier.height(10.dp))
+            Text(p.contenido, style = MaterialTheme.typography.bodyLarge)
+
+            // --- ADJUNTOS ---
             val imagenes = p.adjuntos.filter { it.tipoArchivo.equals("imagen", ignoreCase = true) }
+            val audios = p.adjuntos.filter { it.tipoArchivo.equals("audio", ignoreCase = true) }
+            val otros = p.adjuntos.filter { it.tipoArchivo.lowercase() !in listOf("imagen", "audio") }
+
+            if (imagenes.isNotEmpty() || audios.isNotEmpty() || otros.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = ColorGrisBorde)
+                Spacer(Modifier.height(16.dp))
+            }
+
+
+            // IMÁGENES
             if (imagenes.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
                 AsyncImage(
                     model = absoluteUrl(imagenes.first().url),
                     contentDescription = imagenes.first().nombre ?: "Imagen adjunta",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
+                        .height(220.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { onImageClick(absoluteUrl(imagenes.first().url)) },
                     contentScale = ContentScale.Crop
@@ -165,20 +207,19 @@ private fun PublicacionCard(
                         }
                     }
                 }
+                if (audios.isNotEmpty() || otros.isNotEmpty()) Spacer(Modifier.height(12.dp))
             }
 
-            // --- AUDIO ---
-            val audios = p.adjuntos.filter { it.tipoArchivo.equals("audio", ignoreCase = true) }
+            // AUDIO
             audios.forEach { a ->
-                Spacer(Modifier.height(10.dp))
                 AudioPlayer(url = absoluteUrl(a.url), titulo = a.nombre ?: "Audio")
+                if (a != audios.last()) Spacer(Modifier.height(8.dp))
             }
 
-            // --- OTROS ADJUNTOS ---
-            val otros = p.adjuntos.filter { it.tipoArchivo.lowercase() !in listOf("imagen", "audio") }
+            // OTROS ADJUNTOS
             if (otros.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text("Adjuntos:", style = MaterialTheme.typography.labelMedium)
+                if (audios.isNotEmpty()) Spacer(Modifier.height(12.dp))
+                Text("Adjuntos:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(4.dp))
                 otros.forEach { a ->
                     Text(
@@ -190,13 +231,17 @@ private fun PublicacionCard(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
+            // --- COMENTARIOS (Visualización y Composer) ---
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = ColorGrisBorde)
+            Spacer(Modifier.height(16.dp))
 
-            // --- COMENTARIOS (con hilos estilo web) ---
-            Text("Comentarios (${comentarios.size})", style = MaterialTheme.typography.labelMedium)
-            Spacer(Modifier.height(6.dp))
+
+            // TÍTULO COMENTARIOS
+            Text("Comentarios (${comentarios.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(12.dp))
+
+            // HILOS DE COMENTARIOS
             ComentariosThread(
                 comentarios = comentarios,
                 onReply = { parentId, text ->
@@ -205,17 +250,17 @@ private fun PublicacionCard(
             )
 
             if (errorSend != null) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     errorSend,
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.labelSmall
+                    style = MaterialTheme.typography.labelMedium
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // --- Composer (nuevo comentario raíz) ---
+            // COMPOSER
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = reply,
@@ -224,10 +269,15 @@ private fun PublicacionCard(
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    shape = RoundedCornerShape(16.dp), // Más redondez
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ColorPrincipal,
+                        focusedLabelColor = ColorPrincipal
+                    ),
                     keyboardActions = KeyboardActions(
                         onSend = {
                             val t = reply.trim()
-                            if (t.isNotBlank() && !posteando) {
+                            if (t.isNotBlank() && !posting) {
                                 vm.comentar(token, p.id, t, parentId = null)
                                 reply = ""
                             }
@@ -238,23 +288,27 @@ private fun PublicacionCard(
                 IconButton(
                     onClick = {
                         val t = reply.trim()
-                        if (t.isNotBlank() && !posteando) {
+                        if (t.isNotBlank() && !posting) {
                             vm.comentar(token, p.id, t, parentId = null)
                             reply = ""
                         }
                     },
-                    enabled = reply.isNotBlank() && !posteando
+                    enabled = reply.isNotBlank() && !posting,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = Color.White,
+                        containerColor = ColorPrincipal
+                    ),
+                    modifier = Modifier
+                        .size(56.dp) // Hacemos el botón consistente con el alto del TextField
+                        .clip(RoundedCornerShape(16.dp)) // Redondez consistente
                 ) {
-                    if (posteando) {
-                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
+                    if (posting) {
+                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(22.dp), color = Color.White)
                     } else {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar")
                     }
                 }
             }
-
-            Spacer(Modifier.height(6.dp))
-            Text(p.fechaCreacion, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -269,7 +323,7 @@ private fun ComentariosThread(
     val porPadre = remember(comentarios) { comentarios.groupBy { it.parent } }
     val raiz = porPadre[null].orEmpty()
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { // Más espacio entre comentarios raíz
         raiz.forEach { c ->
             ComentarioItem(
                 c = c,
@@ -291,66 +345,87 @@ private fun ComentarioItem(
     var abrirRespuesta by remember { mutableStateOf(false) }
     var texto by remember { mutableStateOf("") }
 
-    Column(
-        modifier = Modifier.padding(start = if (nivel == 0) 0.dp else 16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+    val paddingStart = if (nivel == 0) 0.dp else 16.dp
+
+    // Usamos un Surface para dar un fondo y redondez, mejorando la distinción de hilos
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (nivel > 0) ColorGrisFondo else Color.White, // Fondo ligeramente gris para raíz (si es nivel 0) o más para anidado
+        border = if (nivel == 0) null else BorderStroke(1.dp, ColorGrisBorde), // Borde suave para anidados (opcional)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = paddingStart)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "@${c.autor}",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = "· ${c.fechaCreacion}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Text(text = c.contenido, style = MaterialTheme.typography.bodySmall)
-
-        TextButton(
-            onClick = { abrirRespuesta = !abrirRespuesta },
-            contentPadding = PaddingValues(0.dp)
-        ) { Text(if (abrirRespuesta) "Cancelar" else "Responder") }
-
-        if (abrirRespuesta) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = texto,
-                    onValueChange = { texto = it },
-                    placeholder = { Text("Escribe tu respuesta…") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+                Text(
+                    text = "@${c.autor}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        val t = texto.trim()
-                        if (t.isNotBlank()) {
-                            onReply(c.id, t)
-                            texto = ""
-                            abrirRespuesta = false
-                        }
-                    }
-                ) { Text("Enviar") }
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "· ${c.fechaCreacion}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        }
 
-        if (hijos.isNotEmpty()) {
-            Column(
-                modifier = Modifier.padding(top = 4.dp, start = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                hijos.forEach { h ->
-                    ComentarioItem(
-                        c = h,
-                        hijos = emptyList(),   // 2 niveles, igual que la web
-                        onReply = onReply,
-                        nivel = nivel + 1
+            Text(text = c.contenido, style = MaterialTheme.typography.bodyMedium)
+
+            TextButton(
+                onClick = { abrirRespuesta = !abrirRespuesta },
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp) // Padding más pequeño
+            ) { Text(if (abrirRespuesta) "Cancelar" else "Responder", color = ColorPrincipal, style = MaterialTheme.typography.labelMedium) }
+
+            if (abrirRespuesta) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = texto,
+                        onValueChange = { texto = it },
+                        placeholder = { Text("Respuesta…", style = MaterialTheme.typography.bodySmall) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ColorPrincipal,
+                            focusedLabelColor = ColorPrincipal
+                        )
                     )
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val t = texto.trim()
+                            if (t.isNotBlank()) {
+                                onReply(c.id, t)
+                                texto = ""
+                                abrirRespuesta = false
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ColorPrincipal),
+                        modifier = Modifier.height(48.dp)
+                    ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar", modifier = Modifier.size(16.dp)) }
+                }
+            }
+
+            if (hijos.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.padding(top = 10.dp), // Más espacio antes de los hijos
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    hijos.forEach { h ->
+                        ComentarioItem(
+                            c = h,
+                            hijos = emptyList(),
+                            onReply = onReply,
+                            nivel = nivel + 1
+                        )
+                    }
                 }
             }
         }
@@ -372,8 +447,8 @@ private fun AudioPlayer(url: String, titulo: String) {
     DisposableEffect(Unit) { onDispose { player.release() } }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF6F6F6)),
-        shape = RoundedCornerShape(10.dp)
+        colors = CardDefaults.cardColors(containerColor = ColorGrisFondo),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(10.dp),
@@ -383,13 +458,19 @@ private fun AudioPlayer(url: String, titulo: String) {
             IconButton(onClick = {
                 if (player.isPlaying) { player.pause(); playing = false }
                 else { player.play(); playing = true }
-            }) {
+            },
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = Color.White,
+                    containerColor = ColorPrincipal
+                ),
+                modifier = Modifier.clip(RoundedCornerShape(8.dp))
+            ) {
                 Icon(
                     imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (playing) "Pausar" else "Reproducir"
                 )
             }
-            Text(titulo, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(titulo, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

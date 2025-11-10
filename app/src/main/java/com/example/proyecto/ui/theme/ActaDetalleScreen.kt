@@ -20,7 +20,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.proyecto.data.ActaDto
-import com.example.proyecto.ui.theme.AppColors // ✅ Importamos AppColors
+import com.example.proyecto.ui.theme.ProyectoTheme // Reemplazamos la importación de AppColors
+// Importamos las constantes de color desde MainActivity.kt (asumiendo que están disponibles en el mismo módulo o se importarán las específicas)
+import com.example.proyecto.webColorPrincipal
+import com.example.proyecto.tuColorTextoPrimario
+
+// Definiciones de color simuladas basadas en el nuevo esquema azul (las que deberías mover a un archivo de tema)
+val ColorPrincipal = webColorPrincipal // #42A5F5 (Azul)
+val ColorSecundario = Color(0xFF64B5F6) // Un azul más claro para el chip Aprobada
+val ColorCardBg = Color(0xFFF5F5F5) // Gris muy claro para el fondo de la tarjeta
+val ColorTextPrimary = tuColorTextoPrimario // #212121 (Negro/Gris muy oscuro)
+val ColorGrisOscuroTexto = Color(0xFF757575) // Gris oscuro para fechas/subtítulos
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +43,7 @@ fun ActaDetalleScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White) // ✅ Fondo BLANCO para toda la pantalla
+            .background(Color.White) // Fondo BLANCO
     ) {
         Column(
             modifier = Modifier
@@ -47,11 +57,11 @@ fun ActaDetalleScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 IconButton(onClick = onBack) {
-                    // ✅ Icono oscuro para contrastar con el fondo blanco
+                    // Icono oscuro
                     Icon(
                         Icons.Default.ArrowBack,
                         contentDescription = "Volver",
-                        tint = AppColors.TextPrimary
+                        tint = ColorTextPrimary // Usando el color de texto primario
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -59,8 +69,8 @@ fun ActaDetalleScreen(
                     acta.reunion_titulo,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    // ✅ Título oscuro para contrastar con el fondo blanco
-                    color = AppColors.TextPrimary
+                    // Título oscuro
+                    color = ColorTextPrimary // Usando el color de texto primario
                 )
             }
 
@@ -72,7 +82,7 @@ fun ActaDetalleScreen(
                     .fillMaxWidth()
                     .weight(1f),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
+                colors = CardDefaults.cardColors(containerColor = ColorCardBg), // Gris claro para fondo de tarjeta
                 elevation = CardDefaults.cardElevation(8.dp)
             ) {
                 Column(
@@ -84,7 +94,7 @@ fun ActaDetalleScreen(
                     Text(
                         text = acta.reunion_fecha,
                         style = MaterialTheme.typography.bodySmall,
-                        color = AppColors.GrisOscuroTexto
+                        color = ColorGrisOscuroTexto // Gris oscuro para texto secundario
                     )
 
                     // Chip de estado (Aprobada/No Aprobada)
@@ -95,17 +105,18 @@ fun ActaDetalleScreen(
                         },
                         shape = RoundedCornerShape(50.dp),
                         colors = if (acta.aprobada) {
+                            // CHIP APROBADA: Usa el azul secundario para un toque vibrante
                             AssistChipDefaults.assistChipColors(
-                                containerColor = AppColors.Secundario,
+                                containerColor = ColorSecundario, // Azul más claro
                                 labelColor = Color.White,
                                 leadingIconContentColor = Color.White
                             )
                         } else {
-                            // Estilo para No Aprobada
+                            // CHIP NO APROBADA: Usa tonos de gris consistentes
                             AssistChipDefaults.assistChipColors(
-                                containerColor = AppColors.GrisClaroFondo,
-                                labelColor = AppColors.GrisOscuroTexto,
-                                leadingIconContentColor = AppColors.GrisOscuroTexto
+                                containerColor = Color(0xFFEEEEEE), // Gris muy claro
+                                labelColor = ColorGrisOscuroTexto,
+                                leadingIconContentColor = ColorGrisOscuroTexto
                             )
                         },
                         leadingIcon = {
@@ -123,7 +134,7 @@ fun ActaDetalleScreen(
                     Text(
                         text = acta.contenido.ifBlank { "Sin contenido." },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = AppColors.TextPrimary
+                        color = ColorTextPrimary // Color de texto principal
                     )
                 }
             }
@@ -135,7 +146,7 @@ fun ActaDetalleScreen(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Principal)
+                colors = ButtonDefaults.buttonColors(containerColor = ColorPrincipal) // Usa el azul principal
             ) {
                 Icon(Icons.Default.ArrowBack, contentDescription = null)
                 Spacer(Modifier.width(8.dp))

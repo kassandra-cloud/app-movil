@@ -25,10 +25,10 @@ import com.example.proyecto.data.ResultadoVotacionDto
 import com.example.proyecto.data.votaciones.VotacionDto
 import com.example.proyecto.viewmodel.VotacionesViewModel
 
-// 🔑 PALETA DE COLORES PRINCIPAL
-val tuColorPrincipal = Color(0xFF33BACC) // Azul/Cian
-val webColorSecundario = Color(0xFF66D9CE) // Menta
-val fondoTarjetaVotacion = Color(0xFFF3E5F5) // Lila muy suave (para acento o fondo de opciones)
+// 🔑 PALETA DE COLORES PRINCIPAL ACTUALIZADA AL AZUL VIBRANTE
+val tuColorPrincipal = Color(0xFF42A5F5) // ⬅️ ¡NUEVO AZUL PRINCIPAL!
+val webColorSecundario = Color(0xFF1E88E5) // ⬅️ ¡NUEVO AZUL SECUNDARIO para el degradado y botones!
+val fondoTarjetaVotacion = Color(0xFFE3F2FD) // Un azul muy claro (Blue 50) para acento si se necesita
 val grisOscuroTexto = Color(0xFF616161) // Texto gris oscuro
 
 @Composable
@@ -40,7 +40,7 @@ fun VotacionesScreen(
     val ui = vm.ui.collectAsState().value
     val resultados by vm.resultados.collectAsState()
 
-    // Gradiente para el encabezado
+    // Gradiente para el encabezado (Ahora usa los nuevos azules)
     val gradientBrush = remember {
         Brush.verticalGradient(listOf(tuColorPrincipal, webColorSecundario))
     }
@@ -89,6 +89,7 @@ fun VotacionesScreen(
                     onClick = onBack,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
+                    // Usando el nuevo azul principal
                     colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
                 ) {
                     Icon(Icons.Default.ArrowBack, contentDescription = null)
@@ -107,7 +108,8 @@ fun VotacionesScreen(
                 .padding(horizontal = 16.dp)
         ) {
 
-            if (ui.cargando) LinearProgressIndicator(Modifier.fillMaxWidth())
+            // Usando el nuevo azul principal
+            if (ui.cargando) LinearProgressIndicator(Modifier.fillMaxWidth(), color = tuColorPrincipal)
             ui.error?.let { Text("Error: $it", color = MaterialTheme.colorScheme.error) }
             ui.mensaje?.let { Text(it, color = tuColorPrincipal) }
 
@@ -157,8 +159,8 @@ private fun VotacionItem(
     onVote: (Int) -> Unit,
     onShowResults: () -> Unit
 ) {
-    val tuColorPrincipal = Color(0xFF33BACC)
-    val webColorSecundario = Color(0xFF66D9CE)
+    val principal = Color(0xFF42A5F5) // Nuevo Azul Principal
+    val secundario = Color(0xFF1E88E5) // Nuevo Azul Secundario
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -172,7 +174,7 @@ private fun VotacionItem(
             Icon(
                 Icons.Filled.CheckCircle,
                 contentDescription = null,
-                tint = tuColorPrincipal,
+                tint = principal, // Usando el nuevo azul
                 modifier = Modifier.size(40.dp).align(Alignment.CenterHorizontally)
             )
 
@@ -180,7 +182,7 @@ private fun VotacionItem(
             Text(
                 votacion.pregunta,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    color = tuColorPrincipal,
+                    color = principal, // Usando el nuevo azul
                     fontWeight = FontWeight.Bold
                 ),
                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -193,11 +195,11 @@ private fun VotacionItem(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = "Voto Realizado", tint = webColorSecundario)
+                    Icon(Icons.Filled.CheckCircle, contentDescription = "Voto Realizado", tint = secundario) // Usando el nuevo azul secundario
                     Spacer(Modifier.width(8.dp))
                     Text(
                         "Ya votaste. Opción: ${votacion.opciones.first { it.id == votacion.opcion_votada_id }.texto}",
-                        color = webColorSecundario
+                        color = secundario // Usando el nuevo azul secundario
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -210,7 +212,8 @@ private fun VotacionItem(
                         onClick = { onVote(opcion.id) },
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = webColorSecundario)
+                        // Usando el nuevo azul secundario para las opciones
+                        colors = ButtonDefaults.buttonColors(containerColor = secundario)
                     ) { Text(opcion.texto, color = Color.White) }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -221,7 +224,8 @@ private fun VotacionItem(
                 onClick = onShowResults,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = tuColorPrincipal)
+                // Usando el nuevo azul principal
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = principal)
             ) {
                 Text(if (votacion.ya_vote) "Ver mi voto y resultados" else "Ver resultados")
             }
@@ -237,12 +241,12 @@ private fun VotacionResultadoDialog(
     onDismiss: () -> Unit,
     onRefresh: () -> Unit
 ) {
-    val tuColorPrincipal = Color(0xFF33BACC)
+    val principal = Color(0xFF42A5F5) // Nuevo Azul Principal
 
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
-        title = { Text(votacion.pregunta, fontWeight = FontWeight.Bold, color = tuColorPrincipal) },
+        title = { Text(votacion.pregunta, fontWeight = FontWeight.Bold, color = principal) }, // Usando el nuevo azul
         text = {
             Column {
                 if (votacion.ya_vote) {
@@ -258,7 +262,7 @@ private fun VotacionResultadoDialog(
                 when (resultados) {
                     null -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(Modifier.size(24.dp), color = tuColorPrincipal)
+                            CircularProgressIndicator(Modifier.size(24.dp), color = principal) // Usando el nuevo azul
                             Spacer(Modifier.width(8.dp))
                             Text("Cargando resultados...")
                         }
@@ -271,22 +275,20 @@ private fun VotacionResultadoDialog(
             Button(
                 onClick = onRefresh,
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
+                colors = ButtonDefaults.buttonColors(containerColor = principal) // Usando el nuevo azul
             ) { Text("Actualizar") }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(50)) {
-                Text("Cerrar", color = tuColorPrincipal)
+                Text("Cerrar", color = principal) // Usando el nuevo azul
             }
         }
     )
 }
 
-// ... (ResultadosCard y EmptyVotaciones se mantienen igual)
-
 @Composable
 private fun ResultadosCard(result: ResultadoVotacionDto) {
-    val tuColorPrincipal = Color(0xFF33BACC)
+    val principal = Color(0xFF42A5F5) // Nuevo Azul Principal
     val grisOscuroTexto = Color(0xFF616161)
 
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -303,7 +305,7 @@ private fun ResultadosCard(result: ResultadoVotacionDto) {
             LinearProgressIndicator(
                 progress = pct,
                 modifier = Modifier.fillMaxWidth().height(10.dp),
-                color = tuColorPrincipal
+                color = principal // Usando el nuevo azul
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("${op.votos} votos", color = grisOscuroTexto)
@@ -316,7 +318,7 @@ private fun ResultadosCard(result: ResultadoVotacionDto) {
 
 @Composable
 private fun EmptyVotaciones(onRecargar: () -> Unit) {
-    val tuColorPrincipal = Color(0xFF33BACC)
+    val principal = Color(0xFF42A5F5) // Nuevo Azul Principal
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -330,14 +332,14 @@ private fun EmptyVotaciones(onRecargar: () -> Unit) {
             Icon(
                 imageVector = Icons.Filled.Info,
                 contentDescription = null,
-                tint = tuColorPrincipal,
+                tint = principal, // Usando el nuevo azul
                 modifier = Modifier.size(40.dp)
             )
             Spacer(Modifier.height(12.dp))
             Text(
                 "No hay votaciones abiertas",
                 style = MaterialTheme.typography.titleMedium.copy(
-                    color = tuColorPrincipal,
+                    color = principal, // Usando el nuevo azul
                     fontWeight = FontWeight.Bold
                 )
             )
@@ -347,7 +349,7 @@ private fun EmptyVotaciones(onRecargar: () -> Unit) {
             OutlinedButton(
                 onClick = onRecargar,
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = tuColorPrincipal)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = principal) // Usando el nuevo azul
             ) {
                 Text("Actualizar")
             }

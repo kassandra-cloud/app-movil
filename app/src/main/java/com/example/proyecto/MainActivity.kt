@@ -3,6 +3,7 @@ package com.example.proyecto
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image // Importación NECESARIA para usar la imagen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource // Importación NECESARIA para cargar recursos
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -53,11 +55,14 @@ import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.viewmodel.LoginViewModel
 
 /* 🎨 Paleta */
-val webColorPrincipal = Color(0xFF33BACC)
-val webColorSecundario = Color(0xFF66D9CE)
+// --- CONSTANTES DE COLOR MODIFICADAS AL AZUL VIBRANTE ---
+val webColorPrincipal = Color(0xFF42A5F5) // Un azul brillante (similar a la imagen)
+val webColorSecundario = Color(0xFF1E88E5) // Un azul ligeramente más oscuro para el gradiente
+// --------------------------------------------------------
+
 val tuColorTextoPrimario = Color(0xFF212121)
 val tuColorTextoSecundario = Color(0xFF616161)
-val tuColorPrincipal = webColorPrincipal // <-- Este es tu color cian principal
+val tuColorPrincipal = webColorPrincipal // <-- Este es tu color azul principal
 val tuColorFondo = Color.White
 val tuColorBlanco = Color.White
 val tuGradienteFondo = Brush.linearGradient(listOf(webColorPrincipal, webColorSecundario))
@@ -251,12 +256,13 @@ fun AuthHeader(title: String, subtitle: String) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "App Logo",
-                tint = Color.White,
-                modifier = Modifier.size(80.dp)
+            // --- CÓDIGO MODIFICADO PARA USAR EL LOGO ---
+            Image(
+                painter = painterResource(id = R.drawable.logo), // Usamos 'logo' como el nombre de archivo
+                contentDescription = "Logo de la plataforma",
+                modifier = Modifier.size(100.dp) // Ajusta el tamaño si es necesario
             )
+            // ------------------------------------------
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = title,

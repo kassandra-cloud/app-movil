@@ -30,9 +30,9 @@ import com.example.proyecto.data.AsistenciaDto
 import java.text.Normalizer
 
 
-// 🔑 PALETA DE COLORES PRINCIPAL
-val tuColorPrincipal = Color(0xFF33BACC) // Azul/Cian
-val webColorSecundario = Color(0xFF66D9CE) // Menta (aunque ya casi no la usaremos directamente)
+// 🔑 PALETA DE COLORES PRINCIPAL MODIFICADA AL AZUL VIBRANTE
+val tuColorPrincipal = Color(0xFF42A5F5) // ⬅️ ¡NUEVO AZUL PRINCIPAL!
+val webColorSecundario = Color(0xFF1E88E5) // ⬅️ ¡NUEVO AZUL SECUNDARIO para el degradado!
 val grisClaroFondo = Color(0xFFEEEEEE) // Fondo gris muy claro para "No Aprobada"
 val grisOscuroTexto = Color(0xFF616161) // Texto gris oscuro para "No Aprobada"
 
@@ -65,7 +65,7 @@ fun ActasScreen(
 
     BackHandler { onBack() }
 
-    // Fondo degradado para el encabezado
+    // Fondo degradado para el encabezado (Ahora usa los nuevos azules)
     val gradientBrush = remember {
         Brush.verticalGradient(listOf(tuColorPrincipal, webColorSecundario))
     }
@@ -104,6 +104,7 @@ fun ActasScreen(
                     onClick = onBack,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
+                    // Usando el nuevo azul principal
                     colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
                 ) {
                     Icon(Icons.Default.ArrowBack, contentDescription = null)
@@ -159,7 +160,7 @@ fun ActasScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             a.reunion_titulo,
-                                            style = MaterialTheme.typography.titleLarge.copy(color = tuColorPrincipal),
+                                            style = MaterialTheme.typography.titleLarge.copy(color = tuColorPrincipal), // Usando el nuevo azul
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.weight(1f)
                                         )
@@ -208,6 +209,7 @@ fun ActasScreen(
                                         enabled = puedeVerActa,
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(50),
+                                        // Usando el nuevo azul principal
                                         colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
                                     ) { Text("Ver acta") }
 
@@ -240,15 +242,15 @@ fun ActasScreen(
     }
 }
 
-// FUNCIONES AUXILIARES (Se mantienen igual)
+// FUNCIONES AUXILIARES (Actualizadas con el nuevo color)
 
 @Composable
 private fun ActaPreviewDialog(acta: ActaDto, onDismiss: () -> Unit, onVerActa: (ActaDto) -> Unit) {
-    val tuColorPrincipal = Color(0xFF33BACC)
+    val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
-        title = { Text(acta.reunion_titulo, fontWeight = FontWeight.Bold, color = tuColorPrincipal) },
+        title = { Text(acta.reunion_titulo, fontWeight = FontWeight.Bold, color = principalColor) },
         text = {
             Column {
                 Text("Fecha: ${acta.reunion_fecha}", style = MaterialTheme.typography.bodySmall)
@@ -261,12 +263,12 @@ private fun ActaPreviewDialog(acta: ActaDto, onDismiss: () -> Unit, onVerActa: (
                 onClick = { onVerActa(acta) },
                 enabled = acta.aprobada,
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
+                colors = ButtonDefaults.buttonColors(containerColor = principalColor) // Usando el nuevo azul
             ) { Text("Ver acta completa") }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(50)) {
-                Text("Cerrar", color = tuColorPrincipal)
+                Text("Cerrar", color = principalColor) // Usando el nuevo azul
             }
         }
     )
@@ -274,13 +276,13 @@ private fun ActaPreviewDialog(acta: ActaDto, onDismiss: () -> Unit, onVerActa: (
 
 @Composable
 private fun TuAsistenciaRow(texto: String, presente: Boolean) {
-    val tuColorPrincipal = Color(0xFF33BACC)
+    val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (presente) {
-            Icon(Icons.Filled.CheckCircle, contentDescription = "Presente", tint = tuColorPrincipal)
+            Icon(Icons.Filled.CheckCircle, contentDescription = "Presente", tint = principalColor) // Usando el nuevo azul
         } else {
             Icon(Icons.Filled.Close, contentDescription = "Ausente", tint = MaterialTheme.colorScheme.error)
         }
@@ -290,14 +292,13 @@ private fun TuAsistenciaRow(texto: String, presente: Boolean) {
 
 @Composable
 private fun StatusPill(text: String, positive: Boolean) {
-    // Eliminamos la referencia a webColorSecundario aquí para asegurar que siempre use tuColorPrincipal para 'positive'
-    // val webColorSecundario = Color(0xFF66D9CE) // Comentado o eliminado
+    val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
     val grisClaroFondo = Color(0xFFEEEEEE)
     val grisOscuroTexto = Color(0xFF616161)
 
     Surface(
-        // Aseguramos que si es positivo (aprobada), use tuColorPrincipal (cian)
-        color = if (positive) tuColorPrincipal else grisClaroFondo,
+        // Si es positivo (aprobada), usa el nuevo color azul
+        color = if (positive) principalColor else grisClaroFondo,
         contentColor = if (positive) Color.White else grisOscuroTexto,
         shape = RoundedCornerShape(50)
     ) {
@@ -336,9 +337,9 @@ fun PreviewActasScreen() {
         ActaDto(1, "Contenido", true,  "Reunión de aprobación de cuentas", "2025-11-01", "Ordinaria", "Resumen demo"),
         ActaDto(2, "Contenido", false, "Reunión de planificación",  "2025-10-15", "Extraordinaria", "Resumen breve")
     )
-    val tuColorPrincipal = Color(0xFF33BACC)
-    // val webColorSecundario = Color(0xFF66D9CE) // Comentado también en el Preview
-    val gradientBrush = Brush.verticalGradient(listOf(tuColorPrincipal, Color(0xFF66D9CE))) // Puedes mantener el degradado con el secundario si te gusta
+    val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
+    val secondaryColor = Color(0xFF1E88E5) // ⬅️ Nuevo azul secundario
+    val gradientBrush = Brush.verticalGradient(listOf(principalColor, secondaryColor))
 
     MaterialTheme {
         Scaffold(
@@ -370,7 +371,7 @@ fun PreviewActasScreen() {
                         onClick = { },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
+                        colors = ButtonDefaults.buttonColors(containerColor = principalColor)
                     ) {
                         Icon(Icons.Default.ArrowBack, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -381,7 +382,7 @@ fun PreviewActasScreen() {
         ) { paddingValues ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color.White),
-                verticalArrangement = Arrangement.spacedBy(20.dp), // Espacio optimizado
+                verticalArrangement = Arrangement.spacedBy(20.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 items(actasEjemplo, key = { it.reunion }) { a ->
@@ -391,10 +392,9 @@ fun PreviewActasScreen() {
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
-                        Column(Modifier.padding(16.dp)) { // Padding optimizado
+                        Column(Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(a.reunion_titulo, style = MaterialTheme.typography.titleLarge.copy(color = tuColorPrincipal), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                // Esta llamada a StatusPill ahora usará la versión modificada
+                                Text(a.reunion_titulo, style = MaterialTheme.typography.titleLarge.copy(color = principalColor), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                 StatusPill(if (a.aprobada) "Aprobada" else "No aprobada", a.aprobada)
                             }
                             Spacer(Modifier.height(4.dp))
@@ -409,7 +409,7 @@ fun PreviewActasScreen() {
                                 enabled = a.aprobada,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(50),
-                                colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
+                                colors = ButtonDefaults.buttonColors(containerColor = principalColor)
                             ) {
                                 Text("Ver acta")
                             }

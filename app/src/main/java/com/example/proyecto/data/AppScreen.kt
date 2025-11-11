@@ -8,5 +8,6 @@ enum class AppScreen {
     ASISTENCIA,
     VOTACION,
     TALLERES,
-    ACTA_DETALLE
+    ACTA_DETALLE,
+    RECURSOS
 }

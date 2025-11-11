@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.GridView // Icono para cuadrícula
 import androidx.compose.material.icons.filled.ViewList // Icono para lista
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.LibraryBooks // <-- AÑADIDO: Icono para Recursos
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -50,6 +51,7 @@ import com.example.proyecto.data.AppScreen.*
 import com.example.proyecto.ui.VotacionesScreen
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
+import com.example.proyecto.ui.theme.RecursosScreen // <-- AÑADIDO: La nueva pantalla
 import com.example.proyecto.ui.theme.ForoScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.viewmodel.LoginViewModel
@@ -143,6 +145,22 @@ fun MainScreen(viewModel: LoginViewModel = viewModel()) {
                 )
             }
         }
+
+        // <-- INICIO: BLOQUE NUEVO AÑADIDO -->
+        RECURSOS -> {
+            if (token.isNullOrBlank()) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Sesión no válida. Inicia sesión nuevamente.")
+                }
+            } else {
+                RecursosScreen(
+                    token = token,
+                    onBack = { viewModel.goBackToMainMenu() }
+                )
+            }
+        }
+        // <-- FIN: BLOQUE NUEVO AÑADIDO -->
     }
 }
 
@@ -336,7 +354,8 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
             Module("Reuniones", "Visualizar actas", Icons.Default.List, tuColorPrincipal, ACTAS),
             Module("Foro", "Espacio de debate", Icons.Default.Person, tuColorPrincipal, ASISTENCIA),
             Module("Votación", "Sistema de votaciones", Icons.Default.CheckCircle, tuColorPrincipal, VOTACION),
-            Module("Talleres", "Visualizar talleres", Icons.Default.Build, tuColorPrincipal, TALLERES)
+            Module("Talleres", "Visualizar talleres", Icons.Default.Build, tuColorPrincipal, TALLERES),
+            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, tuColorPrincipal, RECURSOS) // <-- LÍNEA AÑADIDA
         )
     }
 

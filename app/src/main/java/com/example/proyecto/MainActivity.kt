@@ -51,7 +51,8 @@ import com.example.proyecto.data.AppScreen.*
 import com.example.proyecto.ui.VotacionesScreen
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
-import com.example.proyecto.ui.theme.RecursosScreen // <-- AÑADIDO: La nueva pantalla
+import com.example.proyecto.ui.recursos.RecursosScreen// <-- AÑADIDO: La nueva pantalla
+
 import com.example.proyecto.ui.theme.ForoScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.viewmodel.LoginViewModel

@@ -6,6 +6,7 @@ import com.example.proyecto.data.ResultadoVotacionDto
 import com.example.proyecto.data.votaciones.VotacionDto
 import retrofit2.Response
 import retrofit2.http.*
+import com.example.proyecto.data.Page
 
 interface ApiService {
 
@@ -32,4 +33,12 @@ interface ApiService {
         @Path("id") votacionId: Int,
         @Header("Authorization") auth: String
     ): Response<ResultadoVotacionDto>
+
+    // Recursos / Solicitudes
+    @GET("recursos/api/v1/solicitudes/")
+    suspend fun misSolicitudes(
+        @Query("mine") mine: Boolean = true,
+        @Query("estado") estado: String? = null,
+        @Header("Authorization") auth: String
+    ): retrofit2.Response<Page<com.example.proyecto.data.recursos.SolicitudDto>>
 }

@@ -2,12 +2,12 @@ package com.example.proyecto.api
 
 import com.example.proyecto.data.LoginRequest
 import com.example.proyecto.data.LoginResponse
-import com.example.proyecto.data.ResultadoVotacionDto
+import com.example.proyecto.data.votaciones.ResultadoVotacionDto
 import com.example.proyecto.data.votaciones.VotacionDto
 import retrofit2.Response
 import retrofit2.http.*
 import com.example.proyecto.data.Page
-
+import com.example.proyecto.data.reuniones.ReunionDto
 interface ApiService {
 
     // Auth
@@ -41,4 +41,13 @@ interface ApiService {
         @Query("estado") estado: String? = null,
         @Header("Authorization") auth: String
     ): retrofit2.Response<Page<com.example.proyecto.data.recursos.SolicitudDto>>
+
+
+    @GET("reuniones/api/reuniones/")
+    suspend fun listarReuniones(
+        @Query("estado") estado: String? = null,  // "programada" | "en_curso" | "realizada"
+        @Query("ordering") ordering: String? = "-fecha",
+        @Query("page") page: Int? = 1,
+        @Query("page_size") pageSize: Int? = 20
+    ): Page<ReunionDto>
 }

@@ -23,10 +23,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 // 🔑 IMPORTACIONES CLAVE (Asegúrate que estas rutas coincidan con tu proyecto)
-import com.example.proyecto.data.ActaDto
+import com.example.proyecto.data.reuniones.ActaDto
 import com.example.proyecto.viewmodel.ActasViewModel
 import com.example.proyecto.viewmodel.LoginViewModel
-import com.example.proyecto.data.AsistenciaDto
 import java.text.Normalizer
 
 

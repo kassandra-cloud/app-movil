@@ -1,14 +1,14 @@
 package com.example.proyecto.api
 
 
-import com.example.proyecto.data.AsistenciaDto
-import com.example.proyecto.data.ActaDto
+import com.example.proyecto.data.reuniones.AsistenciaDto
+import com.example.proyecto.data.reuniones.ActaDto
 import com.example.proyecto.data.Page
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.Response
-
+import com.example.proyecto.data.reuniones.ReunionDto
 interface ReunionesApi {
     @GET("reuniones/api/actas/")
     suspend fun listarActas(
@@ -28,4 +28,11 @@ interface ReunionesApi {
         @Query("reunion") reunionId: Int,
         @Query("page_size") pageSize: Int? = 100
     ): Response<List<AsistenciaDto>>
+    @GET("reuniones/api/reuniones/")
+    suspend fun listarReuniones(
+        @Query("estado") estado: String? = null,        // "programada" | "en_curso" | "realizada"
+        @Query("ordering") ordering: String? = "-fecha",
+        @Query("page") page: Int? = 1,
+        @Query("page_size") pageSize: Int? = 20
+    ): Page<ReunionDto>
 }

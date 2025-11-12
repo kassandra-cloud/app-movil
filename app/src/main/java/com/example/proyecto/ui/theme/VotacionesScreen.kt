@@ -1,7 +1,6 @@
 package com.example.proyecto.ui
 
 import androidx.activity.compose.BackHandler
-import kotlinx.coroutines.delay // Importación necesaria para delay (si se usa en auto-refresh)
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,10 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.proyecto.data.ResultadoVotacionDto
+import com.example.proyecto.data.votaciones.ResultadoVotacionDto
 import com.example.proyecto.data.votaciones.VotacionDto
 import com.example.proyecto.viewmodel.VotacionesViewModel
 

@@ -4,8 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
-import com.example.proyecto.data.ActaDto
-import com.example.proyecto.data.AsistenciaDto
+import com.example.proyecto.data.reuniones.ActaDto
+import com.example.proyecto.data.reuniones.AsistenciaDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

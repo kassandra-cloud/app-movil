@@ -3,7 +3,6 @@ package com.example.proyecto
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image // Importación NECESARIA para usar la imagen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -16,17 +15,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.GridView // Icono para cuadrícula
-import androidx.compose.material.icons.filled.ViewList // Icono para lista
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.LibraryBooks // <-- AÑADIDO: Icono para Recursos
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,10 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource // Importación NECESARIA para cargar recursos
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -51,34 +37,25 @@ import com.example.proyecto.data.AppScreen.*
 import com.example.proyecto.ui.VotacionesScreen
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
-import com.example.proyecto.ui.recursos.RecursosScreen// <-- AÑADIDO: La nueva pantalla
-
-import com.example.proyecto.ui.theme.ForoScreen
+import com.example.proyecto.ui.recursos.RecursosScreen
+import com.example.proyecto.ui.talleres.TalleresScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
+import com.example.proyecto.ui.theme.auth.LoginScreen
+import com.example.proyecto.ui.theme.reuniones.ReunionesProgramadasScreen
+import com.example.proyecto.ui.theme.reuniones.ReunionesRealizadasScreen
+import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
+import com.example.proyecto.viewmodel.ReunionesViewModel
+import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
 
-/* 🎨 Paleta */
-// --- CONSTANTES DE COLOR MODIFICADAS AL AZUL VIBRANTE ---
-val webColorPrincipal = Color(0xFF42A5F5) // Un azul brillante (similar a la imagen)
-val webColorSecundario = Color(0xFF1E88E5) // Un azul ligeramente más oscuro para el gradiente
-// --------------------------------------------------------
-
+/* Colores/gradiente usados por el MENÚ */
+val webColorPrincipal = Color(0xFF42A5F5)
+val webColorSecundario = Color(0xFF1E88E5)
 val tuColorTextoPrimario = Color(0xFF212121)
 val tuColorTextoSecundario = Color(0xFF616161)
-val tuColorPrincipal = webColorPrincipal // <-- Este es tu color azul principal
-val tuColorFondo = Color.White
+val tuColorPrincipal = webColorPrincipal
 val tuColorBlanco = Color.White
 val tuGradienteFondo = Brush.linearGradient(listOf(webColorPrincipal, webColorSecundario))
-
-/* Gradientes y Colores para el Login */
-val projectHeaderGradient = Brush.verticalGradient(
-    colors = listOf(webColorPrincipal, webColorSecundario)
-)
-val projectButtonGradient = Brush.linearGradient(
-    colors = listOf(webColorPrincipal, webColorSecundario)
-)
-val projectTextLink = webColorPrincipal
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,259 +65,141 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainScreen(viewModel: LoginViewModel = viewModel()) {
+fun MainScreen(
+    viewModel: LoginViewModel = viewModel(),
+    reunionesVM: ReunionesViewModel = viewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val token = uiState.token
 
+    // (Sigue disponible si otras pantallas lo usan)
+    val reuniones by viewModel.reuniones.collectAsState()
+
     when (uiState.currentScreen) {
         LOGIN -> LoginScreen(viewModel)
+
         MAIN_MENU -> MainMenuScreen(viewModel)
+
+        REUNIONES -> {
+            if (token.isNullOrBlank()) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
+            } else {
+                val stRealizadas by reunionesVM.realizadas.collectAsState(
+                    initial = ReunionesViewModel.SectionState()
+                )
+                val stProgramadas by reunionesVM.programadas.collectAsState(
+                    initial = ReunionesViewModel.SectionState()
+                )
+                LaunchedEffect(Unit) {
+                    reunionesVM.refresh(ReunionEstado.REALIZADA)
+                    reunionesVM.refresh(ReunionEstado.PROGRAMADA)
+                }
+
+                ReunionesScreen(
+                    realizadasCount = stRealizadas.items.size,
+                    programadasCount = stProgramadas.items.size,
+                    enCursoCount = null,
+                    onVerRealizadas = { viewModel.navigateTo(REUNIONES_REALIZADAS) },
+                    onVerProgramadas = { viewModel.navigateTo(REUNIONES_PROGRAMADAS) },
+                    onVerEnCurso = { /* opcional */ },
+                    onBack = { viewModel.goBackToMainMenu() }
+                )
+            }
+        }
+
+        REUNIONES_REALIZADAS -> {
+            if (token.isNullOrBlank()) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
+            } else {
+                // ✅ Ya NO pasamos 'reuniones'
+                ReunionesRealizadasScreen(
+                    onBack = { viewModel.navigateTo(REUNIONES) },
+                    onOpen = { reunionDto ->
+                        // navegar a detalle con reunionDto.id si quieres
+                    }
+                )
+            }
+        }
+
+        REUNIONES_PROGRAMADAS -> {
+            if (token.isNullOrBlank()) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
+            } else {
+                // Si aún no migras Programadas al ViewModel, mantenlo así:
+                ReunionesProgramadasScreen(
+                    reuniones = reuniones,
+                    onBack = { viewModel.navigateTo(REUNIONES) },
+                    onOpen = { /* abrir detalle/confirmación */ }
+                )
+            }
+        }
+
         ACTAS -> ActasScreen(
             onVerActa = { acta -> viewModel.openActaDetalle(acta) },
             onBack = { viewModel.goBackToMainMenu() }
         )
-        ASISTENCIA -> { // Foro
+
+        ASISTENCIA -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Sesión no válida. Inicia sesión nuevamente.")
-                }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                ForoScreen(
+                com.example.proyecto.ui.theme.ForoScreen(
                     token = token,
                     onBack = { viewModel.goBackToMainMenu() }
                 )
             }
         }
+
         VOTACION -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Sesión no válida. Inicia sesión nuevamente.")
-                }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
                 VotacionesScreen(token = token, onBack = { viewModel.goBackToMainMenu() })
             }
         }
+
         ACTA_DETALLE -> {
             val acta = uiState.selectedActa
             if (acta == null) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Sin acta seleccionada")
-                }
+                CenterMsg("Sin acta seleccionada")
             } else {
                 ActaDetalleScreen(acta = acta, onBack = { viewModel.closeActaDetalle() })
             }
         }
+
         TALLERES -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Sesión no válida. Inicia sesión nuevamente.")
-                }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                com.example.proyecto.ui.talleres.TalleresScreen(
-                    token = token,
-                    onBack = { viewModel.goBackToMainMenu() }
-                )
+                TalleresScreen(token = token, onBack = { viewModel.goBackToMainMenu() })
             }
         }
 
-        // <-- INICIO: BLOQUE NUEVO AÑADIDO -->
         RECURSOS -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Sesión no válida. Inicia sesión nuevamente.")
-                }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                RecursosScreen(
-                    token = token,
-                    onBack = { viewModel.goBackToMainMenu() }
-                )
-            }
-        }
-        // <-- FIN: BLOQUE NUEVO AÑADIDO -->
-    }
-}
-
-
-// ===================================================================
-//                 PANTALLA DE INICIO DE SESIÓN
-// ===================================================================
-
-@Composable
-fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
-    var username by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    val uiState by viewModel.uiState.collectAsState()
-
-    LaunchedEffect(username, password) {
-        if (uiState.errorMessage != null || uiState.successMessage != null) viewModel.clearMessages()
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        AuthHeader(
-            title = "Iniciar Sesión",
-            subtitle = "Ingresa tus credenciales para continuar."
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Usuario") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Person, null) },
-                shape = RoundedCornerShape(12.dp),
-                enabled = !uiState.isLoading,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = webColorPrincipal,
-                    focusedLabelColor = webColorPrincipal
-                )
-            )
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Contraseña") },
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Lock, null) },
-                trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Text(if (passwordVisible) "👁️" else "🔒")
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                enabled = !uiState.isLoading,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = webColorPrincipal,
-                    focusedLabelColor = webColorPrincipal
-                )
-            )
-            Text(
-                text = "¿Olvidaste tu contraseña?",
-                color = projectTextLink,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { /* TODO: Lógica de olvidar contraseña */ },
-                textAlign = TextAlign.End
-            )
-            if (uiState.errorMessage != null) {
-                Text(
-                    uiState.errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            AuthButton(
-                text = "Iniciar Sesión",
-                isLoading = uiState.isLoading,
-                enabled = !uiState.isLoading && username.isNotBlank() && password.isNotBlank(),
-                onClick = {
-                    viewModel.login(username, password)
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun AuthHeader(title: String, subtitle: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(250.dp)
-            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-            .background(projectHeaderGradient),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // --- CÓDIGO MODIFICADO PARA USAR EL LOGO ---
-            Image(
-                painter = painterResource(id = R.drawable.logo), // Usamos 'logo' como el nombre de archivo
-                contentDescription = "Logo de la plataforma",
-                modifier = Modifier.size(100.dp) // Ajusta el tamaño si es necesario
-            )
-            // ------------------------------------------
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = title,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = subtitle,
-                fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.9f)
-            )
-        }
-    }
-}
-
-@Composable
-fun AuthButton(
-    text: String,
-    onClick: () -> Unit,
-    isLoading: Boolean = false,
-    enabled: Boolean = true
-) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        enabled = enabled,
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
-        shape = RoundedCornerShape(16.dp),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(projectButtonGradient, RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 3.dp)
-            } else {
-                Text(text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                RecursosScreen(token = token, onBack = { viewModel.goBackToMainMenu() })
             }
         }
     }
 }
 
-
-// ===================================================================
-//            PANTALLA DE MENÚ (MODIFICADA)
-// ===================================================================
+/* =====================  MENÚ PRINCIPAL  ===================== */
 
 private data class Module(
     val title: String,
     val subtitle: String,
     val icon: ImageVector,
-    val color: Color, // <-- El color del icono
+    val color: Color,
     val screen: AppScreen
 )
 
@@ -349,23 +208,22 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val userName = if (uiState.currentUser.isNullOrBlank()) "Usuario" else uiState.currentUser
 
-    // 2. Creamos la lista de módulos
     val modules = remember {
         listOf(
-            Module("Reuniones", "Visualizar actas", Icons.Default.List, tuColorPrincipal, ACTAS),
+            Module("Reuniones", "Realizadas, programadas y en curso",
+                Icons.Default.List, tuColorPrincipal, REUNIONES),
             Module("Foro", "Espacio de debate", Icons.Default.Person, tuColorPrincipal, ASISTENCIA),
             Module("Votación", "Sistema de votaciones", Icons.Default.CheckCircle, tuColorPrincipal, VOTACION),
             Module("Talleres", "Visualizar talleres", Icons.Default.Build, tuColorPrincipal, TALLERES),
-            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, tuColorPrincipal, RECURSOS) // <-- LÍNEA AÑADIDA
+            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, tuColorPrincipal, RECURSOS)
         )
     }
 
-    // 3. Estado para guardar la vista (cuadrícula o lista)
     var isGridView by rememberSaveable { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(tuColorBlanco)) {
         Column(Modifier.fillMaxSize()) {
-            // Encabezado
+            // Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -377,21 +235,14 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween, // <-- Mantiene la separación
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // --- GRUPO IZQUIERDO: TEXTO ---
                     Column {
                         Text("¡BIENVENIDO!", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.8f))
                         Text("Hola, $userName", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
                     }
-
-                    // --- GRUPO DERECHO: BOTONES (NUEVA ESTRUCTURA) ---
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp) // Espacio entre los botones
-                    ) {
-                        // Botón para cambiar la vista
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { isGridView = !isGridView }) {
                             Icon(
                                 imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
@@ -399,8 +250,6 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                                 tint = Color.White.copy(alpha = 0.9f)
                             )
                         }
-
-                        // Botón de Salir
                         Button(
                             onClick = { viewModel.logout() },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF5350), contentColor = Color.White),
@@ -409,47 +258,38 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                         ) {
                             Text("Salir", fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.width(4.dp))
-                            Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.ExitToApp, null, Modifier.size(18.dp))
                         }
                     }
                 }
             }
 
-            // 5. Lógica if/else para mostrar cuadrícula o lista
             if (isGridView) {
-                // VISTA DE CUADRÍCULA
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(2), // 2 columnas
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp) // Padding para que no se pegue al header
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
                 ) {
-                    items(modules) { module ->
+                    items(modules) { m ->
                         GridModuleItem(
-                            title = module.title,
-                            subtitle = module.subtitle,
-                            icon = module.icon,
-                            iconBg = module.color,
-                            onClick = { viewModel.navigateTo(module.screen) }
-                        )
+                            title = m.title, subtitle = m.subtitle,
+                            icon = m.icon, iconBg = m.color
+                        ) { viewModel.navigateTo(m.screen) }
                     }
                 }
             } else {
-                // VISTA DE LISTA
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
-                    items(modules) { module ->
+                    items(modules) { m ->
                         ModuleItem(
-                            title = module.title,
-                            subtitle = module.subtitle,
-                            icon = module.icon,
-                            iconBg = module.color,
-                            onClick = { viewModel.navigateTo(module.screen) }
-                        )
+                            title = m.title, subtitle = m.subtitle,
+                            icon = m.icon, iconBg = m.color
+                        ) { viewModel.navigateTo(m.screen) }
                     }
                 }
             }
@@ -457,9 +297,8 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     }
 }
 
-// ===================================================================
-//            NUEVO COMPOSABLE: ITEM PARA CUADRÍCULA
-// ===================================================================
+/* =====================  ITEMS UI REUTILIZABLES  ===================== */
+
 @Composable
 fun GridModuleItem(
     title: String,
@@ -469,9 +308,7 @@ fun GridModuleItem(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(160.dp), // Altura fija para celdas uniformes
+        modifier = Modifier.fillMaxWidth().height(160.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
@@ -483,16 +320,12 @@ fun GridModuleItem(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(20.dp))
-                .clickable(interactionSource = interaction, indication = rememberRipple(bounded = true), onClick = onClick)
-                .graphicsLayer {
-                    val s = if (isPressed) 0.98f else 1f
-                    scaleX = s; scaleY = s
-                }
+                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                .graphicsLayer { val s = if (isPressed) 0.98f else 1f; scaleX = s; scaleY = s }
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Icono
             Card(
                 modifier = Modifier.size(60.dp),
                 colors = CardDefaults.cardColors(containerColor = iconBg),
@@ -503,32 +336,14 @@ fun GridModuleItem(
                     Icon(icon, contentDescription = title, tint = Color.White, modifier = Modifier.size(32.dp))
                 }
             }
-
             Spacer(Modifier.height(16.dp))
-
-            // Textos
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = tuColorTextoPrimario,
-                textAlign = TextAlign.Center
-            )
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario, textAlign = TextAlign.Center)
             Spacer(Modifier.height(4.dp))
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = tuColorTextoSecundario.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         }
     }
 }
 
-
-// ===================================================================
-//            ITEM DE LISTA (El que ya tenías)
-// ===================================================================
 @Composable
 fun ModuleItem(
     title: String,
@@ -550,11 +365,8 @@ fun ModuleItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .clickable(interactionSource = interaction, indication = rememberRipple(bounded = true), onClick = onClick)
-                .graphicsLayer {
-                    val s = if (isPressed) 0.98f else 1f
-                    scaleX = s; scaleY = s
-                }
+                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                .graphicsLayer { val s = if (isPressed) 0.98f else 1f; scaleX = s; scaleY = s }
                 .padding(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -568,25 +380,26 @@ fun ModuleItem(
                     Icon(icon, contentDescription = title, tint = Color.White, modifier = Modifier.size(28.dp))
                 }
             }
-
             Spacer(Modifier.width(20.dp))
-
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario)
                 Spacer(Modifier.height(4.dp))
+                // ✅ typo corregido: typography (no typTypography)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f))
             }
-
             Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = tuColorTextoSecundario.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
         }
     }
 }
 
-/* Previews */
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() { ProyectoTheme { LoginScreen() } }
+/* =====================  HELPERS ===================== */
 
+@Composable
+private fun CenterMsg(msg: String) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(msg) }
+}
+
+/* ===== Previews opcionales ===== */
 @Preview(showBackground = true)
 @Composable
 fun MainMenuScreenPreview() { ProyectoTheme { MainMenuScreen() } }
@@ -599,8 +412,7 @@ fun GridModuleItemPreview() {
             title = "Reuniones",
             subtitle = "Visualizar actas",
             icon = Icons.Default.List,
-            iconBg = tuColorPrincipal,
-            onClick = {}
-        )
+            iconBg = tuColorPrincipal
+        ) {}
     }
 }

@@ -12,15 +12,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.proyecto.data.ActaDto
-import com.example.proyecto.ui.theme.ProyectoTheme // Reemplazamos la importación de AppColors
+import com.example.proyecto.data.reuniones.ActaDto
 // Importamos las constantes de color desde MainActivity.kt (asumiendo que están disponibles en el mismo módulo o se importarán las específicas)
 import com.example.proyecto.webColorPrincipal
 import com.example.proyecto.tuColorTextoPrimario

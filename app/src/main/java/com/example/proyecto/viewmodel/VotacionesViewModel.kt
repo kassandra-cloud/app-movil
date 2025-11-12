@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
 import com.example.proyecto.api.VotoRequest
-import com.example.proyecto.data.ResultadoVotacionDto
+import com.example.proyecto.data.votaciones.ResultadoVotacionDto
 import com.example.proyecto.data.votaciones.VotacionDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

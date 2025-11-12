@@ -1,4 +1,4 @@
-package com.example.proyecto.data
+package com.example.proyecto.data.votaciones
 
 data class OpcionResultadoDto(
     val id: Int,

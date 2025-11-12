@@ -14,7 +14,7 @@ object ApiClient {
      * - Emulador Android:    "http://10.0.2.2:8000/"
      * - Dispositivo físico:  "http://<IP-de-tu-PC>:8000/"
      */
-    private const val BASE_URL = "http://192.168.0.104:8000/"
+    private const val BASE_URL = "http://192.168.0.101:8000/"
 
     // --- Interceptores útiles ---
     private val logging = HttpLoggingInterceptor().apply {

@@ -1,4 +1,4 @@
-package com.example.proyecto.data
+package com.example.proyecto.data.reuniones
 
 data class AsistenciaDto(
     val id: Int,

@@ -17,7 +17,8 @@ class ReunionesViewModel : ViewModel() {
         val page: Int = 1,
         val hasNext: Boolean = false,
         val loading: Boolean = false,
-        val error: String? = null
+        val error: String? = null,
+        val initialized: Boolean = false      // 👈 NUEVO
     )
 
     private val _state = MutableStateFlow(
@@ -53,7 +54,12 @@ class ReunionesViewModel : ViewModel() {
         current[e] = reducer(current[e] ?: SectionState())
         _state.value = current
     }
-
+    /** Carga solo si la sección aún no ha sido inicializada. */
+    fun ensureLoaded(estado: ReunionEstado, pageSize: Int = 20) {
+        val s = _state.value[estado] ?: SectionState()
+        if (s.initialized || s.loading) return   // ya hay datos o se está cargando
+        refresh(estado, pageSize)
+    }
     /** Carga inicial o recarga completa del estado dado (reinicia a page=1). */
     fun refresh(estado: ReunionEstado, pageSize: Int = 20) {
         load(estado, page = 1, pageSize = pageSize, reset = true)
@@ -96,9 +102,10 @@ class ReunionesViewModel : ViewModel() {
                     prev.copy(
                         items   = merged,
                         page    = page,
-                        hasNext = resp.next != null,  // Page.next: String? (URL) o null
+                        hasNext = resp.next != null,
                         loading = false,
-                        error   = null
+                        error   = null,
+                        initialized = true          // 👈 MARCAMOS COMO CARGADO
                     )
                 }
             } catch (e: Exception) {

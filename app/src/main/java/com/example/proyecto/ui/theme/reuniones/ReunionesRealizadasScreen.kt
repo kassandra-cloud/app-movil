@@ -1,3 +1,4 @@
+// ui/reuniones/ReunionesRealizadasScreen.kt
 package com.example.proyecto.ui.theme.reuniones
 
 import androidx.compose.foundation.layout.*
@@ -23,13 +24,13 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReunionesRealizadasScreen(
-    vm: ReunionesViewModel = viewModel(),
     onBack: () -> Unit = {},
-    onOpen: (ReunionDto) -> Unit = {}
+    onOpen: (ReunionDto) -> Unit = {},
+    vm: ReunionesViewModel = viewModel()
 ) {
-    // Observa el slice de REALIZADA
     val st by vm.realizadas.collectAsState(initial = ReunionesViewModel.SectionState())
 
+    // Carga inicial (realizadas)
     LaunchedEffect(Unit) { vm.refresh(ReunionEstado.REALIZADA) }
 
     Scaffold(
@@ -45,40 +46,37 @@ fun ReunionesRealizadasScreen(
         }
     ) { padding ->
         when {
-            st.loading -> Box(
-                Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
-
-            st.error != null -> Box(
-                Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
+            st.loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            st.error != null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Error: ${st.error}")
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = { vm.refresh(ReunionEstado.REALIZADA) }) { Text("Reintentar") }
                 }
             }
+            st.items.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("No hay reuniones realizadas.")
+            }
+            else -> {
+                // Ordenar desc y agrupar por día (Chile)
+                val grupos = remember(st.items) {
+                    st.items
+                        .sortedByDescending { parseChile(it.fecha) }
+                        .groupBy { parseChile(it.fecha).toLocalDate() }
+                        .toSortedMap(compareByDescending { it })
+                }
 
-            st.items.isEmpty() -> Box(
-                Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) { Text("No hay reuniones realizadas.") }
-
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(st.items) { r -> ReunionRealizadaCard(r) { onOpen(r) } }
-
-                // Paginación: pide más al llegar al final
-                item {
-                    if (st.hasNext && !st.loading) {
-                        LaunchedEffect(st.page) { vm.nextPage(ReunionEstado.REALIZADA) }
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    grupos.forEach { (dia, lista) ->
+                        item("header-$dia") { DiaHeader(dia) }
+                        items(lista, key = { it.id ?: "${it.titulo}-${it.fecha}" }) { r ->
+                            ReunionRealizadaCard(r) { onOpen(r) }
                         }
                     }
                 }
@@ -87,21 +85,23 @@ fun ReunionesRealizadasScreen(
     }
 }
 
+/* ---------- Tarjeta ---------- */
+
 @Composable
-private fun ReunionRealizadaCard(
-    r: ReunionDto,
-    onClick: () -> Unit
-) {
+private fun ReunionRealizadaCard(r: ReunionDto, onClick: () -> Unit) {
+    val inicio = parseChile(r.fecha)
+    val horaFmt = DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", Locale("es"))
+
     ElevatedCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFFF2F8FF)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(r.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(4.dp))
-            Text("${r.tipo} · ${formateaFecha(r.fecha)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(inicio.format(horaFmt), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             r.tabla?.takeIf { it.isNotBlank() }?.let {
                 Spacer(Modifier.height(6.dp))
                 Text(it, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
@@ -110,11 +110,27 @@ private fun ReunionRealizadaCard(
     }
 }
 
-private fun formateaFecha(iso: String): String = try {
-    val dt = runCatching { OffsetDateTime.parse(iso) }.getOrNull()
-        ?: LocalDateTime.parse(iso).atZone(ZoneId.systemDefault()).toOffsetDateTime()
-    val local = dt.atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
-    local.format(DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", Locale("es")))
-} catch (_: Exception) {
-    iso.replace('T', ' ').take(16)
+/* ---------- Encabezado de día ---------- */
+
+@Composable
+private fun DiaHeader(dia: LocalDate) {
+    val formato = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM yyyy", Locale("es"))
+    Surface(color = Color(0xFFF3F6FF), tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = dia.format(formato).replaceFirstChar { it.titlecase(Locale("es")) },
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+        )
+    }
+}
+
+/* ---------- Zona horaria Chile (coincide con la web) ---------- */
+
+private val CHILE_TZ: ZoneId = ZoneId.of("America/Santiago")
+
+/** Acepta ISO con o sin offset. Con offset → convierte a Chile; sin offset → interpreta como hora local Chile. */
+private fun parseChile(iso: String): LocalDateTime = runCatching {
+    OffsetDateTime.parse(iso).atZoneSameInstant(CHILE_TZ).toLocalDateTime()
+}.getOrElse {
+    LocalDateTime.parse(iso) // si backend ya guarda en hora Chile sin offset
 }

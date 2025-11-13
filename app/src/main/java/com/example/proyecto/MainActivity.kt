@@ -128,15 +128,12 @@ fun MainScreen(
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                // Si aún no migras Programadas al ViewModel, mantenlo así:
                 ReunionesProgramadasScreen(
-                    reuniones = reuniones,
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { /* abrir detalle/confirmación */ }
                 )
             }
         }
-
         ACTAS -> ActasScreen(
             onVerActa = { acta -> viewModel.openActaDetalle(acta) },
             onBack = { viewModel.goBackToMainMenu() }

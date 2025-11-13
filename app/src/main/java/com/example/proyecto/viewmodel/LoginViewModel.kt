@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
+import com.example.proyecto.data.PublicacionDto
 
 data class LoginUiState(
     val isLoading: Boolean = false,
@@ -22,9 +23,9 @@ data class LoginUiState(
     val currentScreen: AppScreen = AppScreen.LOGIN,
     val errorMessage: String? = null,
     val successMessage: String? = null,
-    val selectedActa: ActaDto? = null
+    val selectedActa: ActaDto? = null,
+    val selectedPublicacion: PublicacionDto? = null    // 👈 NUEVO
 )
-
 class LoginViewModel : ViewModel() {
 
     /* ---------- UI STATE ---------- */
@@ -100,6 +101,7 @@ class LoginViewModel : ViewModel() {
     }
 
     /* ---------- Actas ---------- */
+    /* ---------- Actas ---------- */
     fun openActaDetalle(acta: ActaDto) {
         if (!acta.aprobada) {
             _uiState.update { it.copy(errorMessage = "El acta aún no está aprobada.") }
@@ -110,6 +112,24 @@ class LoginViewModel : ViewModel() {
 
     fun closeActaDetalle() {
         _uiState.update { it.copy(selectedActa = null, currentScreen = AppScreen.ACTAS) }
+    }
+    /* ---------- Foro / Publicaciones ---------- */
+    fun openPublicacionDetalle(pub: PublicacionDto) {
+        _uiState.update {
+            it.copy(
+                selectedPublicacion = pub,
+                currentScreen = AppScreen.ASISTENCIA_DETALLE   // 👈 nueva pantalla del detalle
+            )
+        }
+    }
+
+    fun closePublicacionDetalle() {
+        _uiState.update {
+            it.copy(
+                selectedPublicacion = null,
+                currentScreen = AppScreen.ASISTENCIA          // 👈 vuelve al listado del foro
+            )
+        }
     }
 
     /* ---------- Carga de reuniones (API) ---------- */

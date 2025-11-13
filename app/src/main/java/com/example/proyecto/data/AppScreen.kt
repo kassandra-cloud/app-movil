@@ -15,6 +15,7 @@ enum class AppScreen {
 
     // Otros módulos
     ASISTENCIA,
+    ASISTENCIA_DETALLE,
     VOTACION,
     TALLERES,
     RECURSOS

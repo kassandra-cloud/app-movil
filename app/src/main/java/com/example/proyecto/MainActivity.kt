@@ -47,6 +47,8 @@ import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
+import com.example.proyecto.data.PublicacionDto
+import com.example.proyecto.ui.theme.ForoDetalleScreen
 
 /* Colores/gradiente usados por el MENÚ */
 val webColorPrincipal = Color(0xFF42A5F5)
@@ -146,8 +148,30 @@ fun MainScreen(
             } else {
                 com.example.proyecto.ui.theme.ForoScreen(
                     token = token,
-                    onBack = { viewModel.goBackToMainMenu() }
+                    onBack = { viewModel.goBackToMainMenu() },
+                    onVerComentar = { pub ->
+                        // 👇 aquí disparamos la navegación al detalle
+                        viewModel.openPublicacionDetalle(pub)
+                    }
                 )
+            }
+        }
+        ASISTENCIA_DETALLE -> {
+            if (token.isNullOrBlank()) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
+            } else {
+                val pub = uiState.selectedPublicacion
+                if (pub == null) {
+                    // Si por alguna razón no hay publicación, volvemos al listado
+                    LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
+                } else {
+                    ForoDetalleScreen(
+                        token = token,
+                        publicacion = pub,
+                        onBack = { viewModel.closePublicacionDetalle() }
+                    )
+                }
             }
         }
 

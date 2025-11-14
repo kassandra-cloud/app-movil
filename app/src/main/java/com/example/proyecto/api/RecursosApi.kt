@@ -5,9 +5,8 @@ import com.example.proyecto.data.recursos.RecursoDto
 import retrofit2.http.GET
 import retrofit2.http.Query
 import com.example.proyecto.data.recursos.SolicitudDto
-import com.example.proyecto.data.recursos.CrearSolicitudReq
 import retrofit2.http.*
-
+import com.example.proyecto.data.recursos.CrearSolicitudReq
 interface RecursosApi {
     @GET("recursos/api/v1/recursos/")
     suspend fun listarRecursos(

@@ -1,149 +1,74 @@
-// app/src/main/java/com/example/proyecto/ui/recursos/RecursosViewModel.kt
+// app/src/main/java/com/example/proyecto/ui/theme/recursos/RecursosViewModel.kt
 package com.example.proyecto.ui.theme.recursos
 
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.proyecto.api.ApiClient
 import com.example.proyecto.api.RecursosApi
-import com.example.proyecto.data.recursos.CrearSolicitudReq
 import com.example.proyecto.data.recursos.RecursoDto
-import com.example.proyecto.data.recursos.SolicitudDto
+import com.example.proyecto.data.recursos.CrearSolicitudReq
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONObject
-import retrofit2.HttpException
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
-data class RecursosState(
-    val cargando: Boolean = false,
-    val error: String? = null,
-    val recursos: List<RecursoDto> = emptyList(),
-    val page: Int = 0,
-    val fin: Boolean = false,
-    // recursoId -> estado ("PENDIENTE" | "APROBADA" | "RECHAZADA")
-    val misSolicitudes: Map<Int, String> = emptyMap(),
-    // 💡 AÑADIDO: Estado para controlar el envío de una solicitud
-    val enviando: Boolean = false
-)
+// 💡 CONSTRUCTOR CORREGIDO: Recibe RecursosApi
+class RecursosViewModel(private val recursosApi: RecursosApi) : ViewModel() {
 
-class RecursosViewModel(private val token: String) : ViewModel() {
+    private val _recursos = MutableStateFlow<List<RecursoDto>>(emptyList())
+    val recursos: StateFlow<List<RecursoDto>> = _recursos
 
-    private val api by lazy { ApiClient.getClient(token).create(RecursosApi::class.java) }
-    private val ISO: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
 
-    var ui: MutableState<RecursosState> = mutableStateOf(RecursosState())
-        private set
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
 
-    fun refresh(disponiblesSolo: Boolean = true) = cargar(disponiblesSolo, reset = true)
-    fun loadMore(disponiblesSolo: Boolean = true) = cargar(disponiblesSolo, reset = false)
+    private val _reservaMessage = MutableStateFlow<String?>(null)
+    val reservaMessage: StateFlow<String?> = _reservaMessage
 
-    fun cargar(disponiblesSolo: Boolean = true, reset: Boolean = true) {
-        val nextPage = if (reset) 1 else ui.value.page + 1
-        if (!reset && ui.value.fin) return
-
-        ui.value = ui.value.copy(cargando = true, error = null)
-
-        viewModelScope.launch {
-            try {
-                val resp = api.listarRecursos(
-                    disponible = if (disponiblesSolo) true else null,
-                    page = nextPage
-                )
-                val nuevos = if (reset) resp.results else ui.value.recursos + resp.results
-                ui.value = ui.value.copy(
-                    cargando = false,
-                    recursos = nuevos,
-                    page = nextPage,
-                    fin = resp.next == null
-                )
-            } catch (e: Exception) {
-                ui.value = ui.value.copy(cargando = false, error = e.message ?: "Error desconocido")
-            }
-        }
+    init {
+        cargarRecursos()
     }
 
-    /** Carga /recursos/api/v1/solicitudes/?mine=true y mapea recursoId -> estado */
-    fun cargarMisSolicitudes(estado: String? = null) {
+    fun cargarRecursos(search: String? = null) {
         viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
             try {
-                val page = api.misSolicitudes(mine = true, estado = estado)
-                val map = page.results.associate { it.recurso to it.estado }
-                ui.value = ui.value.copy(misSolicitudes = map)
-            } catch (e: Exception) {
-                // No rompas la UI si falla solo el estado
-                ui.value = ui.value.copy(error = ui.value.error ?: e.message)
-            }
-        }
-    }
-
-    fun solicitar(
-        recursoId: Int,
-        inicio: String,
-        fin: String,
-        motivo: String?,
-        onOk: (SolicitudDto) -> Unit,
-        onErr: (String) -> Unit
-    ) {
-        // 💡 1. Inicia el estado de envío
-        ui.value = ui.value.copy(enviando = true)
-
-        viewModelScope.launch {
-            try {
-                val di = LocalDate.parse(inicio, ISO)
-                val df = LocalDate.parse(fin, ISO)
-                if (df.isBefore(di)) {
-                    onErr("La fecha fin no puede ser menor que la fecha inicio.")
-                    return@launch
-                }
-
-                val req = CrearSolicitudReq(
-                    recurso = recursoId,
-                    fechaInicio = inicio.trim(),
-                    fechaFin = fin.trim(),
-                    motivo = motivo?.ifBlank { null }
+                // 💡 CORRECCIÓN: disponible = null, el Serializer del backend calcula el estado.
+                val response = recursosApi.listarRecursos(
+                    disponible = null,
+                    search = search,
+                    page = 1,
+                    pageSize = 20
                 )
-                val resp = api.crearSolicitud(req)
-                onOk(resp)
-
-                // Refresca estado para deshabilitar el botón inmediatamente
-                cargarMisSolicitudes()
-
-            } catch (e: HttpException) {
-                val body = e.response()?.errorBody()?.string()
-                val msg = try {
-                    val jo = JSONObject(body ?: "{}")
-                    buildString {
-                        jo.keys().forEach { key ->
-                            val arr = jo.optJSONArray(key)
-                            val errorMsg = if (arr != null && arr.length() > 0)
-                                arr.getString(0)
-                            else "Error desconocido."
-
-                            val formattedKey = if (key == "non_field_errors") "Error General" else key.capitalize()
-
-                            append("$formattedKey: $errorMsg\n")
-                        }
-                    }.ifBlank { "Solicitud inválida (${e.code()})." }
-                } catch (_: Exception) {
-                    body ?: "Solicitud inválida (${e.code()})."
-                }
-                onErr(msg.trim())
+                _recursos.value = response.results
             } catch (e: Exception) {
-                val moshiError = e.message
-
-                val finalMsg = if (moshiError != null && moshiError.contains("Required value 'id' missing")) {
-                    "Error de validación: La solicitud fue rechazada por el servidor. Revisa si ya tienes una solicitud activa para este recurso o si los datos son incorrectos."
-                } else {
-                    e.message ?: "Error al crear solicitud"
-                }
-
-                onErr(finalMsg)
+                _errorMessage.value = "Error al cargar recursos: ${e.message}"
             } finally {
-                // 💡 2. Finaliza el estado de envío, sin importar el resultado
-                ui.value = ui.value.copy(enviando = false)
+                _isLoading.value = false
             }
         }
+    }
+
+    fun crearSolicitud(req: CrearSolicitudReq) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _reservaMessage.value = null
+            try {
+                val response = recursosApi.crearSolicitud(req)
+                _reservaMessage.value = "Solicitud enviada con éxito para ${response.recursoNombre}"
+                // Recargar para que el RecursoItem refleje la nueva disponibilidad
+                cargarRecursos()
+            } catch (e: Exception) {
+                // Muestra un mensaje más informativo al usuario
+                _reservaMessage.value = "Error al solicitar: ${e.message}. Revisa el formato de fechas o si ya existe una solicitud activa."
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun clearReservaMessage() {
+        _reservaMessage.value = null
     }
 }

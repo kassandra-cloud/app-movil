@@ -1,308 +1,69 @@
-// app/src/main/java/com/example/proyecto/ui/recursos/RecursosScreen.kt
-package com.example.proyecto.ui.recursos
+// app/src/main/java/com/example/proyecto/ui/theme/recursos/RecursosScreen.kt (COMPONENTES CLAVE)
+
+package com.example.proyecto.ui.theme.recursos
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color // Añadir si necesitas Color.Gray
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.recursos.RecursoDto
-import com.example.proyecto.ui.theme.recursos.RecursosViewModel
-import com.example.proyecto.ui.theme.recursos.RecursosViewModelFactory
-import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+// La función principal de la pantalla
 @Composable
-fun RecursosScreen(
-    token: String,
-    onBack: () -> Unit
-) {
-    // Asegúrate de usar el ViewModel correcto (ajusta la ruta del import si es necesario)
-    val vm: RecursosViewModel = viewModel(factory = RecursosViewModelFactory(token))
-    val ui by vm.ui
+fun RecursosScreen(viewModel: RecursosViewModel, onReservarClick: (Int) -> Unit) {
+    val recursos by viewModel.recursos.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    // ... (Scaffold, TopAppBar, etc.)
 
-    LaunchedEffect(Unit) {
-        vm.refresh(disponiblesSolo = true)
-        vm.cargarMisSolicitudes()
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Recursos") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when {
-                ui.cargando && ui.recursos.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                ui.error != null && ui.recursos.isEmpty() -> {
-                    Column(Modifier.fillMaxSize().padding(16.dp)) {
-                        Text("Error: ${ui.error}")
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onClick = {
-                            vm.refresh()
-                            vm.cargarMisSolicitudes()
-                        }) { Text("Reintentar") }
-                    }
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(ui.recursos) { r ->
-                            var showDialog by remember { mutableStateOf(false) }
-
-                            if (showDialog) {
-                                SolicitudDialog(
-                                    // 💡 Usa el estado de envío del ViewModel
-                                    isSubmitting = ui.enviando,
-                                    onDismiss = { showDialog = false },
-                                    onSubmit = { ini, fin, mot ->
-                                        vm.solicitar(
-                                            recursoId = r.id,
-                                            inicio = ini,
-                                            fin = fin,
-                                            motivo = mot,
-                                            onOk = {
-                                                // ✅ ÉXITO: Cierra el diálogo y muestra el mensaje.
-                                                showDialog = false
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar(
-                                                        "Solicitud enviada para '${r.nombre}'"
-                                                    )
-                                                }
-                                            },
-                                            onErr = { msg ->
-                                                // ⚠️ ERROR: NO cierra el diálogo, solo muestra el mensaje.
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar(
-                                                        "Error al solicitar: $msg"
-                                                    )
-                                                }
-                                            }
-                                        )
-                                    }
-                                )
-                            }
-
-                            // 💡 Aquí se llama a RecursoCard
-                            RecursoCard(
-                                recurso = r,
-                                estadoActual = ui.misSolicitudes[r.id],
-                                onSolicitar = { showDialog = true }
-                            )
-                        }
-
-                        if (!ui.fin) {
-                            item {
-                                OutlinedButton(
-                                    onClick = { vm.loadMore() },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) { Text("Cargar más") }
-                            }
-                        }
-                    }
-
-                    if (ui.cargando && ui.recursos.isNotEmpty()) {
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.BottomCenter)
-                        )
-                    }
-                }
+    if (isLoading) {
+        // ... (Indicador de progreso)
+    } else if (errorMessage != null) {
+        // ... (Mostrar error)
+    } else {
+        LazyColumn(contentPadding = PaddingValues(16.dp)) {
+            items(recursos) { recurso ->
+                RecursoItem(
+                    recurso = recurso,
+                    onReservarClick = onReservarClick,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                )
             }
         }
     }
 }
 
-/** Chip de estado PENDIENTE/APROBADA/RECHAZADA */
+// Composable para cada ítem de recurso
 @Composable
-private fun EstadoChip(estado: String) {
-    val texto = when (estado) {
-        "APROBADA" -> "Aprobada"
-        "RECHAZADA" -> "Rechazada"
-        else -> "Pendiente"
-    }
-    AssistChip(onClick = {}, label = { Text(texto) })
-}
+fun RecursoItem(recurso: RecursoDto, onReservarClick: (Int) -> Unit, modifier: Modifier) {
+    // Definir la acción de reserva (simulada aquí)
+    val onButtonClick = { onReservarClick(recurso.id) }
 
-/** Tarjeta de recurso con chips y botón Solicitar (deshabilitado si ya tiene activa) */
-@Composable
-private fun RecursoCard(
-    recurso: RecursoDto,
-    estadoActual: String?,
-    onSolicitar: () -> Unit
-) {
-    val yaTieneActiva = estadoActual == "PENDIENTE" || estadoActual == "APROBADA"
+    Card(modifier = modifier) {
+        Column(Modifier.padding(16.dp)) {
+            Text(text = recurso.nombre, style = MaterialTheme.typography.titleLarge)
+            Text(text = recurso.descripcion ?: "Sin descripción", style = MaterialTheme.typography.bodyMedium)
 
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text(recurso.nombre, style = MaterialTheme.typography.titleMedium)
-            if (!recurso.descripcion.isNullOrBlank()) {
-                Text(recurso.descripcion, style = MaterialTheme.typography.bodyMedium)
-            }
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Spacer(Modifier.height(16.dp))
+
+            // 💡 CRÍTICO: Usamos el campo 'disponible' calculado del DTO
+            Button(
+                onClick = onButtonClick,
+                enabled = recurso.disponible, // 👈 Se deshabilita si es False
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (recurso.disponible) MaterialTheme.colorScheme.primary else Color.Gray
+                )
             ) {
-                AssistChip(onClick = {}, label = {
-                    Text(if (recurso.disponible) "Disponible" else "No disponible")
-                })
-                Spacer(Modifier.width(8.dp))
-                if (estadoActual != null) {
-                    EstadoChip(estadoActual)
-                    Spacer(Modifier.width(8.dp))
-                }
-                OutlinedButton(
-                    enabled = recurso.disponible && !yaTieneActiva,
-                    onClick = onSolicitar
-                ) { Text(if (yaTieneActiva) "Ya solicitada" else "Solicitar") }
+                Text(text = if (recurso.disponible) "Reservar Recurso" else "No Disponible Hoy")
             }
         }
     }
-}
-
-/** Diálogo con DatePicker (YYYY-MM-DD) y motivo opcional. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SolicitudDialog(
-    isSubmitting: Boolean, // Estado de envío
-    onDismiss: () -> Unit,
-    onSubmit: (String, String, String?) -> Unit
-) {
-    val iso = remember { DateTimeFormatter.ISO_LOCAL_DATE }
-    val tz = remember { ZoneId.systemDefault() }
-
-    var inicio by remember { mutableStateOf<String?>(null) }
-    var fin by remember { mutableStateOf<String?>(null) }
-    var motivo by remember { mutableStateOf("") }
-
-    var showInicio by remember { mutableStateOf(false) }
-    var showFin by remember { mutableStateOf(false) }
-
-    fun millisToIso(millis: Long?): String? =
-        millis?.let { Instant.ofEpochMilli(it).atZone(tz).toLocalDate().format(iso) }
-
-    if (showInicio) {
-        val dpState = rememberDatePickerState()
-        DatePickerDialog(
-            onDismissRequest = { showInicio = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    inicio = millisToIso(dpState.selectedDateMillis)
-                    if (fin != null && inicio != null && fin!! < inicio!!) fin = null
-                    showInicio = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showInicio = false }) { Text("Cancelar") } }
-        ) { DatePicker(state = dpState) }
-    }
-
-    if (showFin) {
-        val minMillis = remember(inicio) {
-            inicio?.let {
-                val ldt = java.time.LocalDate.parse(it, iso).atStartOfDay(tz)
-                ldt.toInstant().toEpochMilli()
-            }
-        }
-        val selectable = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long) =
-                minMillis == null || utcTimeMillis >= minMillis
-        }
-        val dpState = rememberDatePickerState(selectableDates = selectable)
-        DatePickerDialog(
-            onDismissRequest = { showFin = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    fin = millisToIso(dpState.selectedDateMillis)
-                    showFin = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showFin = false }) { Text("Cancelar") } }
-        ) { DatePicker(state = dpState) }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Solicitar recurso") },
-        text = {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = inicio.orEmpty(),
-                    onValueChange = {},
-                    label = { Text("Fecha inicio") },
-                    readOnly = true,
-                    trailingIcon = { TextButton(onClick = { showInicio = true }, enabled = !isSubmitting) { Text("Elegir") } },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = fin.orEmpty(),
-                    onValueChange = {},
-                    label = { Text("Fecha fin") },
-                    readOnly = true,
-                    trailingIcon = { TextButton(onClick = { showFin = true }, enabled = !isSubmitting) { Text("Elegir") } },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = motivo,
-                    onValueChange = { motivo = it },
-                    label = { Text("Motivo (opcional)") },
-                    enabled = !isSubmitting,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (!inicio.isNullOrBlank() && !fin.isNullOrBlank() && fin!! < inicio!!) {
-                    Text(
-                        "La fecha fin no puede ser menor que la fecha inicio.",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            val valid = !inicio.isNullOrBlank() && !fin.isNullOrBlank() && fin!! >= inicio!!
-            val enabled = valid && !isSubmitting
-            TextButton(
-                enabled = enabled,
-                onClick = { onSubmit(inicio!!, fin!!, motivo.ifBlank { null }) }
-            ) {
-                if (isSubmitting) {
-                    CircularProgressIndicator(Modifier.size(24.dp))
-                } else {
-                    Text("Enviar")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isSubmitting) { Text("Cancelar") }
-        }
-    )
 }

@@ -8,6 +8,7 @@ import com.squareup.moshi.JsonClass
 data class RecursoDto(
     val id: Int,
     val nombre: String,
-    val descripcion: String,
+    val descripcion: String?,
+    // Este campo se actualiza en el backend (ver Solución 1)
     val disponible: Boolean
 )

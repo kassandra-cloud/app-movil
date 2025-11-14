@@ -12,10 +12,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-// 🔑 Importaciones de gráficos necesarias para el borde del botón
+// Importaciones de gráficos necesarias para el borde del botón
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.BorderStroke // ¡NECESARIO para solucionar el error!
+import androidx.compose.foundation.BorderStroke
 // -----------------------------------------------------------------
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -103,8 +103,8 @@ private fun TallerCard(
     onInscribir: () -> Unit,
     onDesinscribir: () -> Unit
 ) {
+    // Se usa inscritosCount, que es la propiedad Kotlin correcta del DTO.
     val sinCupos = t.cuposDisponibles <= 0
-    // ✅ CORRECCIÓN: Usamos el conteo de inscritos como sustituto temporal para determinar si está inscrito
     val yaInscrito = t.inscritosCount > 0
 
     val colorIcono = if (yaInscrito) ColorSecundario else ColorPrincipal
@@ -157,9 +157,24 @@ private fun TallerCard(
                 fontWeight = FontWeight.SemiBold
             )
 
+            Spacer(Modifier.height(4.dp))
+
+            // 🔑 4. Información de Fechas (Manejo de nulos)
+            // Se asume que t.fechaInicio y t.fechaTermino son String?
+            val inicio = t.fechaInicio ?: "Fecha de inicio no definida"
+            val termino = t.fechaTermino ?: "Fecha de término no definida"
+
+            Text(
+                "Inicia: $inicio · Termina: $termino",
+                style = MaterialTheme.typography.bodySmall,
+                color = ColorGrisOscuroTexto
+            )
+            // Si el formato de fecha es complejo (ej. ISO 8601), deberá aplicar un formateador (SimpleDateFormat o java.time)
+            // en el ViewModel para que se vea bien aquí, pero por ahora mostramos el String crudo o el mensaje N/D.
+
             Spacer(Modifier.height(16.dp))
 
-            // 4. Botones de Acción
+            // 5. Botones de Acción
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
 
                 // Botón de Desinscribir (OutlinedButton)
@@ -168,7 +183,6 @@ private fun TallerCard(
                     enabled = yaInscrito && !inscribiendo, // Solo se puede desinscribir si ya está inscrito
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorGrisOscuroTexto),
-                    // ✅ SOLUCIÓN AL ERROR: Usamos BorderStroke explícito.
                     border = BorderStroke(1.dp, ColorGrisOscuroTexto)
                 ) {
                     Text("Desinscribirme")

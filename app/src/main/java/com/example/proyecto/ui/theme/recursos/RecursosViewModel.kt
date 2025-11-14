@@ -1,5 +1,5 @@
 // app/src/main/java/com/example/proyecto/ui/recursos/RecursosViewModel.kt
-package com.example.proyecto.ui.recursos
+package com.example.proyecto.ui.theme.recursos
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -23,7 +23,9 @@ data class RecursosState(
     val page: Int = 0,
     val fin: Boolean = false,
     // recursoId -> estado ("PENDIENTE" | "APROBADA" | "RECHAZADA")
-    val misSolicitudes: Map<Int, String> = emptyMap()
+    val misSolicitudes: Map<Int, String> = emptyMap(),
+    // 💡 AÑADIDO: Estado para controlar el envío de una solicitud
+    val enviando: Boolean = false
 )
 
 class RecursosViewModel(private val token: String) : ViewModel() {
@@ -84,6 +86,9 @@ class RecursosViewModel(private val token: String) : ViewModel() {
         onOk: (SolicitudDto) -> Unit,
         onErr: (String) -> Unit
     ) {
+        // 💡 1. Inicia el estado de envío
+        ui.value = ui.value.copy(enviando = true)
+
         viewModelScope.launch {
             try {
                 val di = LocalDate.parse(inicio, ISO)
@@ -95,8 +100,8 @@ class RecursosViewModel(private val token: String) : ViewModel() {
 
                 val req = CrearSolicitudReq(
                     recurso = recursoId,
-                    fechaInicio = inicio.trim(), // ⬅️ CORRECCIÓN: fecha_inicio -> fechaInicio
-                    fechaFin = fin.trim(),       // ⬅️ CORRECCIÓN: fecha_fin -> fechaFin
+                    fechaInicio = inicio.trim(),
+                    fechaFin = fin.trim(),
                     motivo = motivo?.ifBlank { null }
                 )
                 val resp = api.crearSolicitud(req)
@@ -112,11 +117,13 @@ class RecursosViewModel(private val token: String) : ViewModel() {
                     buildString {
                         jo.keys().forEach { key ->
                             val arr = jo.optJSONArray(key)
-                            append(
-                                if (arr != null && arr.length() > 0)
-                                    "$key: ${arr.getString(0)}\n"
-                                else "$key\n"
-                            )
+                            val errorMsg = if (arr != null && arr.length() > 0)
+                                arr.getString(0)
+                            else "Error desconocido."
+
+                            val formattedKey = if (key == "non_field_errors") "Error General" else key.capitalize()
+
+                            append("$formattedKey: $errorMsg\n")
                         }
                     }.ifBlank { "Solicitud inválida (${e.code()})." }
                 } catch (_: Exception) {
@@ -124,7 +131,18 @@ class RecursosViewModel(private val token: String) : ViewModel() {
                 }
                 onErr(msg.trim())
             } catch (e: Exception) {
-                onErr(e.message ?: "Error al crear solicitud")
+                val moshiError = e.message
+
+                val finalMsg = if (moshiError != null && moshiError.contains("Required value 'id' missing")) {
+                    "Error de validación: La solicitud fue rechazada por el servidor. Revisa si ya tienes una solicitud activa para este recurso o si los datos son incorrectos."
+                } else {
+                    e.message ?: "Error al crear solicitud"
+                }
+
+                onErr(finalMsg)
+            } finally {
+                // 💡 2. Finaliza el estado de envío, sin importar el resultado
+                ui.value = ui.value.copy(enviando = false)
             }
         }
     }

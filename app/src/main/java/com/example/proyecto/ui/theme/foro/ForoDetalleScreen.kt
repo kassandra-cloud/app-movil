@@ -1,4 +1,4 @@
-package com.example.proyecto.ui.theme
+package com.example.proyecto.ui.theme.foro
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons

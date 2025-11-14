@@ -1,6 +1,6 @@
 package com.example.proyecto.api
 
-import com.example.proyecto.data.TallerDto
+import com.example.proyecto.data.taller.TallerDto
 import retrofit2.http.*
 
 interface TalleresApi {

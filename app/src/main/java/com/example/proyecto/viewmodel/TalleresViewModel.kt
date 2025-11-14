@@ -4,7 +4,7 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
-import com.example.proyecto.data.TallerDto
+import com.example.proyecto.data.taller.TallerDto
 import kotlinx.coroutines.launch
 
 class TalleresViewModel : ViewModel() {

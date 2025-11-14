@@ -13,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 // Importaciones de gráficos necesarias para el borde del botón
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.BorderStroke
 // -----------------------------------------------------------------
@@ -21,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.proyecto.data.TallerDto
+import com.example.proyecto.data.taller.TallerDto
 import com.example.proyecto.viewmodel.TalleresViewModel
 
 // 🎨 PALETA DE COLORES (Consistente con los cambios anteriores)

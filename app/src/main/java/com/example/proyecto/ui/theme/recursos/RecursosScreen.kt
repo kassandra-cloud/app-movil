@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.recursos.RecursoDto
+import com.example.proyecto.ui.theme.recursos.RecursosViewModel
+import com.example.proyecto.ui.theme.recursos.RecursosViewModelFactory
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -26,6 +28,7 @@ fun RecursosScreen(
     token: String,
     onBack: () -> Unit
 ) {
+    // Asegúrate de usar el ViewModel correcto (ajusta la ruta del import si es necesario)
     val vm: RecursosViewModel = viewModel(factory = RecursosViewModelFactory(token))
     val ui by vm.ui
 
@@ -34,7 +37,7 @@ fun RecursosScreen(
 
     LaunchedEffect(Unit) {
         vm.refresh(disponiblesSolo = true)
-        vm.cargarMisSolicitudes()           // ← carga estados para mostrar el chip y deshabilitar botón
+        vm.cargarMisSolicitudes()
     }
 
     Scaffold(
@@ -78,6 +81,8 @@ fun RecursosScreen(
 
                             if (showDialog) {
                                 SolicitudDialog(
+                                    // 💡 Usa el estado de envío del ViewModel
+                                    isSubmitting = ui.enviando,
                                     onDismiss = { showDialog = false },
                                     onSubmit = { ini, fin, mot ->
                                         vm.solicitar(
@@ -86,6 +91,7 @@ fun RecursosScreen(
                                             fin = fin,
                                             motivo = mot,
                                             onOk = {
+                                                // ✅ ÉXITO: Cierra el diálogo y muestra el mensaje.
                                                 showDialog = false
                                                 scope.launch {
                                                     snackbarHostState.showSnackbar(
@@ -94,7 +100,7 @@ fun RecursosScreen(
                                                 }
                                             },
                                             onErr = { msg ->
-                                                showDialog = false
+                                                // ⚠️ ERROR: NO cierra el diálogo, solo muestra el mensaje.
                                                 scope.launch {
                                                     snackbarHostState.showSnackbar(
                                                         "Error al solicitar: $msg"
@@ -106,9 +112,10 @@ fun RecursosScreen(
                                 )
                             }
 
+                            // 💡 Aquí se llama a RecursoCard
                             RecursoCard(
                                 recurso = r,
-                                estadoActual = ui.misSolicitudes[r.id],  // ← estado del usuario
+                                estadoActual = ui.misSolicitudes[r.id],
                                 onSolicitar = { showDialog = true }
                             )
                         }
@@ -151,7 +158,7 @@ private fun EstadoChip(estado: String) {
 @Composable
 private fun RecursoCard(
     recurso: RecursoDto,
-    estadoActual: String?,              // null | "PENDIENTE" | "APROBADA" | "RECHAZADA"
+    estadoActual: String?,
     onSolicitar: () -> Unit
 ) {
     val yaTieneActiva = estadoActual == "PENDIENTE" || estadoActual == "APROBADA"
@@ -187,6 +194,7 @@ private fun RecursoCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SolicitudDialog(
+    isSubmitting: Boolean, // Estado de envío
     onDismiss: () -> Unit,
     onSubmit: (String, String, String?) -> Unit
 ) {
@@ -252,7 +260,7 @@ fun SolicitudDialog(
                     onValueChange = {},
                     label = { Text("Fecha inicio") },
                     readOnly = true,
-                    trailingIcon = { TextButton(onClick = { showInicio = true }) { Text("Elegir") } },
+                    trailingIcon = { TextButton(onClick = { showInicio = true }, enabled = !isSubmitting) { Text("Elegir") } },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -260,13 +268,14 @@ fun SolicitudDialog(
                     onValueChange = {},
                     label = { Text("Fecha fin") },
                     readOnly = true,
-                    trailingIcon = { TextButton(onClick = { showFin = true }) { Text("Elegir") } },
+                    trailingIcon = { TextButton(onClick = { showFin = true }, enabled = !isSubmitting) { Text("Elegir") } },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = motivo,
                     onValueChange = { motivo = it },
                     label = { Text("Motivo (opcional)") },
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (!inicio.isNullOrBlank() && !fin.isNullOrBlank() && fin!! < inicio!!) {
@@ -279,12 +288,21 @@ fun SolicitudDialog(
             }
         },
         confirmButton = {
-            val enabled = !inicio.isNullOrBlank() && !fin.isNullOrBlank() && fin!! >= inicio!!
+            val valid = !inicio.isNullOrBlank() && !fin.isNullOrBlank() && fin!! >= inicio!!
+            val enabled = valid && !isSubmitting
             TextButton(
                 enabled = enabled,
                 onClick = { onSubmit(inicio!!, fin!!, motivo.ifBlank { null }) }
-            ) { Text("Enviar") }
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                } else {
+                    Text("Enviar")
+                }
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) { Text("Cancelar") }
+        }
     )
 }

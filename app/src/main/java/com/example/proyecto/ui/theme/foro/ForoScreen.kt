@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-package com.example.proyecto.ui.theme
+package com.example.proyecto.ui.theme.foro
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

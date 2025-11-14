@@ -1,6 +1,4 @@
-// kassandra-cloud/app-movil/.../data/TallerDto.kt
-
-package com.example.proyecto.data
+package com.example.proyecto.data.taller
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass

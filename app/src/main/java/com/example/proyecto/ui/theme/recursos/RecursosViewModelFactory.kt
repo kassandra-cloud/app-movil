@@ -1,5 +1,5 @@
 // app/src/main/java/com/example/proyecto/ui/recursos/RecursosViewModelFactory.kt
-package com.example.proyecto.ui.recursos
+package com.example.proyecto.ui.theme.recursos
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

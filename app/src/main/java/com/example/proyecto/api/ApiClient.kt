@@ -4,17 +4,13 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+// 💡 CAMBIO: Importar el conversor de Moshi
+import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    /**
-     * IMPORTANTE:
-     * - Emulador Android:    "http://10.0.2.2:8000/"
-     * - Dispositivo físico:  "http://<IP-de-tu-PC>:8000/"
-     */
-    private const val BASE_URL = "http://192.168.0.101:8000/"
+    private const val BASE_URL = "http://192.168.0.104:8000/"
 
     // --- Interceptores útiles ---
     private val logging = HttpLoggingInterceptor().apply {
@@ -47,7 +43,8 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(baseClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            // 💡 CORRECCIÓN 1: Usar MoshiConverterFactory
+            .addConverterFactory(MoshiConverterFactory.create())
             .build()
     }
 
@@ -74,7 +71,8 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(authClient(token))
-            .addConverterFactory(GsonConverterFactory.create())
+            // 💡 CORRECCIÓN 2: Usar MoshiConverterFactory
+            .addConverterFactory(MoshiConverterFactory.create())
             .build()
 
     // --- Helpers de creación de servicios ---

@@ -1,43 +1,46 @@
 package com.example.proyecto.data
 
-import com.google.gson.annotations.SerializedName
+// 💡 CAMBIO: Usaremos solo las anotaciones de Moshi
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 
 // -------------------- Adjuntos --------------------
-// Backend: ArchivoAdjuntoSerializer => fields: id, archivo, tipo_archivo, url
+@JsonClass(generateAdapter = true) // 👈 CORRECCIÓN: Añadido para Moshi
 data class AdjuntoDto(
     val id: Int,
     val archivo: String?, // ruta relativa en el backend (/media/...)
-    @SerializedName("tipo_archivo") val tipoArchivo: String,
+    @Json(name = "tipo_archivo") val tipoArchivo: String, // 👈 CORRECCIÓN: Reemplazado @SerializedName por @Json
     val url: String       // URL absoluta que armamos en el serializer
 )
 
 // -------------------- Comentarios --------------------
-// Backend: ComentarioSerializer => id, autor_username, contenido, fecha_creacion, parent
+@JsonClass(generateAdapter = true) // 👈 CORRECCIÓN: Añadido para Moshi
 data class ComentarioDto(
     val id: Int,
-    @SerializedName("autor_username") val autor: String,
+    @Json(name = "autor_username") val autor: String, // 👈 CORRECCIÓN: Reemplazado @SerializedName por @Json
     val contenido: String,
-    @SerializedName("fecha_creacion") val fechaCreacion: String,
+    @Json(name = "fecha_creacion") val fechaCreacion: String, // 👈 CORRECCIÓN: Reemplazado @SerializedName por @Json
     val parent: Int? = null
 )
 
 // Para crear comentario (POST)
+@JsonClass(generateAdapter = true) // 👈 CORRECCIÓN: Añadido para Moshi
 data class ComentarioCrearRequest(
     val texto: String,
     val parent: Int? = null
 )
 
 // -------------------- Publicaciones --------------------
-// Backend: PublicacionSerializer => id, autor, contenido, fecha_creacion, adjuntos, comentarios
+@JsonClass(generateAdapter = true) // 👈 CORRECCIÓN: Añadido para Moshi
 data class PublicacionDto(
     val id: Int,
 
-    // OJO: el backend envía "autor" como PK (int del usuario)
-    // Si después quieres mostrar el username, podemos agregar "autor_username" en el serializer.
+    // OJO: Si el backend envía la PK (Int) como "autor", esto está bien.
+    // Si el backend envía un string, debes usar @Json(name="autor") val autor: String
     val autor: Int,
 
     val contenido: String,
-    @SerializedName("fecha_creacion") val fechaCreacion: String,
+    @Json(name = "fecha_creacion") val fechaCreacion: String, // 👈 CORRECCIÓN: Reemplazado @SerializedName por @Json
 
     val adjuntos: List<AdjuntoDto> = emptyList(),
     val comentarios: List<ComentarioDto> = emptyList()

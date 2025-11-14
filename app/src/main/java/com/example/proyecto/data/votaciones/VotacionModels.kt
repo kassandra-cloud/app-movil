@@ -1,25 +1,46 @@
 package com.example.proyecto.data.votaciones
 
+// 💡 NECESARIO: Importar las anotaciones de Moshi
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+@JsonClass(generateAdapter = true)
 data class OpcionDto(val id: Int, val texto: String)
 
+@JsonClass(generateAdapter = true)
 data class VotacionDto(
     val id: Int,
     val pregunta: String,
-    val fecha_cierre: String,
+    // 💡 CORREGIDO: Mapeo de snake_case
+    @Json(name = "fecha_cierre") val fechaCierre: String,
     val activa: Boolean,
-    val esta_abierta: Boolean,
+    @Json(name = "esta_abierta") val estaAbierta: Boolean,
     val opciones: List<OpcionDto>,
-    val ya_vote: Boolean,
-    val opcion_votada_id: Int?
+    @Json(name = "ya_vote") val yaVote: Boolean,
+    @Json(name = "opcion_votada_id") val opcionVotadaId: Int?
 )
 
-data class VotarRequest(val opcion_id: Int)
+@JsonClass(generateAdapter = true)
+data class VotarRequest(
+    @Json(name = "opcion_id") val opcionId: Int // 💡 CORREGIDO
+)
+
+@JsonClass(generateAdapter = true)
 data class VotarResponse(val ok: Boolean, val mensaje: String)
 
+@JsonClass(generateAdapter = true)
 data class ResultadoDto(
     val votacion: VotacionHeader,
-    val total_votos: Int,
+    @Json(name = "total_votos") val totalVotos: Int, // 💡 CORREGIDO
     val opciones: List<ResultadoOpcion>
 )
+
+@JsonClass(generateAdapter = true)
 data class VotacionHeader(val id: Int, val pregunta: String)
-data class ResultadoOpcion(val opcion_id: Int, val texto: String, val votos: Int)
+
+@JsonClass(generateAdapter = true)
+data class ResultadoOpcion(
+    @Json(name = "opcion_id") val opcionId: Int, // 💡 CORREGIDO
+    val texto: String,
+    val votos: Int
+)

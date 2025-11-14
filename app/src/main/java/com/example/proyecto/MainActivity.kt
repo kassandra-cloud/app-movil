@@ -30,26 +30,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.AppScreen.*
 import com.example.proyecto.ui.VotacionesScreen
-import com.example.proyecto.ui.actas.ActaDetalleScreen
-import com.example.proyecto.ui.actas.ActasScreen
+import com.example.proyecto.ui.theme.ForoDetalleScreen
+import com.example.proyecto.ui.theme.ForoScreen
 import com.example.proyecto.ui.recursos.RecursosScreen
 import com.example.proyecto.ui.talleres.TalleresScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.ui.theme.auth.LoginScreen
+import com.example.proyecto.ui.actas.ActaDetalleScreen
+import com.example.proyecto.ui.actas.ActasScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesProgramadasScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesRealizadasScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
-import com.example.proyecto.data.PublicacionDto
-import com.example.proyecto.ui.theme.ForoDetalleScreen
-
+/* Colores/gradiente usados por el MENÚ */
 /* Colores/gradiente usados por el MENÚ */
 val webColorPrincipal = Color(0xFF42A5F5)
 val webColorSecundario = Color(0xFF1E88E5)
@@ -72,9 +71,9 @@ fun MainScreen(
     reunionesVM: ReunionesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    // 💡 Obtiene el token, si existe
     val token = uiState.token
 
-    // (Sigue disponible si otras pantallas lo usan)
     val reuniones by viewModel.reuniones.collectAsState()
 
     when (uiState.currentScreen) {
@@ -115,7 +114,6 @@ fun MainScreen(
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                // ✅ Ya NO pasamos 'reuniones'
                 ReunionesRealizadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { reunionDto ->
@@ -141,21 +139,22 @@ fun MainScreen(
             onBack = { viewModel.goBackToMainMenu() }
         )
 
+        // 💡 FORO LISTADO (ASISTENCIA)
         ASISTENCIA -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                com.example.proyecto.ui.theme.ForoScreen(
+                ForoScreen( // 👈 PASA EL TOKEN AL FORO
                     token = token,
                     onBack = { viewModel.goBackToMainMenu() },
                     onVerComentar = { pub ->
-                        // 👇 aquí disparamos la navegación al detalle
                         viewModel.openPublicacionDetalle(pub)
                     }
                 )
             }
         }
+        // 💡 FORO DETALLE (ASISTENCIA_DETALLE)
         ASISTENCIA_DETALLE -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
@@ -163,10 +162,9 @@ fun MainScreen(
             } else {
                 val pub = uiState.selectedPublicacion
                 if (pub == null) {
-                    // Si por alguna razón no hay publicación, volvemos al listado
                     LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
                 } else {
-                    ForoDetalleScreen(
+                    ForoDetalleScreen( // 👈 PASA EL TOKEN AL DETALLE
                         token = token,
                         publicacion = pub,
                         onBack = { viewModel.closePublicacionDetalle() }
@@ -214,7 +212,7 @@ fun MainScreen(
     }
 }
 
-/* =====================  MENÚ PRINCIPAL  ===================== */
+/* =====================  MENÚ PRINCIPAL Y HELPERS (sin cambios) ===================== */
 
 private data class Module(
     val title: String,
@@ -405,7 +403,6 @@ fun ModuleItem(
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario)
                 Spacer(Modifier.height(4.dp))
-                // ✅ typo corregido: typography (no typTypography)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f))
             }
             Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = tuColorTextoSecundario.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))

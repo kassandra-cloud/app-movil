@@ -20,9 +20,9 @@ import com.example.proyecto.viewmodel.ForoViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForoDetalleScreen(
-    token: String,
-    publicacion: PublicacionDto,
-    onBack: () -> Unit,
+    token: String, // 👈 Parámetro token
+    publicacion: PublicacionDto, // 👈 Parámetro Publicacion
+    onBack: () -> Unit, // 👈 Parámetro para volver atrás
     vm: ForoViewModel = viewModel()
 ) {
     // Si quisieras asegurarte de tener lo último del backend:
@@ -135,6 +135,7 @@ fun ForoDetalleScreen(
                 Spacer(Modifier.width(8.dp))
                 IconButton(
                     onClick = {
+                        // 💡 Llama al ViewModel con el token y el ID de la publicación
                         vm.comentar(token, pubActual.id, nuevoComentario)
                         nuevoComentario = ""
                     },

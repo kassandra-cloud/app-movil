@@ -334,14 +334,32 @@ private fun norm(s: String?): String =
     Normalizer.normalize(s?.trim()?.lowercase() ?: "", Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "")
         .replace(Regex("[^a-z0-9]"), "")
-
 @Preview(showBackground = true)
 @Composable
 fun PreviewActasScreen() {
-    // Nota: El DTO de ejemplo ya usa los nombres correctos en el constructor
+    // 💡 CORRECCIÓN CLAVE: Pasamos 8 argumentos al constructor de ActaDto,
+    // incluyendo el nuevo campo 'autorUsername'.
     val actasEjemplo = listOf(
-        ActaDto(1, "Contenido", true,  "Reunión de aprobación de cuentas", "2025-11-01", "Ordinaria", "Resumen demo"),
-        ActaDto(2, "Contenido", false, "Reunión de planificación",  "2025-10-15", "Extraordinaria", "Resumen breve")
+        ActaDto(
+            reunion = 1,
+            contenido = "Contenido",
+            aprobada = true,
+            reunionTitulo = "Reunión de aprobación de cuentas",
+            reunionFecha = "2025-11-01",
+            reunionTipo = "Ordinaria",
+            autorUsername = "admin_user", // <--- ARGUMENTO AÑADIDO (7º)
+            resumen = "Resumen demo"       // <--- ARGUMENTO ANTERIOR (8º)
+        ),
+        ActaDto(
+            reunion = 2,
+            contenido = "Contenido",
+            aprobada = false,
+            reunionTitulo = "Reunión de planificación",
+            reunionFecha = "2025-10-15",
+            reunionTipo = "Extraordinaria",
+            autorUsername = "kassandra_user", // <--- ARGUMENTO AÑADIDO (7º)
+            resumen = "Resumen breve"         // <--- ARGUMENTO ANTERIOR (8º)
+        )
     )
     val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
     val secondaryColor = Color(0xFF1E88E5) // ⬅️ Nuevo azul secundario

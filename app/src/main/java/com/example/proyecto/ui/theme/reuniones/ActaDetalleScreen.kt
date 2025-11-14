@@ -166,6 +166,8 @@ fun PreviewActaDetalleScreen() {
         reunionTitulo = "Reunión de aprobación de cuentas", // Usar reunionTitulo
         reunionFecha = "2025-11-01", // Usar reunionFecha
         reunionTipo = "Ordinaria",
+        // 💡 CORRECCIÓN CLAVE: Añadir el campo autorUsername
+        autorUsername = "admin_kassandra",
         resumen = "Resumen de ejemplo"
     )
 

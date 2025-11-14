@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/proyecto/ui/theme/recursos/RecursosViewModel.kt
 package com.example.proyecto.ui.theme.recursos
 
 import androidx.lifecycle.ViewModel
@@ -57,8 +56,10 @@ class RecursosViewModel(private val recursosApi: RecursosApi) : ViewModel() {
             try {
                 val response = recursosApi.crearSolicitud(req)
                 _reservaMessage.value = "Solicitud enviada con éxito para ${response.recursoNombre}"
-                // Recargar para que el RecursoItem refleje la nueva disponibilidad
+
+                // ✅ CLAVE: Recargar para que el RecursoItem refleje la nueva disponibilidad/estado
                 cargarRecursos()
+
             } catch (e: Exception) {
                 // Muestra un mensaje más informativo al usuario
                 _reservaMessage.value = "Error al solicitar: ${e.message}. Revisa el formato de fechas o si ya existe una solicitud activa."

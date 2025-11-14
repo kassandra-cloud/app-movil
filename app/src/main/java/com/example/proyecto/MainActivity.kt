@@ -1,4 +1,4 @@
-package com.example.proyecto.ui.theme.recursos
+package com.example.proyecto
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -33,11 +33,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.AppScreen.*
-import com.example.proyecto.ui.VotacionesScreen
+import com.example.proyecto.ui.theme.VotacionesScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
 import com.example.proyecto.ui.theme.recursos.RecursosScreen
-import com.example.proyecto.ui.theme.recursos.RecursosViewModelFactory
 import com.example.proyecto.ui.talleres.TalleresScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.ui.theme.auth.LoginScreen
@@ -49,8 +48,7 @@ import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
-
-
+/* Colores/gradiente usados por el MENÚ */
 /* Colores/gradiente usados por el MENÚ */
 val webColorPrincipal = Color(0xFF42A5F5)
 val webColorSecundario = Color(0xFF1E88E5)

@@ -86,4 +86,7 @@ object ApiClient {
 
     // Para armar URLs absolutas desde la app si lo necesitas
     val baseUrl: String get() = retrofit.baseUrl().toString()
+
+
+    val recursosApi: RecursosApi by lazy { retrofit.create(RecursosApi::class.java) } // ✅ AÑADIR ESTA LÍNEA
 }

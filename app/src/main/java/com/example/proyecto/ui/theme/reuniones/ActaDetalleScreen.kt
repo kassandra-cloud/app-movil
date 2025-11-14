@@ -64,7 +64,7 @@ fun ActaDetalleScreen(
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    acta.reunion_titulo,
+                    acta.reunionTitulo, // ⬅️ CORRECCIÓN: reunion_titulo -> reunionTitulo
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     // Título oscuro
@@ -90,7 +90,7 @@ fun ActaDetalleScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = acta.reunion_fecha,
+                        text = acta.reunionFecha, // ⬅️ CORRECCIÓN: reunion_fecha -> reunionFecha
                         style = MaterialTheme.typography.bodySmall,
                         color = ColorGrisOscuroTexto // Gris oscuro para texto secundario
                     )
@@ -163,9 +163,9 @@ fun PreviewActaDetalleScreen() {
         reunion = 1,
         contenido = "Este es el contenido completo del acta. Aquí se detallan todos los puntos discutidos y acuerdos alcanzados.\n\nEl contenido es largo y demostramos que el scroll funciona correctamente.",
         aprobada = true,
-        reunion_titulo = "Reunión de aprobación de cuentas",
-        reunion_fecha = "2025-11-01",
-        reunion_tipo = "Ordinaria",
+        reunionTitulo = "Reunión de aprobación de cuentas", // Usar reunionTitulo
+        reunionFecha = "2025-11-01", // Usar reunionFecha
+        reunionTipo = "Ordinaria",
         resumen = "Resumen de ejemplo"
     )
 

@@ -14,62 +14,81 @@ import retrofit2.Response
 
 class ActasViewModel : ViewModel() {
 
+    // ---- Estado principal ----
     private val _actas = MutableStateFlow<List<ActaDto>>(emptyList())
-    val actas: StateFlow<List<ActaDto>> = _actas
+    val actas: StateFlow<List<ActaDto>> = _actas.asStateFlow()
 
-    // Almacena las asistencias por ID de reunión (reunionId -> List<AsistenciaDto>)
+    // Mapa: idReunion -> lista de asistencias (para pintar ✅ / ❌)
     private val _asistencias = MutableStateFlow<Map<Int, List<AsistenciaDto>>>(emptyMap())
-    val asistencias: StateFlow<Map<Int, List<AsistenciaDto>>> = _asistencias
+    val asistencias: StateFlow<Map<Int, List<AsistenciaDto>>> = _asistencias.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
-    val loading: StateFlow<Boolean> = _loading
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error
+    val error: StateFlow<String?> = _error.asStateFlow()
 
-    /**
-     * Carga actas y asistencias, utilizando el token para la autorización.
-     * Esto resuelve el error 401 si la API de Reuniones es privada.
-     */
-    fun cargarActas(token: String) { // 💡 Recibir token aquí
+    // Para recordar el último filtro de búsqueda
+    private var lastSearch: String? = null
+
+    // ---- Acciones ----
+    fun cargarActas(search: String? = null) {
+        lastSearch = search
         viewModelScope.launch {
-            if (token.isBlank()) {
-                _error.value = "Sesión no válida. Por favor, inicie sesión."
-                return@launch
-            }
-
-            _loading.value = true
-            _error.value = null
-
             try {
-                // 💡 CORRECCIÓN: Crear el cliente autorizado en el scope
-                val api: ReunionesApi = ApiClient.createAuthorized(token, ReunionesApi::class.java)
+                _loading.value = true
+                _error.value = null
 
-                // 1. Cargar Actas
-                // (Asumiendo que ReunionesApi tiene una función para listar actas)
-                val actasList = api.getActas()
-                _actas.value = actasList
+                // 1) Cargar actas (paginadas)
+                val page = ApiClient.reunionesApi.listarActas(search = search)
+                val lista = page.results ?: emptyList()
+                _actas.value = lista
 
-                // 2. Cargar Asistencias (Esto es solo un placeholder, la lógica real de API variará)
-                // Usamos un cliente de API para cargar asistencias (asumiendo que la API tiene un endpoint para esto)
-                // Si tienes un endpoint para TODAS las asistencias de un usuario o por reunión:
-                // val asistenciasData = api.getAsistencias().groupBy { it.reunion }
+                // 2) Limpiar y cargar asistencias por reunión (en paralelo)
+                _asistencias.value = emptyMap()
 
-                // Placeholder para evitar errores de compilación por DTOs
-                val asistenciasData = emptyMap<Int, List<AsistenciaDto>>()
+                lista.forEach { acta ->
+                    viewModelScope.launch {
+                        val reunionId = acta.reunion
+                        try {
+                            val resp: Response<List<AsistenciaDto>> =
+                                ApiClient.reunionesApi.listarAsistencias(
+                                    reunionId = reunionId,
+                                    pageSize = 200
+                                )
 
-                _asistencias.value = asistenciasData
+                            val list: List<AsistenciaDto> =
+                                if (resp.isSuccessful) resp.body() ?: emptyList()
+                                else {
+                                    Log.e("ActasVM", "HTTP ${resp.code()} asistencias reunion=$reunionId")
+                                    emptyList()
+                                }
+
+                            // Actualiza siempre el mapa (evita “Cargando…” infinito)
+                            _asistencias.value = _asistencias.value + (reunionId to list)
+
+                        } catch (e: Exception) {
+                            Log.e("ActasVM", "Error asistencias reunion=$reunionId", e)
+                            _asistencias.value = _asistencias.value + (reunionId to emptyList())
+                        }
+                    }
+                }
 
             } catch (e: Exception) {
-                // Manejo de error de red o serialización
-                _error.value = "Error al cargar actas: ${e.message}. Verifique la conexión o el token."
+                _error.value = e.message ?: "Error cargando actas"
             } finally {
                 _loading.value = false
             }
         }
     }
 
-    fun limpiarError() {
-        _error.value = null
-    }
+    fun refrescar() = cargarActas(lastSearch)
+    fun limpiarError() { _error.value = null }
+
+    // ---- Utilidades para la UI ----
+    fun presentes(reunionId: Int): Int =
+        _asistencias.value[reunionId]?.count { it.presente } ?: 0
+
+    fun ausentes(reunionId: Int): Int =
+        _asistencias.value[reunionId]?.count { !it.presente } ?: 0
 }

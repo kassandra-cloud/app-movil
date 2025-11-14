@@ -188,7 +188,7 @@ private fun VotacionItem(
             Spacer(Modifier.height(12.dp))
 
             // Ya votaste
-            if (votacion.ya_vote) {
+            if (votacion.yaVote) { // ⬅️ CORRECCIÓN: ya_vote -> yaVote
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -196,7 +196,8 @@ private fun VotacionItem(
                     Icon(Icons.Filled.CheckCircle, contentDescription = "Voto Realizado", tint = secundario) // Usando el nuevo azul secundario
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "Ya votaste. Opción: ${votacion.opciones.first { it.id == votacion.opcion_votada_id }.texto}",
+                        // ⬅️ CORRECCIÓN: opcion_votada_id -> opcionVotadaId
+                        "Ya votaste. Opción: ${votacion.opciones.first { it.id == votacion.opcionVotadaId }.texto}",
                         color = secundario // Usando el nuevo azul secundario
                     )
                 }
@@ -204,7 +205,7 @@ private fun VotacionItem(
             }
 
             // Botones de Voto
-            if (!votacion.ya_vote) {
+            if (!votacion.yaVote) { // ⬅️ CORRECCIÓN: ya_vote -> yaVote
                 votacion.opciones.forEach { opcion ->
                     Button(
                         onClick = { onVote(opcion.id) },
@@ -225,7 +226,7 @@ private fun VotacionItem(
                 // Usando el nuevo azul principal
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = principal)
             ) {
-                Text(if (votacion.ya_vote) "Ver mi voto y resultados" else "Ver resultados")
+                Text(if (votacion.yaVote) "Ver mi voto y resultados" else "Ver resultados") // ⬅️ CORRECCIÓN: ya_vote -> yaVote
             }
         }
     }
@@ -247,9 +248,10 @@ private fun VotacionResultadoDialog(
         title = { Text(votacion.pregunta, fontWeight = FontWeight.Bold, color = principal) }, // Usando el nuevo azul
         text = {
             Column {
-                if (votacion.ya_vote) {
+                if (votacion.yaVote) { // ⬅️ CORRECCIÓN: ya_vote -> yaVote
                     Text(
-                        "Tu voto: ${votacion.opciones.first { it.id == votacion.opcion_votada_id }.texto}",
+                        // ⬅️ CORRECCIÓN: opcion_votada_id -> opcionVotadaId
+                        "Tu voto: ${votacion.opciones.first { it.id == votacion.opcionVotadaId }.texto}",
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(8.dp))
@@ -290,13 +292,15 @@ private fun ResultadosCard(result: ResultadoVotacionDto) {
     val grisOscuroTexto = Color(0xFF616161)
 
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        // ⬅️ CORRECCIÓN: total_votos -> totalVotos
         Text(
-            "Resultados (${result.total_votos} votos)",
+            "Resultados (${result.totalVotos} votos)",
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
         )
         Spacer(Modifier.height(8.dp))
         result.opciones.forEach { op ->
-            val pct = if (result.total_votos > 0) op.votos.toFloat() / result.total_votos.toFloat() else 0f
+            // ⬅️ CORRECCIÓN: total_votos -> totalVotos
+            val pct = if (result.totalVotos > 0) op.votos.toFloat() / result.totalVotos.toFloat() else 0f
             val pctLabel = "${(pct * 100).toInt()}%"
             Text(op.texto, fontWeight = FontWeight.Medium)
             // Barra de progreso con color principal

@@ -99,10 +99,12 @@ class VotacionesViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             _ui.update { it.copy(cargando = true, error = null, mensaje = null) }
             try {
+                // El VotoRequest usa 'opcion_id', lo cual es correcto para el backend.
                 val resp = api.votarV1(votacionId, VotoRequest(opcion_id = opcionId), authHeader(token))
                 if (resp.isSuccessful) {
                     val nuevas = _ui.value.abiertas.map { v ->
-                        if (v.id == votacionId) v.copy(ya_vote = true, opcion_votada_id = opcionId) else v
+                        // ⬅️ CORRECCIÓN: Usar yaVote y opcionVotadaId
+                        if (v.id == votacionId) v.copy(yaVote = true, opcionVotadaId = opcionId) else v
                     }
                     _ui.update { it.copy(abiertas = nuevas, mensaje = "¡Voto registrado!", cargando = false) }
                     cargarResultados(token, votacionId) // refresca resultados opcional

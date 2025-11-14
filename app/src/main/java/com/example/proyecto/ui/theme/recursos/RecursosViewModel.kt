@@ -95,8 +95,8 @@ class RecursosViewModel(private val token: String) : ViewModel() {
 
                 val req = CrearSolicitudReq(
                     recurso = recursoId,
-                    fecha_inicio = inicio.trim(),
-                    fecha_fin = fin.trim(),
+                    fechaInicio = inicio.trim(), // ⬅️ CORRECCIÓN: fecha_inicio -> fechaInicio
+                    fechaFin = fin.trim(),       // ⬅️ CORRECCIÓN: fecha_fin -> fechaFin
                     motivo = motivo?.ifBlank { null }
                 )
                 val resp = api.crearSolicitud(req)

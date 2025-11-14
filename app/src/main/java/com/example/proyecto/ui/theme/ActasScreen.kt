@@ -52,13 +52,13 @@ fun ActasScreen(
     var actaPreview by remember { mutableStateOf<ActaDto?>(null) }
 
     // Lógica del ViewModel y Auto-refresh
-    LaunchedEffect(Unit) { vm.cargarActas() }
+    LaunchedEffect(Unit) { vm.cargarActas(loginUi.token ?: "") } // Pasar token
 
     // ✅ CORRECCIÓN DEL AUTO-REFRESH (usa LaunchedEffect y delay)
     LaunchedEffect("auto-refresh-actas") {
         while (true) {
             delay(10_000)
-            vm.cargarActas()
+            vm.cargarActas(loginUi.token ?: "") // Pasar token
         }
     }
 
@@ -130,7 +130,7 @@ fun ActasScreen(
                     ErrorBox(
                         message = error ?: "Error",
                         onDismiss = { vm.limpiarError() },
-                        onRetry   = { vm.cargarActas() }
+                        onRetry   = { vm.cargarActas(loginUi.token ?: "") }
                     )
                 }
                 // Lista Vacía
@@ -158,7 +158,8 @@ fun ActasScreen(
                                 Column(Modifier.padding(16.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            a.reunion_titulo,
+                                            // ⬅️ CORRECCIÓN: Usar reunionTitulo
+                                            a.reunionTitulo,
                                             style = MaterialTheme.typography.titleLarge.copy(color = tuColorPrincipal), // Usando el nuevo azul
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.weight(1f)
@@ -169,7 +170,8 @@ fun ActasScreen(
                                         )
                                     }
                                     Spacer(Modifier.height(4.dp))
-                                    Text(a.reunion_fecha, style = MaterialTheme.typography.bodySmall)
+                                    // ⬅️ CORRECCIÓN: Usar reunionFecha
+                                    Text(a.reunionFecha, style = MaterialTheme.typography.bodySmall)
                                     Spacer(Modifier.height(10.dp))
 
                                     if (!a.resumen.isNullOrBlank()) {
@@ -185,8 +187,10 @@ fun ActasScreen(
                                     val asistentes = asistenciasMap[a.reunion]
                                     if (asistentes != null) {
                                         val tuRegistro = asistentes.firstOrNull { asis ->
-                                            val nu = norm(asis.nombre_usuario)
-                                            val nc = norm(asis.nombre_completo)
+                                            // ⬅️ CORRECCIÓN: Usar nombreUsuario
+                                            val nu = norm(asis.nombreUsuario)
+                                            // ⬅️ CORRECCIÓN: Usar nombreCompleto
+                                            val nc = norm(asis.nombreCompleto)
                                             val rut = norm(asis.rut)
                                             cu.isNotEmpty() && (nu == cu || nc.contains(cu) || cu.contains(nc) || rut == cu)
                                         }
@@ -241,7 +245,7 @@ fun ActasScreen(
     }
 }
 
-// FUNCIONES AUXILIARES (Actualizadas con el nuevo color)
+// FUNCIONES AUXILIARES (Actualizadas con el nuevo color y DTOs)
 
 @Composable
 private fun ActaPreviewDialog(acta: ActaDto, onDismiss: () -> Unit, onVerActa: (ActaDto) -> Unit) {
@@ -249,10 +253,12 @@ private fun ActaPreviewDialog(acta: ActaDto, onDismiss: () -> Unit, onVerActa: (
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
-        title = { Text(acta.reunion_titulo, fontWeight = FontWeight.Bold, color = principalColor) },
+        // ⬅️ CORRECCIÓN: Usar reunionTitulo
+        title = { Text(acta.reunionTitulo, fontWeight = FontWeight.Bold, color = principalColor) },
         text = {
             Column {
-                Text("Fecha: ${acta.reunion_fecha}", style = MaterialTheme.typography.bodySmall)
+                // ⬅️ CORRECCIÓN: Usar reunionFecha
+                Text("Fecha: ${acta.reunionFecha}", style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 Text(acta.resumen ?: "Sin resumen disponible.", style = MaterialTheme.typography.bodyMedium)
             }
@@ -332,6 +338,7 @@ private fun norm(s: String?): String =
 @Preview(showBackground = true)
 @Composable
 fun PreviewActasScreen() {
+    // Nota: El DTO de ejemplo ya usa los nombres correctos en el constructor
     val actasEjemplo = listOf(
         ActaDto(1, "Contenido", true,  "Reunión de aprobación de cuentas", "2025-11-01", "Ordinaria", "Resumen demo"),
         ActaDto(2, "Contenido", false, "Reunión de planificación",  "2025-10-15", "Extraordinaria", "Resumen breve")
@@ -393,11 +400,13 @@ fun PreviewActasScreen() {
                     ) {
                         Column(Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(a.reunion_titulo, style = MaterialTheme.typography.titleLarge.copy(color = principalColor), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                // ⬅️ CORRECCIÓN: Usar reunionTitulo
+                                Text(a.reunionTitulo, style = MaterialTheme.typography.titleLarge.copy(color = principalColor), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                 StatusPill(if (a.aprobada) "Aprobada" else "No aprobada", a.aprobada)
                             }
                             Spacer(Modifier.height(4.dp))
-                            Text(a.reunion_fecha, style = MaterialTheme.typography.bodySmall)
+                            // ⬅️ CORRECCIÓN: Usar reunionFecha
+                            Text(a.reunionFecha, style = MaterialTheme.typography.bodySmall)
                             Spacer(Modifier.height(10.dp))
 
                             TuAsistenciaRow(if (a.aprobada) "Presente" else "Ausente", a.aprobada)

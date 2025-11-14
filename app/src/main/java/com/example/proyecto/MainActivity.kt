@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.AppScreen.*
-import com.example.proyecto.ui.theme.VotacionesScreen
+import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
 import com.example.proyecto.ui.theme.recursos.RecursosScreen

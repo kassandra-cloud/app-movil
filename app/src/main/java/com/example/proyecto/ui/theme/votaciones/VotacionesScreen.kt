@@ -1,4 +1,4 @@
-package com.example.proyecto.ui.theme
+package com.example.proyecto.ui.theme.votaciones
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background

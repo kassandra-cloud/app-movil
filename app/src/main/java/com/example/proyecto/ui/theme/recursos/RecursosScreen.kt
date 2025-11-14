@@ -171,17 +171,28 @@ fun RecursoItem(recurso: RecursoDto, onReservarClick: (Int) -> Unit, modifier: M
     // Definir la acción de reserva
     val onButtonClick = { onReservarClick(recurso.id) }
 
-    // ✅ LÓGICA DE HABILITACIÓN DEL BOTÓN: Deshabilitado si no está disponible O si el usuario ya tiene una solicitud activa.
-    val isEnabled = recurso.disponible && !recurso.solicitudActivaUsuario
+    // ✅ LÓGICA DE HABILITACIÓN CLAVE:
+    // El botón está habilitado si:
+    // 1. El recurso está disponible.
+    // 2. Y (No hay solicitud anterior O la última solicitud fue RECHAZADA).
+    val actualIsEnabled = recurso.disponible && (
+            recurso.estadoUltimaSolicitud == null ||
+                    recurso.estadoUltimaSolicitud == "RECHAZADA"
+            )
 
-    val colorBoton = if (isEnabled) tuColorPrincipal else Color.Gray
+    val colorBoton = if (actualIsEnabled) tuColorPrincipal else Color.Gray
 
-    // ✅ LÓGICA DE TEXTO DEL BOTÓN
-    val textoBoton = when {
-        recurso.solicitudActivaUsuario -> "Solicitud Pendiente" // El usuario ya reservó/solicitó
-        recurso.disponible -> "Reservar Recurso"
-        else -> "No Disponible Hoy"
+    // ✅ LÓGICA DE TEXTO DEL BOTÓN (Muestra el estado final)
+    val textoBoton = when (recurso.estadoUltimaSolicitud) {
+        "APROBADA" -> "Reserva Aprobada"
+        "RECHAZADA" -> "Solicitud Rechazada"
+        "PENDIENTE" -> "Solicitud Pendiente"
+        else -> if (recurso.disponible) "Reservar Recurso" else "No Disponible Hoy"
     }
+
+    // Si la solicitud es APROBADA o PENDIENTE, se debe deshabilitar el botón
+    val isButtonDisabledByStatus = recurso.estadoUltimaSolicitud == "APROBADA" || recurso.estadoUltimaSolicitud == "PENDIENTE"
+    val finalEnabled = actualIsEnabled && !isButtonDisabledByStatus
 
     Card(
         modifier = modifier,
@@ -206,7 +217,7 @@ fun RecursoItem(recurso: RecursoDto, onReservarClick: (Int) -> Unit, modifier: M
             // Botón de Reserva
             Button(
                 onClick = onButtonClick,
-                enabled = isEnabled, // 🔄 Usa la lógica de habilitación
+                enabled = finalEnabled, // 🔄 Usa la lógica de habilitación final
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = colorBoton)

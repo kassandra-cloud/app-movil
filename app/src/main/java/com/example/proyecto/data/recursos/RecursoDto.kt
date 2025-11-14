@@ -13,5 +13,7 @@ data class RecursoDto(
 
     // ✅ CAMPO NUEVO: Indica si el usuario actual tiene una solicitud activa (pendiente o aprobada)
     @Json(name = "solicitud_activa_usuario")
-    val solicitudActivaUsuario: Boolean = false
+    val solicitudActivaUsuario: Boolean = false,
+    @Json(name = "estado_ultima_solicitud")
+    val estadoUltimaSolicitud: String? = null
 )

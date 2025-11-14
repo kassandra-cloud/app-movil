@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/proyecto/data/reuniones/ReunionDto.kt (VERSION CORREGIDA)
 package com.example.proyecto.data.reuniones
 
 import com.squareup.moshi.Json
@@ -9,20 +8,17 @@ data class ReunionDto(
     val id: Int,
     val titulo: String,
 
-    // El serializer de Django ahora envía 'autor' como Int (ID)
-    val autor: Int,
+    // Alinamiento con el Serializer de Django
+    @Json(name = "autor") val autor: Int,
+    @Json(name = "estado") val estado: String,
 
-    // Mismo nombre que en Serializer (String)
-    val estado: String,
 
-    // Mapeo de snake_case para los campos de fecha y tipo
-    @Json(name = "fecha_inicio") val fechaInicio: String,
-    @Json(name = "fecha_fin") val fechaFin: String,
-    @Json(name = "tipo_reunion") val tipoReunion: String,
+    @Json(name = "fecha_inicio") val fechaInicio: String, // <-- Vuelve a ser fecha_inicio
+@Json(name = "tipo_reunion") val tipoReunion: String, // <-- Vuelve a ser tipo_reunion
 
-    // Campos que el Serializer sí envía
-    @Json(name = "asistentes_count") val asistentesCount: Int,
+@Json(name = "asistentes_count") val asistentesCount: Int,
 
-    // Campos que Django no envía o que no deberían estar
-    val tabla: String? = null // Mantener como opcional si se usó en el DTO anterior
+// Estos campos también están en el Serializer
+@Json(name = "tabla") val tabla: String? = null,
+@Json(name = "creada_el") val creadaEl: String? = null
 )

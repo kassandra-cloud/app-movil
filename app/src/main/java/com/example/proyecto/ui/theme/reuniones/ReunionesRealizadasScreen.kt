@@ -1,4 +1,3 @@
-// ui/reuniones/ReunionesRealizadasScreen.kt
 package com.example.proyecto.ui.theme.reuniones
 
 import androidx.compose.foundation.layout.*
@@ -25,7 +24,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // -------------------------------------------------------------------------
-// AUXILIARES (con nombres únicos para evitar conflictos de sobrecarga)
+// AUXILIARES
 // -------------------------------------------------------------------------
 
 /* ---------- Encabezado de día ---------- */
@@ -52,8 +51,10 @@ private val CHILE_TZ_REALIZADAS: ZoneId = ZoneId.of("America/Santiago")
 
 /** Acepta ISO con o sin offset. Con offset → convierte a Chile; sin offset → interpreta como hora local Chile. */
 private fun parseChileRealizadas(iso: String): LocalDateTime = runCatching {
+    // Intenta parsear como ISO 8601 con Offset (esperado desde Django sin format)
     OffsetDateTime.parse(iso).atZoneSameInstant(CHILE_TZ_REALIZADAS).toLocalDateTime()
 }.getOrElse {
+    // Falla si no tiene offset, intenta como Local (si Django usara un formato simple sin Z)
     LocalDateTime.parse(iso)
 }
 
@@ -64,6 +65,7 @@ private fun ReunionRealizadaCard(
     r: ReunionDto,
     onClick: () -> Unit
 ) {
+    // Usa 'r.fechaInicio' (sincronizado con DTO)
     val inicio = parseChileRealizadas(r.fechaInicio)
     val horaFmt = DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", Locale("es"))
 
@@ -85,6 +87,7 @@ private fun ReunionRealizadaCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )
+            // Manejo seguro del campo opcional 'tabla'
             r.tabla?.takeIf { it.isNotBlank() }?.let {
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -112,7 +115,10 @@ fun ReunionesRealizadasScreen(
 
     // Carga inicial
     LaunchedEffect(Unit) {
-        vm.refresh(ReunionEstado.REALIZADA)
+        // Solo recarga si no ha cargado y no está cargando
+        if (!st.initialized && !st.loading) {
+            vm.refresh(ReunionEstado.REALIZADA)
+        }
     }
 
     Scaffold(
@@ -132,7 +138,7 @@ fun ReunionesRealizadasScreen(
         }
     ) { padding ->
         when {
-            st.loading -> Box(
+            st.loading && st.items.isEmpty() -> Box( // Muestra progreso solo si no hay datos previos
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
@@ -173,7 +179,9 @@ fun ReunionesRealizadasScreen(
             else -> {
                 val grupos = remember(st.items) {
                     st.items
+                        // Usa 'it.fechaInicio'
                         .sortedByDescending { parseChileRealizadas(it.fechaInicio) }
+                        // Agrupa por fecha (día)
                         .groupBy { parseChileRealizadas(it.fechaInicio).toLocalDate() }
                         .toSortedMap(compareByDescending { it })
                 }
@@ -191,9 +199,28 @@ fun ReunionesRealizadasScreen(
                         }
                         items(
                             items = lista,
+                            // Usa 'it.fechaInicio'
                             key = { it.id ?: "${it.titulo}-${it.fechaInicio}" }
                         ) { r ->
                             ReunionRealizadaCard(r) { onOpen(r) }
+                        }
+                    }
+                    // Implementación de paginación infinita (si aplica)
+                    item {
+                        if (st.hasNext || st.loading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (st.loading) {
+                                    CircularProgressIndicator()
+                                } else if (st.hasNext) {
+                                    // Trigger para cargar más cuando se llega al final
+                                    SideEffect { vm.nextPage(ReunionEstado.REALIZADA) }
+                                }
+                            }
                         }
                     }
                 }

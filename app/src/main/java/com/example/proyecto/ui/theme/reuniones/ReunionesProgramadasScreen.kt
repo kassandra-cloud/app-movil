@@ -1,4 +1,3 @@
-// ui/reuniones/ReunionesProgramadasScreen.kt
 package com.example.proyecto.ui.theme.reuniones
 
 import androidx.compose.foundation.layout.*
@@ -12,109 +11,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.reuniones.ReunionDto
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
-import java.time.*
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // -------------------------------------------------------------------------
-// COMPOSABLES AUXILIARES (Definidos primero para asegurar su visibilidad)
+// AUXILIARES
 // -------------------------------------------------------------------------
 
-/* ---------- Selector de semana ---------- */
-// 💡 CORRECCIÓN: Aseguramos que no tenga el modificador 'private'
+/* ---------- Encabezado de día ---------- */
+
 @Composable
-fun WeekSwitcher(
-    weekStart: LocalDate,
-    onPrev: () -> Unit,
-    onNext: () -> Unit
-) {
-    val fmt = DateTimeFormatter.ofPattern("d MMM", Locale("es"))
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        TextButton(onClick = onPrev) { Text("◀ Semana") }
-        Spacer(Modifier.weight(1f))
-        Text(
-            "${weekStart.format(fmt)} – ${weekStart.plusDays(6).format(fmt)}",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(Modifier.weight(1f))
-        TextButton(onClick = onNext) { Text("Semana ▶") }
-    }
-}
-
-/* ---------- Tarjeta (sin usar 'fin') ---------- */
-
-// 💡 CORRECCIÓN: Aseguramos que no tenga el modificador 'private'
-@Composable
-fun ReunionProgramadaCard(r: ReunionDto, onClick: () -> Unit) {
-    // 💡 CORRECCIÓN: Usar r.fechaInicio
-    val inicio = parseChile(r.fechaInicio)
-    val hora = DateTimeFormatter.ofPattern("HH:mm", Locale("es"))
-
-    ElevatedCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-    ) {
-        Row(Modifier.padding(16.dp)) {
-            // Bloque de hora
-            Surface(
-                color = Color(0xFFF0ECFF),
-                modifier = Modifier.width(96.dp).heightIn(min = 64.dp)
-            ) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(inicio.format(hora), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                }
-            }
-
-            Spacer(Modifier.width(16.dp))
-
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Badge(text = "Programada", bg = Color(0xFF2962FF), fg = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    // 💡 CORRECCIÓN: Usar r.tipoReunion
-                    Badge(text = r.tipoReunion ?: "—", bg = Color(0xFFFFF3CD), fg = Color(0xFF7A5B00))
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(r.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                r.tabla?.takeIf { it.isNotBlank() }?.let {
-                    Spacer(Modifier.height(4.dp))
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                }
-            }
-        }
-    }
-}
-
-// 💡 CORRECCIÓN: Aseguramos que no tenga el modificador 'private'
-@Composable
-fun Badge(text: String, bg: Color, fg: Color) {
-    Surface(color = bg, shape = MaterialTheme.shapes.small) {
-        Text(
-            text = text,
-            color = fg,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-        )
-    }
-}
-
-// 💡 CORRECCIÓN: Aseguramos que no tenga el modificador 'private'
-@Composable
-fun DiaHeader(dia: LocalDate) {
+private fun DiaHeaderProgramadas(dia: LocalDate) {
     val formato = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM yyyy", Locale("es"))
-    Surface(color = Color(0xFFF3F6FF), tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth()) {
+    Surface(
+        color = Color(0xFFF3F6FF),
+        tonalElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Text(
             text = dia.format(formato).replaceFirstChar { it.titlecase(Locale("es")) },
             style = MaterialTheme.typography.titleMedium,
@@ -123,16 +45,59 @@ fun DiaHeader(dia: LocalDate) {
     }
 }
 
+/* ---------- Zona horaria Chile y Parser ---------- */
 
-/* ---------- Utilidades compartidas ---------- */
+private val CHILE_TZ_PROGRAMADAS: ZoneId = ZoneId.of("America/Santiago")
 
-private val CHILE_TZ: ZoneId = ZoneId.of("America/Santiago")
-
-/** ISO con offset → se convierte a Chile; sin offset → se interpreta como local (Chile). */
-private fun parseChile(iso: String): LocalDateTime = runCatching {
-    OffsetDateTime.parse(iso).atZoneSameInstant(CHILE_TZ).toLocalDateTime()
+/** Acepta ISO con o sin offset. Con offset → convierte a Chile; sin offset → interpreta como hora local Chile. */
+private fun parseChileProgramadas(iso: String): LocalDateTime = runCatching {
+    // Intenta parsear como ISO 8601 con Offset (esperado desde Django sin format)
+    OffsetDateTime.parse(iso).atZoneSameInstant(CHILE_TZ_PROGRAMADAS).toLocalDateTime()
 }.getOrElse {
+    // Falla si no tiene offset, intenta como Local
     LocalDateTime.parse(iso)
+}
+
+/* ---------- Tarjeta ---------- */
+
+@Composable
+private fun ReunionProgramadaCard(
+    r: ReunionDto,
+    onClick: () -> Unit
+) {
+    // Usa 'r.fechaInicio' (sincronizado con DTO)
+    val inicio = parseChileProgramadas(r.fechaInicio)
+    val horaFmt = DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", Locale("es"))
+
+    ElevatedCard(
+        onClick = onClick,
+        colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFFF2F8FF)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                r.titulo,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                inicio.format(horaFmt),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+            // Manejo seguro del campo opcional 'tabla'
+            r.tabla?.takeIf { it.isNotBlank() }?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+        }
+    }
 }
 
 // -------------------------------------------------------------------------
@@ -148,10 +113,13 @@ fun ReunionesProgramadasScreen(
 ) {
     val st by vm.programadas.collectAsState(initial = ReunionesViewModel.SectionState())
 
-    // Semana visible (lunes a domingo) usando zona Chile
-    var weekStart by remember { mutableStateOf(LocalDate.now(CHILE_TZ).with(DayOfWeek.MONDAY)) }
-
-    LaunchedEffect(Unit) { vm.refresh(ReunionEstado.PROGRAMADA) }
+    // Carga inicial
+    LaunchedEffect(Unit) {
+        // Solo recarga si no ha cargado y no está cargando
+        if (!st.initialized && !st.loading) {
+            vm.refresh(ReunionEstado.PROGRAMADA)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -159,69 +127,98 @@ fun ReunionesProgramadasScreen(
                 title = { Text("Reuniones programadas") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = Color(0xFF287BFF) // azul
+                        )
                     }
                 }
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        when {
+            st.loading && st.items.isEmpty() -> Box( // Muestra progreso solo si no hay datos previos
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
 
-            WeekSwitcher( // Llamada resuelta
-                weekStart = weekStart,
-                onPrev = { weekStart = weekStart.minusWeeks(1) },
-                onNext = { weekStart = weekStart.plusWeeks(1) }
-            )
-
-            when {
-                st.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                st.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Error: ${st.error}")
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = { vm.refresh(ReunionEstado.PROGRAMADA) }) { Text("Reintentar") }
+            st.error != null -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Error: ${st.error}")
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { vm.refresh(ReunionEstado.PROGRAMADA) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF287BFF)
+                        )
+                    ) {
+                        Text("Reintentar")
                     }
                 }
-                else -> {
-                    val weekEnd = weekStart.plusDays(6)
+            }
 
-                    val filtered: List<ReunionDto> = remember(st.items, weekStart) {
-                        st.items
-                            .filter { dto ->
-                                // Corregido: Usar dto.fechaInicio
-                                val d = parseChile(dto.fechaInicio).toLocalDate()
-                                !d.isBefore(weekStart) && !d.isAfter(weekEnd)
-                            }
-                            .sortedBy {
-                                // Corregido: Usar it.fechaInicio
-                                parseChile(it.fechaInicio)
-                            }
-                    }
+            st.items.isEmpty() -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No hay reuniones programadas.")
+            }
 
-                    if (filtered.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No hay reuniones esta semana.")
+            else -> {
+                val grupos = remember(st.items) {
+                    st.items
+                        // Usa 'it.fechaInicio'
+                        .sortedByDescending { parseChileProgramadas(it.fechaInicio) }
+                        // Agrupa por fecha (día)
+                        .groupBy { parseChileProgramadas(it.fechaInicio).toLocalDate() }
+                        .toSortedMap(compareByDescending { it })
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    grupos.forEach { (dia, lista) ->
+                        item("header-$dia") {
+                            DiaHeaderProgramadas(dia)
                         }
-                    } else {
-                        val grupos: Map<LocalDate, List<ReunionDto>> =
-                            filtered.groupBy { parseChile(it.fechaInicio).toLocalDate() }
-                                .toSortedMap(compareBy { it })
-
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            grupos.forEach { (dia, lista) ->
-                                item("header-$dia") { DiaHeader(dia) }
-                                items(
-                                    items = lista,
-                                    // Corregido: Usar it.fechaInicio
-                                    key = { it.id ?: "${it.titulo}-${it.fechaInicio}" }
-                                ) { r ->
-                                    ReunionProgramadaCard(r) { onOpen(r) }
+                        items(
+                            items = lista,
+                            // Usa 'it.fechaInicio'
+                            key = { it.id ?: "${it.titulo}-${it.fechaInicio}" }
+                        ) { r ->
+                            ReunionProgramadaCard(r) { onOpen(r) }
+                        }
+                    }
+                    // Implementación de paginación infinita (si aplica)
+                    item {
+                        if (st.hasNext || st.loading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (st.loading) {
+                                    CircularProgressIndicator()
+                                } else if (st.hasNext) {
+                                    // Trigger para cargar más cuando se llega al final
+                                    SideEffect { vm.nextPage(ReunionEstado.PROGRAMADA) }
                                 }
                             }
                         }

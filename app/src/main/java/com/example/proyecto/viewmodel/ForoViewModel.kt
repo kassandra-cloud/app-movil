@@ -26,7 +26,6 @@ data class ForoUiState(
     val postError: Map<Int, String?> = emptyMap()
 )
 
-// 💡 CORRECCIÓN: La API no se inyecta por defecto; se crea autorizada en cada función.
 class ForoViewModel : ViewModel() {
     var uiState by mutableStateOf(ForoUiState())
         private set
@@ -45,7 +44,7 @@ class ForoViewModel : ViewModel() {
             uiState = uiState.copy(cargando = true, error = null)
 
             try {
-                // 💡 Crea la instancia de API AUTORIZADA con el token
+                // Crea la instancia de API AUTORIZADA con el token
                 val authorizedApi: ForoApi = ApiClient.createAuthorized(token, ForoApi::class.java)
 
                 // La llamada es limpia; el token se maneja en el cliente HTTP

@@ -15,6 +15,7 @@ import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.example.proyecto.api.FcmTokenRequest
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -60,12 +61,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     private fun sendRegistrationToServer(authToken: String, fcmToken: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val request = ApiService.FcmTokenRequest(fcm_token = fcmToken)
-                // Usamos "Bearer " para autenticación JWT
-                apiService.registrarFCMToken("Bearer $authToken", request)
+                val body = mapOf(
+                    "fcm_token" to fcmToken
+                )
+
+                // Igual que antes: DRF Token -> "Token <clave>"
+                val authHeader = "Token $authToken"
+
+                apiService.registrarFCMToken(authHeader, body)
                 Log.i(TAG, "Token FCM actualizado al servidor.")
             } catch (e: Exception) {
-                Log.e(TAG, "Fallo al enviar el token FCM: ${e.message}")
+                Log.e(TAG, "Fallo al enviar el token FCM: ${e.message}", e)
             }
         }
     }

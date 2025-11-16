@@ -1,5 +1,8 @@
 package com.example.proyecto
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -30,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.AppScreen.*
@@ -39,7 +44,7 @@ import com.example.proyecto.ui.theme.foro.ForoScreen
 import com.example.proyecto.ui.theme.recursos.RecursosScreen
 import com.example.proyecto.ui.talleres.TalleresScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
-import com.example.proyecto.ui.theme.AppColors // 🔑 Importado
+import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
@@ -49,20 +54,65 @@ import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
+import java.time.LocalDateTime
 
 /* Colores/gradiente usados por el MENÚ */
-/* Colores/gradiente usados por el MENÚ */
-// 🔑 USAMOS las referencias de AppColors
 val tuColorTextoPrimario = AppColors.TextPrimary
 val tuColorTextoSecundario = AppColors.GrisOscuroTexto
 val tuColorPrincipal = AppColors.Principal
 val tuColorBlanco = AppColors.CardBg
-val tuGradienteFondo: Brush @Composable get() = AppColors.GradientePrincipal // Usa el Getter
+val tuGradienteFondo: Brush @Composable get() = AppColors.GradientePrincipal
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        private const val REQ_POST_NOTIFICATIONS = 1001
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { ProyectoTheme { MainScreen() } }
+
+        // 👇 Pedimos permiso de notificaciones en Android 13+
+        requestNotificationPermissionIfNeeded()
+
+        setContent {
+            ProyectoTheme {
+                MainScreen()
+            }
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        // Solo hace falta en Android 13 o superior
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasPermission) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    REQ_POST_NOTIFICATIONS
+                )
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,    // 👈 firma correcta
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == REQ_POST_NOTIFICATIONS) {
+            val granted = grantResults.isNotEmpty() &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED
+            // Si quieres, aquí puedes hacer algo si lo aceptó o rechazó
+            // (un log, un Toast, etc.)
+        }
     }
 }
 
@@ -72,9 +122,7 @@ fun MainScreen(
     reunionesVM: ReunionesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    // 💡 Obtiene el token, si existe
     val token = uiState.token
-
     val reuniones by viewModel.reuniones.collectAsState()
 
     when (uiState.currentScreen) {
@@ -135,18 +183,18 @@ fun MainScreen(
                 )
             }
         }
+
         ACTAS -> ActasScreen(
             onVerActa = { acta -> viewModel.openActaDetalle(acta) },
             onBack = { viewModel.goBackToMainMenu() }
         )
 
-        // 💡 FORO LISTADO (ASISTENCIA)
         ASISTENCIA -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                ForoScreen( // 👈 PASA EL TOKEN AL FORO
+                ForoScreen(
                     token = token,
                     onBack = { viewModel.goBackToMainMenu() },
                     onVerComentar = { pub ->
@@ -155,7 +203,7 @@ fun MainScreen(
                 )
             }
         }
-        // 💡 FORO DETALLE (ASISTENCIA_DETALLE)
+
         ASISTENCIA_DETALLE -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
@@ -165,7 +213,7 @@ fun MainScreen(
                 if (pub == null) {
                     LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
                 } else {
-                    ForoDetalleScreen( // 👈 PASA EL TOKEN AL DETALLE
+                    ForoDetalleScreen(
                         token = token,
                         publicacion = pub,
                         onBack = { viewModel.closePublicacionDetalle() }
@@ -213,7 +261,7 @@ fun MainScreen(
     }
 }
 
-/* =====================  MENÚ PRINCIPAL Y HELPERS (sin cambios) ===================== */
+/* =====================  MENÚ PRINCIPAL Y HELPERS ===================== */
 
 private data class Module(
     val title: String,
@@ -232,10 +280,14 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
         listOf(
             Module("Reuniones", "Realizadas, programadas y en curso",
                 Icons.Default.List, AppColors.IconoReuniones, REUNIONES),
-            Module("Foro", "Espacio de debate", Icons.Default.Person, AppColors.IconoForo, ASISTENCIA),
-            Module("Votación", "Sistema de votaciones", Icons.Default.CheckCircle, AppColors.IconoVotacion, VOTACION),
-            Module("Talleres", "Visualizar talleres", Icons.Default.Build, AppColors.IconoTalleres, TALLERES),
-            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, AppColors.Principal, RECURSOS)
+            Module("Foro", "Espacio de debate",
+                Icons.Default.Person, AppColors.IconoForo, ASISTENCIA),
+            Module("Votación", "Sistema de votaciones",
+                Icons.Default.CheckCircle, AppColors.IconoVotacion, VOTACION),
+            Module("Talleres", "Visualizar talleres",
+                Icons.Default.Build, AppColors.IconoTalleres, TALLERES),
+            Module("Recursos", "Ver documentos",
+                Icons.Default.LibraryBooks, AppColors.Principal, RECURSOS)
         )
     }
 
@@ -249,18 +301,29 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
-                    .background(AppColors.GradientePrincipal) // 🔑 Usa el GradientePrincipal (Azul)
+                    .background(AppColors.GradientePrincipal)
                     .padding(horizontal = 24.dp, vertical = 32.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("¡BIENVENIDO!", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.8f))
-                        Text("Hola, $userName", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                        Text(
+                            "¡BIENVENIDO!",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        Text(
+                            "Hola, $userName",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { isGridView = !isGridView }) {
@@ -272,7 +335,10 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                         }
                         Button(
                             onClick = { viewModel.logout() },
-                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.BotonSalir, contentColor = Color.White), // 🔑 Usa AppColors.BotonSalir
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppColors.BotonSalir,
+                                contentColor = Color.White
+                            ),
                             shape = RoundedCornerShape(16.dp),
                             elevation = ButtonDefaults.buttonElevation(4.dp)
                         ) {
@@ -287,28 +353,38 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
             if (isGridView) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 16.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset(y = (-40).dp)
+                        .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
                 ) {
                     items(modules) { m ->
                         GridModuleItem(
-                            title = m.title, subtitle = m.subtitle,
-                            icon = m.icon, iconBg = m.color
+                            title = m.title,
+                            subtitle = m.subtitle,
+                            icon = m.icon,
+                            iconBg = m.color
                         ) { viewModel.navigateTo(m.screen) }
                     }
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 24.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset(y = (-40).dp)
+                        .padding(horizontal = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     items(modules) { m ->
                         ModuleItem(
-                            title = m.title, subtitle = m.subtitle,
-                            icon = m.icon, iconBg = m.color
+                            title = m.title,
+                            subtitle = m.subtitle,
+                            icon = m.icon,
+                            iconBg = m.color
                         ) { viewModel.navigateTo(m.screen) }
                     }
                 }
@@ -328,7 +404,9 @@ fun GridModuleItem(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(160.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp),
         colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
@@ -340,8 +418,16 @@ fun GridModuleItem(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(20.dp))
-                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-                .graphicsLayer { val s = if (isPressed) 0.98f else 1f; scaleX = s; scaleY = s }
+                .clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onClick = onClick
+                )
+                .graphicsLayer {
+                    val s = if (isPressed) 0.98f else 1f
+                    scaleX = s
+                    scaleY = s
+                }
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -353,13 +439,29 @@ fun GridModuleItem(
                 elevation = CardDefaults.cardElevation(8.dp)
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = title, tint = Color.White, modifier = Modifier.size(32.dp))
+                    Icon(
+                        icon,
+                        contentDescription = title,
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario, textAlign = TextAlign.Center)
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = tuColorTextoPrimario,
+                textAlign = TextAlign.Center
+            )
             Spacer(Modifier.height(4.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f), textAlign = TextAlign.Center)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = tuColorTextoSecundario.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -385,8 +487,16 @@ fun ModuleItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-                .graphicsLayer { val s = if (isPressed) 0.98f else 1f; scaleX = s; scaleY = s }
+                .clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onClick = onClick
+                )
+                .graphicsLayer {
+                    val s = if (isPressed) 0.98f else 1f
+                    scaleX = s
+                    scaleY = s
+                }
                 .padding(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -397,16 +507,35 @@ fun ModuleItem(
                 elevation = CardDefaults.cardElevation(8.dp)
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = title, tint = Color.White, modifier = Modifier.size(28.dp))
+                    Icon(
+                        icon,
+                        contentDescription = title,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
             Spacer(Modifier.width(20.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = tuColorTextoPrimario
+                )
                 Spacer(Modifier.height(4.dp))
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f))
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = tuColorTextoSecundario.copy(alpha = 0.7f)
+                )
             }
-            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = tuColorTextoSecundario.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = tuColorTextoSecundario.copy(alpha = 0.4f),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -415,13 +544,18 @@ fun ModuleItem(
 
 @Composable
 private fun CenterMsg(msg: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(msg) }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(msg)
+    }
 }
 
 /* ===== Previews opcionales ===== */
+
 @Preview(showBackground = true)
 @Composable
-fun MainMenuScreenPreview() { ProyectoTheme { MainMenuScreen() } }
+fun MainMenuScreenPreview() {
+    ProyectoTheme { MainMenuScreen() }
+}
 
 @Preview(showBackground = true, widthDp = 180)
 @Composable

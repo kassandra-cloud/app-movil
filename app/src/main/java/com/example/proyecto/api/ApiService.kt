@@ -10,34 +10,31 @@ import retrofit2.http.*
 import com.example.proyecto.data.Page
 import com.example.proyecto.data.reuniones.ReunionDto
 
-// >>> NUEVAS IMPORTACIONES REQUERIDAS PARA FCM Y MOSHI <<<
+// >>> IMPORTS PARA MOSHI Y RESPONSE BODY <<<
 import com.squareup.moshi.Json
 import okhttp3.ResponseBody
 
+// ===============================================
+// DTO PARA REGISTRO FCM (TOP-LEVEL, FUERA DE LA INTERFAZ)
+// ===============================================
+data class FcmTokenRequest(
+    @Json(name = "fcm_token")
+    val fcm_token: String
+)
+
+// ===============================================
+// INTERFAZ DEL SERVICIO
+// ===============================================
 interface ApiService {
-
-    // ===============================================
-    // DTO PARA REGISTRO FCM (usa anotación Moshi: @Json)
-    // ===============================================
-    data class FcmTokenRequest(
-        // 'name = "fcm_token"' mapea el campo Kotlin al nombre esperado por Django
-        @Json(name = "fcm_token")
-        val fcm_token: String
-    )
-
-    // ===============================================
-    // FUNCIÓN NUEVA: REGISTRAR TOKEN FCM
-    // ===============================================
 
     /**
      * Endpoint para enviar el token FCM del dispositivo al backend de Django.
      */
-    @POST("api/v1/registrar-fcm-token/")
+    @POST("fcm/register/")   // <- coincide con tu core/urls.py
     suspend fun registrarFCMToken(
-        @Header("Authorization") authToken: String,
-        @Body request: FcmTokenRequest
+        @Header("Authorization") authToken: String,  // "Token <clave>"
+        @Body body: Map<String, String>              // {"fcm_token": "..."}
     ): Response<ResponseBody>
-
 
     // ===============================================
     // FUNCIONES EXISTENTES (SIN CAMBIOS)
@@ -57,7 +54,7 @@ interface ApiService {
     @POST("votaciones/api/v1/{id}/votar/")
     suspend fun votarV1(
         @Path("id") votacionId: Int,
-        @Body body: VotoRequest, // Asumo que VotoRequest está definido en otro archivo
+        @Body body: VotoRequest,
         @Header("Authorization") auth: String
     ): Response<Unit>
 
@@ -74,7 +71,6 @@ interface ApiService {
         @Query("estado") estado: String? = null,
         @Header("Authorization") auth: String
     ): retrofit2.Response<Page<com.example.proyecto.data.recursos.SolicitudDto>>
-
 
     @GET("reuniones/api/reuniones/")
     suspend fun listarReuniones(

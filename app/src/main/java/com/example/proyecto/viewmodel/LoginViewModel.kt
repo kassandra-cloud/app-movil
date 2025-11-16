@@ -22,6 +22,8 @@ import com.google.firebase.messaging.FirebaseMessaging
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import android.util.Log // Para mensajes de depuración
+
+
 // >>> FIN NUEVAS IMPORTACIONES <<<
 
 
@@ -72,21 +74,37 @@ class LoginViewModel : ViewModel() {
     /**
      * Envía el token FCM al backend de Django.
      */
-    private fun sendFCMTokenToServer(jwtToken: String, fcmToken: String) {
+
+    private fun sendFCMTokenToServer(apiToken: String, fcmToken: String) {
         viewModelScope.launch {
             try {
-                val authHeader = "Bearer $jwtToken"
-                val request = ApiService.FcmTokenRequest(fcm_token = fcmToken)
+                // Tu backend devuelve un token tipo DRF (ese hex largoooo),
+                // así que acá debe ir "Token", NO "Bearer".
+                val authHeader = "Token $apiToken"
 
-                apiService.registrarFCMToken(authHeader, request)
-                Log.i("FCM_REG", "Token FCM enviado y registrado en el backend.")
+                val body = mapOf(
+                    "fcm_token" to fcmToken
+                )
+
+                val resp = apiService.registrarFCMToken(authHeader, body)
+
+                if (resp.isSuccessful) {
+                    Log.i("FCM_REG", "Token FCM enviado y registrado en el backend. Código: ${resp.code()}")
+                } else {
+                    Log.e(
+                        "FCM_REG",
+                        "Error HTTP al registrar token FCM: ${resp.code()} - ${resp.errorBody()?.string()}"
+                    )
+                    _uiState.update {
+                        it.copy(errorMessage = "Error al registrar notificaciones (${resp.code()})")
+                    }
+                }
             } catch (e: Exception) {
-                Log.e("FCM_REG", "Fallo al registrar token FCM: ${e.message}")
+                Log.e("FCM_REG", "Fallo al registrar token FCM: ${e.message}", e)
                 _uiState.update { it.copy(errorMessage = "Error al registrar notificaciones.") }
             }
         }
     }
-
     // =======================================================
     // >>> FUNCIÓN DE LOGIN (MODIFICADA) <<<
     // =======================================================

@@ -1,5 +1,6 @@
 package com.example.proyecto.api
 
+// Importaciones base de Retrofit y DTOs existentes
 import com.example.proyecto.data.LoginRequest
 import com.example.proyecto.data.LoginResponse
 import com.example.proyecto.data.votaciones.ResultadoVotacionDto
@@ -8,7 +9,39 @@ import retrofit2.Response
 import retrofit2.http.*
 import com.example.proyecto.data.Page
 import com.example.proyecto.data.reuniones.ReunionDto
+
+// >>> NUEVAS IMPORTACIONES REQUERIDAS PARA FCM Y MOSHI <<<
+import com.squareup.moshi.Json
+import okhttp3.ResponseBody
+
 interface ApiService {
+
+    // ===============================================
+    // DTO PARA REGISTRO FCM (usa anotación Moshi: @Json)
+    // ===============================================
+    data class FcmTokenRequest(
+        // 'name = "fcm_token"' mapea el campo Kotlin al nombre esperado por Django
+        @Json(name = "fcm_token")
+        val fcm_token: String
+    )
+
+    // ===============================================
+    // FUNCIÓN NUEVA: REGISTRAR TOKEN FCM
+    // ===============================================
+
+    /**
+     * Endpoint para enviar el token FCM del dispositivo al backend de Django.
+     */
+    @POST("api/v1/registrar-fcm-token/")
+    suspend fun registrarFCMToken(
+        @Header("Authorization") authToken: String,
+        @Body request: FcmTokenRequest
+    ): Response<ResponseBody>
+
+
+    // ===============================================
+    // FUNCIONES EXISTENTES (SIN CAMBIOS)
+    // ===============================================
 
     // Auth
     @POST("usuarios/api/login/")
@@ -24,7 +57,7 @@ interface ApiService {
     @POST("votaciones/api/v1/{id}/votar/")
     suspend fun votarV1(
         @Path("id") votacionId: Int,
-        @Body body: VotoRequest,
+        @Body body: VotoRequest, // Asumo que VotoRequest está definido en otro archivo
         @Header("Authorization") auth: String
     ): Response<Unit>
 
@@ -45,7 +78,7 @@ interface ApiService {
 
     @GET("reuniones/api/reuniones/")
     suspend fun listarReuniones(
-        @Query("estado") estado: String? = null,  // "programada" | "en_curso" | "realizada"
+        @Query("estado") estado: String? = null,
         @Query("ordering") ordering: String? = "-fecha",
         @Query("page") page: Int? = 1,
         @Query("page_size") pageSize: Int? = 20

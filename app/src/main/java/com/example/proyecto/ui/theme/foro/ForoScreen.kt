@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.PublicacionDto
 import com.example.proyecto.viewmodel.ForoViewModel
-
+import androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun ForoScreen(
     token: String, // 💡 El token debe venir de MainActivity/LoginViewModel

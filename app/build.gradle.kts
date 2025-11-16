@@ -4,9 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
 
-    // 💡 SOLUCIÓN 1: Habilita el procesador de anotaciones para Moshi
     id("org.jetbrains.kotlin.kapt")
-
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -32,7 +31,6 @@ android {
         }
     }
 
-    // Java 17 + desugaring para java.time en API bajas
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -42,75 +40,67 @@ android {
 
     buildFeatures { compose = true }
 
-    // Emparejado con Kotlin 1.9.24
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
 }
 
 dependencies {
-    // Definición de versiones para mayor claridad y consistencia
     val retrofit_version = "2.11.0"
     val moshi_version = "1.15.0"
     val okhttp_version = "4.12.0"
-    val lifecycle_compose_version = "2.8.4" // Usado para ViewModel y Compose
+    val lifecycle_compose_version = "2.8.4"
 
-    // --- Core / lifecycle ---
+    // Core / lifecycle
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // --- Compose BOM (mantiene versiones alineadas) ---
+    // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
 
-    // --- Compose UI / Material3 ---
+    // Compose UI / Material3
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.compose.foundation:foundation") // PaddingValues, LazyColumn, etc.
+    implementation("androidx.compose.foundation:foundation")
 
-    // Iconos (para Icons.Filled.Refresh)
     implementation("androidx.compose.material:material-icons-extended")
 
     // ViewModel + Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:$lifecycle_compose_version")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:$lifecycle_compose_version") // Corregida línea de versión
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:$lifecycle_compose_version")
 
-    // -----------------------------------------------------
-    // NETWORKING (Retrofit, Moshi, OkHttp)
-    // -----------------------------------------------------
-
-    // Retrofit Base
+    // Retrofit + Moshi + OkHttp
     implementation("com.squareup.retrofit2:retrofit:$retrofit_version")
-
-    // 💡 SOLUCIÓN 2: Implementación de Moshi Kotlin
     implementation("com.squareup.moshi:moshi-kotlin:$moshi_version")
-
-    // Moshi Converter para Retrofit
     implementation("com.squareup.retrofit2:converter-moshi:$retrofit_version")
-
-    // OkHttp y Logging Interceptor (se usa en debug e implementación)
     implementation("com.squareup.okhttp3:okhttp:$okhttp_version")
     implementation("com.squareup.okhttp3:logging-interceptor:$okhttp_version")
-
-    // 💡 SOLUCIÓN 3: Generador de código (kapt) para Moshi. ¡ESTO RESUELVE EL ERROR!
     kapt("com.squareup.moshi:moshi-kotlin-codegen:$moshi_version")
 
-    // -----------------------------------------------------
-
-    // Imágenes
+    // Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
 
-    // Media (opcional, Media3)
+    // Media
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
 
+    // Gson (si lo necesitas, si no, puedes eliminar estas dos líneas)
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.squareup.retrofit2:converter-gson:$retrofit_version")
 
-    // --- Desugaring (java.time en minSdk<26) ---
+    // 🔥 Firebase (BOM + libs sin versión)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-messaging")
+
+    // Desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
-    // --- TESTS ---
+    // Tests
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

@@ -4,10 +4,24 @@ package com.example.proyecto.data
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
+// ==============================================================
+// >>> OBJETO PARA ALMACENAR EL ESTADO DE SESIÓN (SOLUCIÓN) <<<
+// ==============================================================
+/**
+ * Objeto Singleton para almacenar datos de la sesión del usuario,
+ * principalmente el token JWT.
+ */
+object SessionData {
+    // El token debe ser mutable y opcional (null) para reflejar la sesión no iniciada.
+    var token: String? = null
+    // Otros datos de sesión que quieras guardar aquí...
+}
+// ==============================================================
+
+
 // -------------------- Petición de Login --------------------
-@JsonClass(generateAdapter = true) // 👈 Moshi requiere esto en TODAS las data class
+@JsonClass(generateAdapter = true)
 data class LoginRequest(
-    // 💡 CAMBIO: Reemplazar @SerializedName por @Json
     @Json(name = "username")
     val username: String,
     @Json(name = "password")
@@ -15,9 +29,8 @@ data class LoginRequest(
 )
 
 // -------------------- Respuesta de Login --------------------
-@JsonClass(generateAdapter = true) // 👈 Moshi requiere esto
+@JsonClass(generateAdapter = true)
 data class LoginResponse(
-    // En Moshi, si el nombre del campo Kotlin coincide con el JSON, no se necesita @Json(name)
     val success: Boolean,
     val message: String,
     val token: String? = null,
@@ -25,7 +38,7 @@ data class LoginResponse(
 )
 
 // -------------------- Modelo de Usuario --------------------
-@JsonClass(generateAdapter = true) // 👈 Moshi requiere esto
+@JsonClass(generateAdapter = true)
 data class User(
     val username: String,
     val id: Int

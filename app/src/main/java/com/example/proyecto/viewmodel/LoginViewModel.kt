@@ -15,6 +15,16 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import com.example.proyecto.data.PublicacionDto
 
+// >>> NUEVAS IMPORTACIONES REQUERIDAS PARA FCM <<<
+import com.example.proyecto.api.ApiService
+import com.example.proyecto.data.SessionData // El objeto global para el token
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
+import android.util.Log // Para mensajes de depuración
+// >>> FIN NUEVAS IMPORTACIONES <<<
+
+
 data class LoginUiState(
     val isLoading: Boolean = false,
     val isLoggedIn: Boolean = false,
@@ -24,9 +34,12 @@ data class LoginUiState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val selectedActa: ActaDto? = null,
-    val selectedPublicacion: PublicacionDto? = null    // 👈 NUEVO
+    val selectedPublicacion: PublicacionDto? = null
 )
 class LoginViewModel : ViewModel() {
+
+    // Instancia del servicio API
+    private val apiService: ApiService = ApiClient.apiService
 
     /* ---------- UI STATE ---------- */
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -36,7 +49,48 @@ class LoginViewModel : ViewModel() {
     private val _reuniones = MutableStateFlow(demoReuniones()) // <— mock inicial
     val reuniones: StateFlow<List<Reunion>> = _reuniones.asStateFlow()
 
-    /* ---------- Auth ---------- */
+    // =======================================================
+    // >>> FUNCIONES AUXILIARES FCM <<<
+    // =======================================================
+
+    /**
+     * Obtiene el token FCM del dispositivo usando Coroutines.
+     */
+    private suspend fun getFCMToken(): String? = suspendCoroutine { continuation ->
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                Log.d("FCM_TOKEN", "Token obtenido: $token")
+                continuation.resume(token)
+            } else {
+                Log.e("FCM_TOKEN", "Error al obtener token FCM", task.exception)
+                continuation.resume(null)
+            }
+        }
+    }
+
+    /**
+     * Envía el token FCM al backend de Django.
+     */
+    private fun sendFCMTokenToServer(jwtToken: String, fcmToken: String) {
+        viewModelScope.launch {
+            try {
+                val authHeader = "Bearer $jwtToken"
+                val request = ApiService.FcmTokenRequest(fcm_token = fcmToken)
+
+                apiService.registrarFCMToken(authHeader, request)
+                Log.i("FCM_REG", "Token FCM enviado y registrado en el backend.")
+            } catch (e: Exception) {
+                Log.e("FCM_REG", "Fallo al registrar token FCM: ${e.message}")
+                _uiState.update { it.copy(errorMessage = "Error al registrar notificaciones.") }
+            }
+        }
+    }
+
+    // =======================================================
+    // >>> FUNCIÓN DE LOGIN (MODIFICADA) <<<
+    // =======================================================
+
     fun login(username: String, password: String) {
         if (username.isBlank() || password.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Por favor, completa todos los campos") }
@@ -51,16 +105,32 @@ class LoginViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true) {
+
+                        // 1. Almacenamiento Global del JWT y Actualización UI
+                        val jwtToken = body.token
+                        SessionData.token = jwtToken // <-- ¡Almacenamiento global para el servicio!
+
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
                                 isLoggedIn = true,
                                 currentUser = username,
-                                token = body.token,
+                                token = jwtToken, // Mantenemos token en UI State también
                                 currentScreen = AppScreen.MAIN_MENU,
                                 successMessage = "¡Bienvenido, $username!"
                             )
                         }
+
+                        // 2. Obtener y registrar Token FCM
+                        if (jwtToken != null) {
+                            val fcmToken = getFCMToken()
+                            if (fcmToken != null) {
+                                sendFCMTokenToServer(jwtToken, fcmToken)
+                            } else {
+                                Log.w("FCM_REG", "No se pudo obtener el token de FCM. Notificaciones podrían fallar.")
+                            }
+                        }
+
                         // Cargar reuniones reales después del login (opcional)
                         // loadReuniones()
                     } else {
@@ -84,7 +154,9 @@ class LoginViewModel : ViewModel() {
     }
 
     fun logout() {
-        _uiState.value = LoginUiState() // resetea todo (incluye token)
+        _uiState.value = LoginUiState() // resetea UI state
+        SessionData.token = null // Limpia el token global
+        // Nota: En un entorno de producción, aquí se debería borrar el token FCM del Perfil en Django.
     }
 
     fun clearMessages() {
@@ -101,7 +173,6 @@ class LoginViewModel : ViewModel() {
     }
 
     /* ---------- Actas ---------- */
-    /* ---------- Actas ---------- */
     fun openActaDetalle(acta: ActaDto) {
         if (!acta.aprobada) {
             _uiState.update { it.copy(errorMessage = "El acta aún no está aprobada.") }
@@ -113,12 +184,13 @@ class LoginViewModel : ViewModel() {
     fun closeActaDetalle() {
         _uiState.update { it.copy(selectedActa = null, currentScreen = AppScreen.ACTAS) }
     }
+
     /* ---------- Foro / Publicaciones ---------- */
     fun openPublicacionDetalle(pub: PublicacionDto) {
         _uiState.update {
             it.copy(
                 selectedPublicacion = pub,
-                currentScreen = AppScreen.ASISTENCIA_DETALLE   // 👈 nueva pantalla del detalle
+                currentScreen = AppScreen.ASISTENCIA_DETALLE
             )
         }
     }
@@ -148,6 +220,7 @@ class LoginViewModel : ViewModel() {
 
     /* ---------- Mock local para compilar y probar UI ---------- */
     private fun demoReuniones(): List<Reunion> = listOf(
+        // ... (Reuniones mock sin cambios)
         Reunion(
             id = 1,
             titulo = "Directiva",

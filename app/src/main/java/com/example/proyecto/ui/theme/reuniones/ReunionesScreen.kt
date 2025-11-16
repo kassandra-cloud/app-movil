@@ -10,9 +10,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.History // Icono para Realizadas
+import androidx.compose.material.icons.filled.CalendarMonth // Icono para Programadas
+import androidx.compose.material.icons.filled.PlayCircle // Icono para En Curso
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,17 +24,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview // 🔑 Importación necesaria
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.proyecto.ui.theme.AppColors
+import com.example.proyecto.ui.theme.ProyectoTheme // 🔑 Importación necesaria para el Preview
 
-/* ===== Paleta ===== */
-private val azul = Color(0xFF42A5F5)
-private val azul2 = Color(0xFF1E88E5)
-private val gradiente = Brush.linearGradient(listOf(azul, azul2))
-private val textoPrimario = Color(0xFF212121)
-private val textoSecundario = Color(0xFF616161)
-private val iconBgSoft = azul.copy(alpha = 0.12f)   // cápsula clara
-private val iconBorder = azul.copy(alpha = 0.35f)
+/* ===== Paleta (Unificada usando AppColors) ===== */
+private val iconBgSoft = AppColors.Principal.copy(alpha = 0.12f)
+private val iconBorder = AppColors.Principal.copy(alpha = 0.35f)
 
 /* ===== Pantalla ===== */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,7 +57,7 @@ fun ReunionesScreen(
                 .fillMaxWidth()
                 .height(200.dp)
                 .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
-                .background(gradiente)
+                .background(AppColors.GradientePrincipal)
         )
 
         Column(
@@ -93,24 +91,25 @@ fun ReunionesScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            // Espacio grande para empujar la lista hacia abajo (efecto MainMenu)
+            Spacer(Modifier.height(56.dp))
 
+            // LISTA DE MÓDULOS
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(y = (-10).dp),
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 MenuCard(
                     title = "Reuniones realizadas",
                     subtitle = realizadasCount?.let { "$it registradas" } ?: "Ver historial",
-                    icon = Icons.Filled.List,
+                    icon = Icons.Filled.History,
                     onClick = onVerRealizadas
                 )
                 MenuCard(
                     title = "Reuniones programadas",
                     subtitle = programadasCount?.let { "$it próximas" } ?: "Ver calendario",
-                    icon = Icons.Filled.Schedule,
+                    icon = Icons.Filled.CalendarMonth,
                     onClick = onVerProgramadas
                 )
                 MenuCard(
@@ -124,7 +123,7 @@ fun ReunionesScreen(
     }
 }
 
-/* ===== Tarjeta tipo módulo con ícono azul ===== */
+/* ===== Tarjeta tipo módulo con ícono azul (SIN CAMBIOS FUNCIONALES) ===== */
 @Composable
 private fun MenuCard(
     title: String,
@@ -134,7 +133,7 @@ private fun MenuCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = AppColors.CardBg),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
     ) {
@@ -157,23 +156,46 @@ private fun MenuCard(
                 border = BorderStroke(1.dp, iconBorder)
             ) {
                 Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = title, tint = azul)
+                    Icon(icon, contentDescription = title, tint = AppColors.Principal)
                 }
             }
 
             Spacer(Modifier.width(16.dp))
 
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = textoPrimario)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AppColors.TextPrimary
+                )
                 Spacer(Modifier.height(2.dp))
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = textoSecundario.copy(alpha = 0.8f))
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppColors.GrisOscuroTexto.copy(alpha = 0.8f)
+                )
             }
 
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = azul // si prefieres gris, cambia a: textoSecundario.copy(alpha = 0.45f)
+                tint = AppColors.Principal
             )
         }
+    }
+}
+
+// ====================== PREVIEW ======================
+@Preview(showBackground = true)
+@Composable
+fun PreviewReunionesScreen() {
+    ProyectoTheme {
+        ReunionesScreen(
+            realizadasCount = 5,
+            programadasCount = 2,
+            enCursoCount = null,
+            onBack = {}
+        )
     }
 }

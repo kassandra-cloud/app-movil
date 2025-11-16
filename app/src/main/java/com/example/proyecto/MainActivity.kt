@@ -39,6 +39,7 @@ import com.example.proyecto.ui.theme.foro.ForoScreen
 import com.example.proyecto.ui.theme.recursos.RecursosScreen
 import com.example.proyecto.ui.talleres.TalleresScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
+import com.example.proyecto.ui.theme.AppColors // 🔑 Importado
 import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
@@ -48,15 +49,15 @@ import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
+
 /* Colores/gradiente usados por el MENÚ */
 /* Colores/gradiente usados por el MENÚ */
-val webColorPrincipal = Color(0xFF42A5F5)
-val webColorSecundario = Color(0xFF1E88E5)
-val tuColorTextoPrimario = Color(0xFF212121)
-val tuColorTextoSecundario = Color(0xFF616161)
-val tuColorPrincipal = webColorPrincipal
-val tuColorBlanco = Color.White
-val tuGradienteFondo = Brush.linearGradient(listOf(webColorPrincipal, webColorSecundario))
+// 🔑 USAMOS las referencias de AppColors
+val tuColorTextoPrimario = AppColors.TextPrimary
+val tuColorTextoSecundario = AppColors.GrisOscuroTexto
+val tuColorPrincipal = AppColors.Principal
+val tuColorBlanco = AppColors.CardBg
+val tuGradienteFondo: Brush @Composable get() = AppColors.GradientePrincipal // Usa el Getter
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -230,11 +231,11 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     val modules = remember {
         listOf(
             Module("Reuniones", "Realizadas, programadas y en curso",
-                Icons.Default.List, tuColorPrincipal, REUNIONES),
-            Module("Foro", "Espacio de debate", Icons.Default.Person, tuColorPrincipal, ASISTENCIA),
-            Module("Votación", "Sistema de votaciones", Icons.Default.CheckCircle, tuColorPrincipal, VOTACION),
-            Module("Talleres", "Visualizar talleres", Icons.Default.Build, tuColorPrincipal, TALLERES),
-            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, tuColorPrincipal, RECURSOS)
+                Icons.Default.List, AppColors.IconoReuniones, REUNIONES),
+            Module("Foro", "Espacio de debate", Icons.Default.Person, AppColors.IconoForo, ASISTENCIA),
+            Module("Votación", "Sistema de votaciones", Icons.Default.CheckCircle, AppColors.IconoVotacion, VOTACION),
+            Module("Talleres", "Visualizar talleres", Icons.Default.Build, AppColors.IconoTalleres, TALLERES),
+            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, AppColors.Principal, RECURSOS)
         )
     }
 
@@ -248,7 +249,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
-                    .background(tuGradienteFondo)
+                    .background(AppColors.GradientePrincipal) // 🔑 Usa el GradientePrincipal (Azul)
                     .padding(horizontal = 24.dp, vertical = 32.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
@@ -271,7 +272,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                         }
                         Button(
                             onClick = { viewModel.logout() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF5350), contentColor = Color.White),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.BotonSalir, contentColor = Color.White), // 🔑 Usa AppColors.BotonSalir
                             shape = RoundedCornerShape(16.dp),
                             elevation = ButtonDefaults.buttonElevation(4.dp)
                         ) {
@@ -328,7 +329,7 @@ fun GridModuleItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().height(160.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
     ) {
@@ -373,7 +374,7 @@ fun ModuleItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
     ) {

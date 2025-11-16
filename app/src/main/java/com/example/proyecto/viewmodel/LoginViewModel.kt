@@ -127,7 +127,7 @@ class LoginViewModel : ViewModel() {
         _uiState.update {
             it.copy(
                 selectedPublicacion = null,
-                currentScreen = AppScreen.ASISTENCIA          // 👈 vuelve al listado del foro
+                currentScreen = AppScreen.ASISTENCIA
             )
         }
     }

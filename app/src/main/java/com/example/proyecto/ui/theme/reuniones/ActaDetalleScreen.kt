@@ -19,16 +19,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.proyecto.data.reuniones.ActaDto
-// Importamos las constantes de color desde MainActivity.kt (asumiendo que están disponibles en el mismo módulo o se importarán las específicas)
-import com.example.proyecto.webColorPrincipal
-import com.example.proyecto.tuColorTextoPrimario
+// 🔑 IMPORTAMOS SOLAMENTE LA FUENTE DE COLORES CENTRALIZADA
+import com.example.proyecto.ui.theme.AppColors
 
-// Definiciones de color simuladas basadas en el nuevo esquema azul (las que deberías mover a un archivo de tema)
-val ColorPrincipal = webColorPrincipal // #42A5F5 (Azul)
-val ColorSecundario = Color(0xFF64B5F6) // Un azul más claro para el chip Aprobada
-val ColorCardBg = Color(0xFFF5F5F5) // Gris muy claro para el fondo de la tarjeta
-val ColorTextPrimary = tuColorTextoPrimario // #212121 (Negro/Gris muy oscuro)
-val ColorGrisOscuroTexto = Color(0xFF757575) // Gris oscuro para fechas/subtítulos
+// 🔑 DEFINICIONES DE COLOR UNIFICADAS: Usamos AppColors directamente
+val ColorPrincipal = AppColors.Principal // #287BFF
+val ColorSecundario = AppColors.Secundario // #5C9FF7 (Azul más claro para acento/chip)
+val ColorCardBg = AppColors.GrisClaroFondo // #EEEEEE (Gris muy claro para el fondo de tarjeta)
+val ColorTextPrimary = AppColors.TextPrimary // #1E1E28 (Texto oscuro)
+val ColorGrisOscuroTexto = AppColors.GrisOscuroTexto // #616161 (Gris oscuro para fechas/subtítulos)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +63,7 @@ fun ActaDetalleScreen(
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    acta.reunionTitulo, // ⬅️ CORRECCIÓN: reunion_titulo -> reunionTitulo
+                    acta.reunionTitulo,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     // Título oscuro
@@ -90,7 +89,7 @@ fun ActaDetalleScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = acta.reunionFecha, // ⬅️ CORRECCIÓN: reunion_fecha -> reunionFecha
+                        text = acta.reunionFecha,
                         style = MaterialTheme.typography.bodySmall,
                         color = ColorGrisOscuroTexto // Gris oscuro para texto secundario
                     )
@@ -103,16 +102,16 @@ fun ActaDetalleScreen(
                         },
                         shape = RoundedCornerShape(50.dp),
                         colors = if (acta.aprobada) {
-                            // CHIP APROBADA: Usa el azul secundario para un toque vibrante
+                            // CHIP APROBADA: Usa el Azul Secundario/Claro (#5C9FF7)
                             AssistChipDefaults.assistChipColors(
-                                containerColor = ColorSecundario, // Azul más claro
+                                containerColor = ColorSecundario,
                                 labelColor = Color.White,
                                 leadingIconContentColor = Color.White
                             )
                         } else {
-                            // CHIP NO APROBADA: Usa tonos de gris consistentes
+                            // CHIP NO APROBADA: Usa tonos de gris consistentes (AppColors.GrisClaroFondo)
                             AssistChipDefaults.assistChipColors(
-                                containerColor = Color(0xFFEEEEEE), // Gris muy claro
+                                containerColor = ColorCardBg,
                                 labelColor = ColorGrisOscuroTexto,
                                 leadingIconContentColor = ColorGrisOscuroTexto
                             )
@@ -144,7 +143,7 @@ fun ActaDetalleScreen(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ColorPrincipal) // Usa el azul principal
+                colors = ButtonDefaults.buttonColors(containerColor = ColorPrincipal) // Usa el Azul Principal (#287BFF)
             ) {
                 Icon(Icons.Default.ArrowBack, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -163,10 +162,9 @@ fun PreviewActaDetalleScreen() {
         reunion = 1,
         contenido = "Este es el contenido completo del acta. Aquí se detallan todos los puntos discutidos y acuerdos alcanzados.\n\nEl contenido es largo y demostramos que el scroll funciona correctamente.",
         aprobada = true,
-        reunionTitulo = "Reunión de aprobación de cuentas", // Usar reunionTitulo
-        reunionFecha = "2025-11-01", // Usar reunionFecha
+        reunionTitulo = "Reunión de aprobación de cuentas",
+        reunionFecha = "2025-11-01",
         reunionTipo = "Ordinaria",
-        // 💡 CORRECCIÓN CLAVE: Añadir el campo autorUsername
         autorUsername = "admin_kassandra",
         resumen = "Resumen de ejemplo"
     )

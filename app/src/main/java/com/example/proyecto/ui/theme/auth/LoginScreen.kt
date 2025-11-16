@@ -25,20 +25,20 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.R
 import com.example.proyecto.viewmodel.LoginViewModel
+import com.example.proyecto.ui.theme.AppColors // <-- Importación unificada
 
-/* Paleta/gradientes exclusivos para el LOGIN */
-private val webColorPrincipal = Color(0xFF42A5F5)
-private val webColorSecundario = Color(0xFF1E88E5)
-private val projectHeaderGradient = Brush.verticalGradient(listOf(webColorPrincipal, webColorSecundario))
-private val projectButtonGradient = Brush.linearGradient(listOf(webColorPrincipal, webColorSecundario))
-private val projectTextLink = webColorPrincipal
+/* Paleta/gradientes exclusivos para el LOGIN - AHORA REFERENCIAN A AppColors */
+// Se inicializan como propiedades de nivel de archivo, sin @Composable
+private val projectHeaderGradient = AppColors.GradientePrincipal // <-- Acceso seguro
+private val projectButtonGradient = Brush.linearGradient(listOf(AppColors.Principal, AppColors.Secundario)) // <-- Unificado
+private val projectTextLink = AppColors.Principal // <-- Unificado
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsState() // <-- Referencia correcta al ViewModel
 
     LaunchedEffect(username, password) {
         if (uiState.errorMessage != null || uiState.successMessage != null) viewModel.clearMessages()
@@ -70,8 +70,8 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 shape = RoundedCornerShape(12.dp),
                 enabled = !uiState.isLoading,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = webColorPrincipal,
-                    focusedLabelColor = webColorPrincipal
+                    focusedBorderColor = projectTextLink, // <-- Color unificado
+                    focusedLabelColor = projectTextLink // <-- Color unificado
                 )
             )
             OutlinedTextField(
@@ -84,19 +84,20 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 leadingIcon = { Icon(Icons.Default.Lock, null) },
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        // Se mantiene la implementación original de iconos de texto/emoji
                         Text(if (passwordVisible) "👁️" else "🔒")
                     }
                 },
                 shape = RoundedCornerShape(12.dp),
                 enabled = !uiState.isLoading,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = webColorPrincipal,
-                    focusedLabelColor = webColorPrincipal
+                    focusedBorderColor = projectTextLink, // <-- Color unificado
+                    focusedLabelColor = projectTextLink // <-- Color unificado
                 )
             )
             Text(
                 text = "¿Olvidaste tu contraseña?",
-                color = projectTextLink,
+                color = projectTextLink, // <-- Color unificado
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -104,7 +105,7 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 textAlign = TextAlign.End
             )
 
-            if (uiState.errorMessage != null) {
+            if (uiState.errorMessage != null) { // <-- Referencia correcta al ViewModel
                 Text(
                     uiState.errorMessage!!,
                     color = MaterialTheme.colorScheme.error,
@@ -117,7 +118,7 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
 
             AuthButton(
                 text = "Iniciar Sesión",
-                isLoading = uiState.isLoading,
+                isLoading = uiState.isLoading, // <-- Referencia correcta al ViewModel
                 enabled = !uiState.isLoading && username.isNotBlank() && password.isNotBlank(),
                 onClick = { viewModel.login(username, password) }
             )
@@ -132,7 +133,7 @@ private fun AuthHeader(title: String, subtitle: String) {
             .fillMaxWidth()
             .height(250.dp)
             .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-            .background(projectHeaderGradient),
+            .background(projectHeaderGradient), // <-- Gradiente unificado
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -169,7 +170,7 @@ private fun AuthButton(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(projectButtonGradient, RoundedCornerShape(16.dp)),
+                .background(projectButtonGradient, RoundedCornerShape(16.dp)), // <-- Gradiente unificado
             contentAlignment = Alignment.Center
         ) {
             if (isLoading) {

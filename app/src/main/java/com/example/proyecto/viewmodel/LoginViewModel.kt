@@ -22,7 +22,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import android.util.Log // Para mensajes de depuración
-
+import com.example.proyecto.data.reuniones.ReunionDto
 
 // >>> FIN NUEVAS IMPORTACIONES <<<
 
@@ -36,7 +36,8 @@ data class LoginUiState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val selectedActa: ActaDto? = null,
-    val selectedPublicacion: PublicacionDto? = null
+    val selectedPublicacion: PublicacionDto? = null,
+    val selectedReunionEnCurso: ReunionDto? = null,
 )
 class LoginViewModel : ViewModel() {
 
@@ -235,7 +236,32 @@ class LoginViewModel : ViewModel() {
             }
         }
     }
+    fun openReunionEnCurso(reunion: ReunionDto) {
+        _uiState.update {
+            it.copy(
+                selectedReunionEnCurso = reunion,
+                currentScreen = AppScreen.REUNION_EN_CURSO_DETALLE
+            )
+        }
+    }
 
+    fun closeReunionEnCurso() {
+        _uiState.update {
+            it.copy(
+                selectedReunionEnCurso = null,
+                currentScreen = AppScreen.REUNIONES_EN_CURSO
+            )
+        }
+    }
+    fun updateSelectedReunionEnCurso(actualizada: ReunionDto) {
+        _uiState.update { current ->
+            if (current.selectedReunionEnCurso?.id == actualizada.id) {
+                current.copy(selectedReunionEnCurso = actualizada)
+            } else {
+                current
+            }
+        }
+    }
     /* ---------- Mock local para compilar y probar UI ---------- */
     private fun demoReuniones(): List<Reunion> = listOf(
         // ... (Reuniones mock sin cambios)

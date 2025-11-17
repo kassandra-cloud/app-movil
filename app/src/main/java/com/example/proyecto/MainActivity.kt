@@ -42,10 +42,11 @@ import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
 import com.example.proyecto.ui.theme.recursos.RecursosScreen
+import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesEnCursoScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesProgramadasScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesRealizadasScreen
-import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
+import com.example.proyecto.ui.theme.reuniones.ReunionEnCursoDetalleScreen
 import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
@@ -79,6 +80,7 @@ fun MainScreen(
     val token = uiState.token
 
     when (uiState.currentScreen) {
+
         LOGIN -> LoginScreen(viewModel)
 
         MAIN_MENU -> MainMenuScreen(viewModel)
@@ -124,7 +126,7 @@ fun MainScreen(
                 ReunionesRealizadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { reunionDto ->
-                        // Aquí más adelante puedes navegar a un detalle
+                        // Aquí más adelante puedes navegar a un detalle de reunión realizada
                     }
                 )
             }
@@ -138,7 +140,7 @@ fun MainScreen(
                 ReunionesProgramadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = {
-                        // Abrir detalle/confirmación
+                        // Abrir detalle/confirmación si lo necesitas
                     }
                 )
             }
@@ -152,7 +154,32 @@ fun MainScreen(
                 ReunionesEnCursoScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { reunionDto ->
-                        // Más adelante: detalle de reunión en curso
+                        // guardamos la reunión seleccionada y vamos al detalle
+                        viewModel.openReunionEnCurso(reunionDto)
+                    }
+                )
+            }
+        }
+
+        REUNION_EN_CURSO_DETALLE -> {
+            val reunion = uiState.selectedReunionEnCurso
+            if (token.isNullOrBlank()) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
+            } else if (reunion == null) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(REUNIONES_EN_CURSO) }
+                CenterMsg("No hay reunión seleccionada")
+            } else {
+                ReunionEnCursoDetalleScreen(
+                    reunion = reunion,
+                    onBack = { viewModel.closeReunionEnCurso() },
+                    onRefresh = {
+                        // 👇 AQUÍ es donde refrescamos SOLO esta reunión
+                        reunionesVM.refrescarReunionPorId(reunion.id) { actualizada ->
+                            if (actualizada != null) {
+                                viewModel.updateSelectedReunionEnCurso(actualizada)
+                            }
+                        }
                     }
                 )
             }
@@ -186,6 +213,7 @@ fun MainScreen(
                 val pub = uiState.selectedPublicacion
                 if (pub == null) {
                     LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
+                    CenterMsg("No hay publicación seleccionada")
                 } else {
                     ForoDetalleScreen(
                         token = token,

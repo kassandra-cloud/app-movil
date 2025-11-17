@@ -2,21 +2,21 @@ package com.example.proyecto.ui.theme.recursos
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,26 +25,30 @@ import com.example.proyecto.api.RecursosApi
 import com.example.proyecto.data.recursos.CrearSolicitudReq
 import com.example.proyecto.data.recursos.RecursoDto
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 
 // Colores consistentes con tu MainActivity
 val tuColorPrincipal = Color(0xFF42A5F5)
+
+// 🌟 COLORES DE ESTADO (MEJORADOS)
+val ColorAprobada = Color(0xFF4CAF50) // Verde
+val ColorRechazada = Color(0xFFF44336) // Rojo
+val ColorPendiente = Color(0xFFFFC107) // Amarillo/Ámbar
+val ColorNoDisponible = Color(0xFF9E9E9E) // Gris para no disponible
 
 // =================================================================================
 // 1. PANTALLA PRINCIPAL
 // =================================================================================
 
-@OptIn(ExperimentalMaterial3Api::class) // Necesario para TopAppBar y DatePicker
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecursosScreen(
     token: String,
     onBack: () -> Unit
 ) {
     // 1. Inicializar el ViewModel usando el Factory
-    // Creamos el cliente de API autorizado usando el token
+    // (Asumiendo que tienes definidos RecursosViewModel y RecursosViewModelFactory)
     val recursosApi: RecursosApi = remember(token) {
         ApiClient.createAuthorized(token, RecursosApi::class.java)
     }
@@ -162,78 +166,146 @@ fun RecursosScreen(
 }
 
 // =================================================================================
-// 2. ITEM DE RECURSO
+// 2. ITEM DE RECURSO (OPTIMIZADO PARA PERSONAS MAYORES)
 // =================================================================================
 
 @Composable
 fun RecursoItem(recurso: RecursoDto, onReservarClick: (Int) -> Unit, modifier: Modifier) {
 
-    // Definir la acción de reserva
-    val onButtonClick = { onReservarClick(recurso.id) }
+    // 1. Lógica de Colores, Texto y Icono: Usa la data class RecursoVisuals
+    val visuals = when (recurso.estadoUltimaSolicitud) {
+        "APROBADA" -> RecursoVisuals(
+            textoBoton = "RESERVA APROBADA", // Texto del botón en mayúsculas
+            textoEstado = "APROBADA",
+            colorBoton = ColorAprobada,
+            colorFondoCard = Color.White, // Fondo BLANCO para máximo contraste
+            colorEstadoTexto = ColorAprobada,
+            estadoIcon = Icons.Filled.CheckCircle
+        )
+        "RECHAZADA" -> RecursoVisuals(
+            textoBoton = "SOLICITUD RECHAZADA", // Texto del botón en mayúsculas
+            textoEstado = "RECHAZADA",
+            colorBoton = ColorRechazada,
+            colorFondoCard = Color.White, // Fondo BLANCO para máximo contraste
+            colorEstadoTexto = ColorRechazada,
+            estadoIcon = Icons.Filled.Cancel
+        )
+        "PENDIENTE" -> RecursoVisuals(
+            textoBoton = "SOLICITUD PENDIENTE", // Texto del botón en mayúsculas
+            textoEstado = "PENDIENTE",
+            colorBoton = ColorPendiente,
+            colorFondoCard = Color.White, // Fondo BLANCO para máximo contraste
+            colorEstadoTexto = ColorPendiente,
+            estadoIcon = Icons.Filled.Schedule
+        )
+        else -> RecursoVisuals(
+            textoBoton = if (recurso.disponible) "RESERVAR RECURSO" else "NO DISPONIBLE HOY",
+            textoEstado = if (recurso.disponible) "DISPONIBLE" else "NO DISPONIBLE",
+            colorBoton = if (recurso.disponible) tuColorPrincipal else ColorNoDisponible,
+            colorFondoCard = Color.White, // Fondo BLANCO
+            colorEstadoTexto = if (recurso.disponible) tuColorPrincipal else ColorNoDisponible,
+            estadoIcon = if (recurso.disponible) Icons.Filled.Info else Icons.Filled.Block
+        )
+    }
 
-    // ✅ LÓGICA DE HABILITACIÓN CLAVE:
-    // El botón está habilitado si:
-    // 1. El recurso está disponible.
-    // 2. Y (No hay solicitud anterior O la última solicitud fue RECHAZADA).
+    // 2. Lógica de Habilitación del Botón
     val actualIsEnabled = recurso.disponible && (
             recurso.estadoUltimaSolicitud == null ||
                     recurso.estadoUltimaSolicitud == "RECHAZADA"
             )
 
-    val colorBoton = if (actualIsEnabled) tuColorPrincipal else Color.Gray
-
-    // ✅ LÓGICA DE TEXTO DEL BOTÓN (Muestra el estado final)
-    val textoBoton = when (recurso.estadoUltimaSolicitud) {
-        "APROBADA" -> "Reserva Aprobada"
-        "RECHAZADA" -> "Solicitud Rechazada"
-        "PENDIENTE" -> "Solicitud Pendiente"
-        else -> if (recurso.disponible) "Reservar Recurso" else "No Disponible Hoy"
-    }
-
-    // Si la solicitud es APROBADA o PENDIENTE, se debe deshabilitar el botón
     val isButtonDisabledByStatus = recurso.estadoUltimaSolicitud == "APROBADA" || recurso.estadoUltimaSolicitud == "PENDIENTE"
     val finalEnabled = actualIsEnabled && !isButtonDisabledByStatus
 
+    val onButtonClick = { onReservarClick(recurso.id) }
+
+    // Usamos el color de estado como color del borde para alto contraste
+    val colorBorde = visuals.colorEstadoTexto
+    val anchoBorde = if (visuals.estadoIcon != null) 2.dp else 1.dp // Borde más grueso si hay estado definido
+
     Card(
-        modifier = modifier,
+        modifier = modifier.border(anchoBorde, colorBorde, RoundedCornerShape(16.dp)), // 🚨 Borde de color de estado
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(0.dp), // Sin sombra para un diseño plano
+        colors = CardDefaults.cardColors(containerColor = visuals.colorFondoCard) // Fondo blanco
     ) {
         Column(Modifier.padding(16.dp).fillMaxWidth()) {
-            Text(
-                text = recurso.nombre,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = tuColorPrincipal
-            )
-            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Nombre del Recurso: FUENTE MÁS GRANDE y NEGRITA
+                Text(
+                    text = recurso.nombre,
+                    style = MaterialTheme.typography.headlineSmall.copy( // 🚨 headlineSmall para mayor tamaño
+                        fontWeight = FontWeight.ExtraBold, // Mayor peso de fuente
+                        color = visuals.colorEstadoTexto // Color del estado
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Icono y Texto de Estado
+                visuals.estadoIcon?.let { icon ->
+                    Column(horizontalAlignment = Alignment.End) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = visuals.textoEstado,
+                            tint = visuals.colorEstadoTexto,
+                            modifier = Modifier.size(36.dp) // 🚨 Icono más grande
+                        )
+                        Text(
+                            text = visuals.textoEstado,
+                            style = MaterialTheme.typography.titleSmall, // 🚨 titleSmall para mayor legibilidad del estado
+                            color = visuals.colorEstadoTexto,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp)) // Espacio aumentado
+
+            // Descripción: Mantener legible, pero no tan prominente
             Text(
                 text = recurso.descripcion ?: "Sin descripción",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                style = MaterialTheme.typography.bodyLarge, // 🚨 bodyLarge para mejor lectura
+                color = Color.DarkGray
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp)) // Espacio aumentado
 
-            // Botón de Reserva
+            // Botón de Reserva/Estado: FUENTE MÁS GRANDE
             Button(
                 onClick = onButtonClick,
-                enabled = finalEnabled, // 🔄 Usa la lógica de habilitación final
-                modifier = Modifier.fillMaxWidth(),
+                enabled = finalEnabled,
+                modifier = Modifier.fillMaxWidth().height(56.dp), // 🚨 Altura de botón fija y más grande
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = colorBoton)
+                colors = ButtonDefaults.buttonColors(containerColor = visuals.colorBoton)
             ) {
                 Text(
-                    text = textoBoton, // 🔄 Usa el texto de estado
-                    fontWeight = FontWeight.SemiBold
+                    text = visuals.textoBoton,
+                    style = MaterialTheme.typography.titleMedium, // 🚨 titleMedium para texto de botón más grande
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
     }
 }
 
+// Clase de datos auxiliar para organizar los valores de visualización
+private data class RecursoVisuals(
+    val textoBoton: String,
+    val textoEstado: String,
+    val colorBoton: Color,
+    val colorFondoCard: Color,
+    val colorEstadoTexto: Color,
+    val estadoIcon: ImageVector?
+)
+
 
 // =================================================================================
-// 3. DIÁLOGO DE SOLICITUD DE RESERVA (CON SELECTOR DE FECHAS)
+// 3. DIÁLOGO DE SOLICITUD DE RESERVA
 // =================================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -384,7 +456,7 @@ private fun EmptyRecursos(onRecargar: () -> Unit) {
             .fillMaxWidth()
             .padding(24.dp),
         shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(8.dp)
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
             Modifier

@@ -38,4 +38,6 @@ interface ReunionesApi {
 
     @GET("reuniones/api/reuniones/{id}/")
     suspend fun obtenerReunion(@Path("id") id: Int): ReunionDto
+
+
 }

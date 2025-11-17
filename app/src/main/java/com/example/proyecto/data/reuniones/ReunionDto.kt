@@ -8,7 +8,6 @@ data class ReunionDto(
     val id: Int,
     val titulo: String,
 
-    // Alineado con el serializer de Django
     @Json(name = "autor")
     val autor: Int,
 

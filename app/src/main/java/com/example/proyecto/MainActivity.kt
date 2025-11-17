@@ -126,7 +126,13 @@ fun MainScreen(
                 ReunionesRealizadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { reunionDto ->
-                        // Aquí más adelante puedes navegar a un detalle de reunión realizada
+                        if (reunionDto.actaAprobada == true && reunionDto.actaId != null) {
+                            // aquí navegas a ACTA_DETALLE usando reunionDto.actaId
+                            // por ejemplo: viewModel.openActaDesdeReunion(reunionDto.actaId)
+                        } else {
+                            // si quieres, muestra un toast / snackbar:
+                            // "El acta aún está en borrador"
+                        }
                     }
                 )
             }

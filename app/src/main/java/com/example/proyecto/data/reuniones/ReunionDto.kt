@@ -33,5 +33,12 @@ data class ReunionDto(
     val actaContenido: String? = null,
 
     @Json(name = "acta_estado_transcripcion")
-    val actaEstadoTranscripcion: String? = null
+    val actaEstadoTranscripcion: String? = null,
+
+    @Json(name = "acta_aprobada")
+    val actaAprobada: Boolean? = null,
+
+    @Json(name = "acta_id")
+    val actaId: Int? = null
+
 )

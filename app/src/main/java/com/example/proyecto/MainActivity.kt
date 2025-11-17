@@ -1,8 +1,5 @@
 package com.example.proyecto
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,85 +30,42 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.AppScreen.*
-import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
+import com.example.proyecto.ui.actas.ActaDetalleScreen
+import com.example.proyecto.ui.actas.ActasScreen
+import com.example.proyecto.ui.talleres.TalleresScreen
+import com.example.proyecto.ui.theme.AppColors
+import com.example.proyecto.ui.theme.ProyectoTheme
+import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
 import com.example.proyecto.ui.theme.recursos.RecursosScreen
-import com.example.proyecto.ui.talleres.TalleresScreen
-import com.example.proyecto.ui.theme.ProyectoTheme
-import com.example.proyecto.ui.theme.AppColors
-import com.example.proyecto.ui.theme.auth.LoginScreen
-import com.example.proyecto.ui.actas.ActaDetalleScreen
-import com.example.proyecto.ui.actas.ActasScreen
+import com.example.proyecto.ui.theme.reuniones.ReunionesEnCursoScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesProgramadasScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesRealizadasScreen
 import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
+import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
-import java.time.LocalDateTime
 
-/* Colores/gradiente usados por el MENÚ */
+// ---------------- Colores menú ----------------
 val tuColorTextoPrimario = AppColors.TextPrimary
 val tuColorTextoSecundario = AppColors.GrisOscuroTexto
 val tuColorPrincipal = AppColors.Principal
 val tuColorBlanco = AppColors.CardBg
-val tuGradienteFondo: Brush @Composable get() = AppColors.GradientePrincipal
+val tuGradienteFondo: Brush
+    @Composable get() = AppColors.GradientePrincipal
 
 class MainActivity : ComponentActivity() {
-
-    companion object {
-        private const val REQ_POST_NOTIFICATIONS = 1001
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // 👇 Pedimos permiso de notificaciones en Android 13+
-        requestNotificationPermissionIfNeeded()
-
         setContent {
             ProyectoTheme {
                 MainScreen()
             }
-        }
-    }
-
-    private fun requestNotificationPermissionIfNeeded() {
-        // Solo hace falta en Android 13 o superior
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val hasPermission = ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-
-            if (!hasPermission) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                    REQ_POST_NOTIFICATIONS
-                )
-            }
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,    // 👈 firma correcta
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == REQ_POST_NOTIFICATIONS) {
-            val granted = grantResults.isNotEmpty() &&
-                    grantResults[0] == PackageManager.PERMISSION_GRANTED
-            // Si quieres, aquí puedes hacer algo si lo aceptó o rechazó
-            // (un log, un Toast, etc.)
         }
     }
 }
@@ -123,7 +77,6 @@ fun MainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val token = uiState.token
-    val reuniones by viewModel.reuniones.collectAsState()
 
     when (uiState.currentScreen) {
         LOGIN -> LoginScreen(viewModel)
@@ -141,18 +94,23 @@ fun MainScreen(
                 val stProgramadas by reunionesVM.programadas.collectAsState(
                     initial = ReunionesViewModel.SectionState()
                 )
+                val stEnCurso by reunionesVM.enCurso.collectAsState(
+                    initial = ReunionesViewModel.SectionState()
+                )
+
                 LaunchedEffect(Unit) {
                     reunionesVM.refresh(ReunionEstado.REALIZADA)
                     reunionesVM.refresh(ReunionEstado.PROGRAMADA)
+                    reunionesVM.refresh(ReunionEstado.EN_CURSO)
                 }
 
                 ReunionesScreen(
                     realizadasCount = stRealizadas.items.size,
                     programadasCount = stProgramadas.items.size,
-                    enCursoCount = null,
+                    enCursoCount = stEnCurso.items.size,
                     onVerRealizadas = { viewModel.navigateTo(REUNIONES_REALIZADAS) },
                     onVerProgramadas = { viewModel.navigateTo(REUNIONES_PROGRAMADAS) },
-                    onVerEnCurso = { /* opcional */ },
+                    onVerEnCurso = { viewModel.navigateTo(REUNIONES_EN_CURSO) },
                     onBack = { viewModel.goBackToMainMenu() }
                 )
             }
@@ -166,7 +124,7 @@ fun MainScreen(
                 ReunionesRealizadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { reunionDto ->
-                        // navegar a detalle con reunionDto.id si quieres
+                        // Aquí más adelante puedes navegar a un detalle
                     }
                 )
             }
@@ -179,7 +137,23 @@ fun MainScreen(
             } else {
                 ReunionesProgramadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
-                    onOpen = { /* abrir detalle/confirmación */ }
+                    onOpen = {
+                        // Abrir detalle/confirmación
+                    }
+                )
+            }
+        }
+
+        REUNIONES_EN_CURSO -> {
+            if (token.isNullOrBlank()) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
+            } else {
+                ReunionesEnCursoScreen(
+                    onBack = { viewModel.navigateTo(REUNIONES) },
+                    onOpen = { reunionDto ->
+                        // Más adelante: detalle de reunión en curso
+                    }
                 )
             }
         }
@@ -227,7 +201,10 @@ fun MainScreen(
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                VotacionesScreen(token = token, onBack = { viewModel.goBackToMainMenu() })
+                VotacionesScreen(
+                    token = token,
+                    onBack = { viewModel.goBackToMainMenu() }
+                )
             }
         }
 
@@ -237,7 +214,10 @@ fun MainScreen(
                 LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
                 CenterMsg("Sin acta seleccionada")
             } else {
-                ActaDetalleScreen(acta = acta, onBack = { viewModel.closeActaDetalle() })
+                ActaDetalleScreen(
+                    acta = acta,
+                    onBack = { viewModel.closeActaDetalle() }
+                )
             }
         }
 
@@ -246,7 +226,10 @@ fun MainScreen(
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                TalleresScreen(token = token, onBack = { viewModel.goBackToMainMenu() })
+                TalleresScreen(
+                    token = token,
+                    onBack = { viewModel.goBackToMainMenu() }
+                )
             }
         }
 
@@ -255,13 +238,16 @@ fun MainScreen(
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                RecursosScreen(token = token, onBack = { viewModel.goBackToMainMenu() })
+                RecursosScreen(
+                    token = token,
+                    onBack = { viewModel.goBackToMainMenu() }
+                )
             }
         }
     }
 }
 
-/* =====================  MENÚ PRINCIPAL Y HELPERS ===================== */
+// ---------------- Menú principal ----------------
 
 private data class Module(
     val title: String,
@@ -278,24 +264,53 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 
     val modules = remember {
         listOf(
-            Module("Reuniones", "Realizadas, programadas y en curso",
-                Icons.Default.List, AppColors.IconoReuniones, REUNIONES),
-            Module("Foro", "Espacio de debate",
-                Icons.Default.Person, AppColors.IconoForo, ASISTENCIA),
-            Module("Votación", "Sistema de votaciones",
-                Icons.Default.CheckCircle, AppColors.IconoVotacion, VOTACION),
-            Module("Talleres", "Visualizar talleres",
-                Icons.Default.Build, AppColors.IconoTalleres, TALLERES),
-            Module("Recursos", "Ver documentos",
-                Icons.Default.LibraryBooks, AppColors.Principal, RECURSOS)
+            Module(
+                "Reuniones",
+                "Realizadas, programadas y en curso",
+                Icons.Default.List,
+                AppColors.IconoReuniones,
+                REUNIONES
+            ),
+            Module(
+                "Foro",
+                "Espacio de debate",
+                Icons.Default.Person,
+                AppColors.IconoForo,
+                ASISTENCIA
+            ),
+            Module(
+                "Votación",
+                "Sistema de votaciones",
+                Icons.Default.CheckCircle,
+                AppColors.IconoVotacion,
+                VOTACION
+            ),
+            Module(
+                "Talleres",
+                "Visualizar talleres",
+                Icons.Default.Build,
+                AppColors.IconoTalleres,
+                TALLERES
+            ),
+            Module(
+                "Recursos",
+                "Ver documentos",
+                Icons.Default.LibraryBooks,
+                AppColors.Principal,
+                RECURSOS
+            )
         )
     }
 
     var isGridView by rememberSaveable { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxSize().background(tuColorBlanco)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(tuColorBlanco)
+    ) {
         Column(Modifier.fillMaxSize()) {
-            // Header
+            // Header azul
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -392,8 +407,6 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
         }
     }
 }
-
-/* =====================  ITEMS UI REUTILIZABLES  ===================== */
 
 @Composable
 fun GridModuleItem(
@@ -540,16 +553,12 @@ fun ModuleItem(
     }
 }
 
-/* =====================  HELPERS ===================== */
-
 @Composable
 private fun CenterMsg(msg: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(msg)
     }
 }
-
-/* ===== Previews opcionales ===== */
 
 @Preview(showBackground = true)
 @Composable

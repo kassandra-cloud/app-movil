@@ -35,4 +35,7 @@ interface ReunionesApi {
         @Query("page") page: Int? = 1,
         @Query("page_size") pageSize: Int? = 20
     ): Page<ReunionDto>
+
+    @GET("reuniones/api/reuniones/{id}/")
+    suspend fun obtenerReunion(@Path("id") id: Int): ReunionDto
 }

@@ -1,19 +1,20 @@
 package com.example.proyecto.data.reuniones
 
-// 💡 NECESARIO: Importar las anotaciones de Moshi
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
-// 💡 CORREGIDO: Añadir la anotación para la generación de código
 @JsonClass(generateAdapter = true)
 data class AsistenciaDto(
+    @Json(name = "id")
     val id: Int,
+
+    @Json(name = "reunion")
     val reunion: Int,
 
-    // 💡 CORREGIDO: Mapeo de snake_case a camelCase
-    @Json(name = "nombre_usuario") val nombreUsuario: String?,
-    @Json(name = "nombre_completo") val nombreCompleto: String?,
+    // Ajusta estos nombres según tu serializer de Django
+    @Json(name = "presente")
+    val presente: Boolean? = null,
 
-    val rut: String?,
-    val presente: Boolean
+    @Json(name = "estado")
+    val estado: String? = null
 )

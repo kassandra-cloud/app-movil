@@ -1,14 +1,18 @@
 package com.example.proyecto.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
+import com.example.proyecto.api.ReunionesApi
 import com.example.proyecto.data.Page
+import com.example.proyecto.data.SessionData
+import com.example.proyecto.data.reuniones.AsistenciaDto
 import com.example.proyecto.data.reuniones.ReunionDto
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -28,7 +32,9 @@ class ReunionesViewModel : ViewModel() {
         val initialized: Boolean = false
     )
 
-    // Mapa global: un SectionState por cada tipo de reunión
+    // =========================================================
+    //  ESTADO PRINCIPAL: un SectionState por cada tipo de reunión
+    // =========================================================
     private val _state = MutableStateFlow(
         mapOf(
             ReunionEstado.PROGRAMADA to SectionState(),
@@ -92,7 +98,9 @@ class ReunionesViewModel : ViewModel() {
     fun cargarEnCurso(pageSize: Int = 20)     = refresh(ReunionEstado.EN_CURSO, pageSize)
     fun cargarRealizadas(pageSize: Int = 20)  = refresh(ReunionEstado.REALIZADA, pageSize)
 
-    /** Refresca SOLO una reunión por ID (para el detalle en casi tiempo real). */
+    // =========================================================
+    //  REFRESCAR SOLO UNA REUNIÓN (para el detalle en curso)
+    // =========================================================
     fun refrescarReunionPorId(
         id: Int,
         onResult: (ReunionDto?) -> Unit
@@ -108,7 +116,9 @@ class ReunionesViewModel : ViewModel() {
         }
     }
 
-    // Carga paginada de una sección
+    // =========================================================
+    //  CARGA PAGINADA DE UNA SECCIÓN
+    // =========================================================
     private fun load(
         estado: ReunionEstado,
         page: Int,
@@ -150,6 +160,44 @@ class ReunionesViewModel : ViewModel() {
                         error = e.message ?: "Error desconocido"
                     )
                 }
+            }
+        }
+    }
+
+    // =========================================================
+    //  NUEVA LÓGICA: MIS ASISTENCIAS (UNA SOLA LLAMADA)
+    // =========================================================
+
+    // Mapa: reuniónId -> mi AsistenciaDto (si existe)
+    private val _miAsistenciaPorReunion =
+        MutableStateFlow<Map<Int, AsistenciaDto>>(emptyMap())
+    val miAsistenciaPorReunion: StateFlow<Map<Int, AsistenciaDto>> =
+        _miAsistenciaPorReunion.asStateFlow()
+
+    /**
+     * Carga TODAS las asistencias del usuario actual de una sola vez,
+     * usando el endpoint: GET /reuniones/api/asistencias/mis/
+     */
+    fun cargarMisAsistencias(pageSize: Int = 500) {
+        val token = SessionData.token ?: return
+
+        viewModelScope.launch {
+            try {
+                val api = ApiClient.createAuthorized(token, ReunionesApi::class.java)
+                val resp = api.listarMisAsistencias(pageSize)
+
+                if (resp.isSuccessful) {
+                    val lista = resp.body() ?: emptyList()
+                    // reunionId -> AsistenciaDto
+                    _miAsistenciaPorReunion.value = lista.associateBy { it.reunion }
+                } else {
+                    Log.e(
+                        "ReunionesVM",
+                        "Error mis asistencias HTTP ${resp.code()}"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("ReunionesVM", "Error cargando mis asistencias", e)
             }
         }
     }

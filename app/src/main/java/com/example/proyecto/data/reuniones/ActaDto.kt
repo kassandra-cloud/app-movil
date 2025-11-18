@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/proyecto/data/reuniones/ActaDto.kt (VERSION CORREGIDA)
 package com.example.proyecto.data.reuniones
 
 import com.squareup.moshi.Json
@@ -6,16 +5,29 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class ActaDto(
-    val reunion: Int, // PK/FK a Reunion
+    @Json(name = "reunion")
+    val reunion: Int,
+
+    @Json(name = "contenido")
     val contenido: String,
+
+    @Json(name = "aprobada")
     val aprobada: Boolean,
 
-    @Json(name = "reunion_titulo") val reunionTitulo: String,
-    @Json(name = "reunion_fecha") val reunionFecha: String,
-    @Json(name = "reunion_tipo") val reunionTipo: String,
+    @Json(name = "reunion_titulo")
+    val reunionTitulo: String,
 
-    // 💡 CORRECCIÓN APLICADA: Para coincidir con el ActaSerializer
-    @Json(name = "autor_username") val autorUsername: String,
+    @Json(name = "reunion_fecha")
+    val reunionFecha: String,
 
-    val resumen: String?
+    @Json(name = "reunion_tipo")
+    val reunionTipo: String,
+
+    // 👇 CAMBIO IMPORTANTE: AHORA ES OPCIONAL
+    @Json(name = "autor_username")
+    val autorUsername: String? = null,
+
+    // 👇 TAMBIÉN OPCIONAL (por si el backend no siempre lo manda)
+    @Json(name = "resumen")
+    val resumen: String? = null,
 )

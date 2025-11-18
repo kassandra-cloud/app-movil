@@ -44,35 +44,21 @@ class ActasViewModel : ViewModel() {
                 val lista = page.results ?: emptyList()
                 _actas.value = lista
 
-                // 2) Limpiar y cargar asistencias por reunión (en paralelo)
-                _asistencias.value = emptyMap()
+                // 2) Cargar TODAS MIS asistencias en UNA sola llamada
+                val resp = ApiClient.reunionesApi.listarMisAsistencias(pageSize = 500)
 
-                lista.forEach { acta ->
-                    viewModelScope.launch {
-                        val reunionId = acta.reunion
-                        try {
-                            val resp: Response<List<AsistenciaDto>> =
-                                ApiClient.reunionesApi.listarAsistencias(
-                                    reunionId = reunionId,
-                                    pageSize = 200
-                                )
-
-                            val list: List<AsistenciaDto> =
-                                if (resp.isSuccessful) resp.body() ?: emptyList()
-                                else {
-                                    Log.e("ActasVM", "HTTP ${resp.code()} asistencias reunion=$reunionId")
-                                    emptyList()
-                                }
-
-                            // Actualiza siempre el mapa (evita “Cargando…” infinito)
-                            _asistencias.value = _asistencias.value + (reunionId to list)
-
-                        } catch (e: Exception) {
-                            Log.e("ActasVM", "Error asistencias reunion=$reunionId", e)
-                            _asistencias.value = _asistencias.value + (reunionId to emptyList())
-                        }
+                val misAsistencias: List<AsistenciaDto> =
+                    if (resp.isSuccessful) resp.body() ?: emptyList()
+                    else {
+                        Log.e("ActasVM", "HTTP ${resp.code()} al cargar mis asistencias")
+                        emptyList()
                     }
-                }
+
+                // 3) Mapear por id de reunión: reunionId -> lista de asistencias mías (normalmente 1)
+                val mapAgrupado: Map<Int, List<AsistenciaDto>> =
+                    misAsistencias.groupBy { it.reunion }
+
+                _asistencias.value = mapAgrupado
 
             } catch (e: Exception) {
                 _error.value = e.message ?: "Error cargando actas"
@@ -83,12 +69,18 @@ class ActasViewModel : ViewModel() {
     }
 
     fun refrescar() = cargarActas(lastSearch)
-    fun limpiarError() { _error.value = null }
+
+    fun limpiarError() {
+        _error.value = null
+    }
 
     // ---- Utilidades para la UI ----
-    fun presentes(reunionId: Int): Int =
-        _asistencias.value[reunionId]?.count { it.presente } ?: 0
 
+    /** Cuenta cuántos presentes hay para una reunión. Maneja 'presente' como Boolean? */
+    fun presentes(reunionId: Int): Int =
+        _asistencias.value[reunionId]?.count { it.presente == true } ?: 0
+
+    /** Cuenta cuántos ausentes hay para una reunión. Maneja 'presente' como Boolean? */
     fun ausentes(reunionId: Int): Int =
-        _asistencias.value[reunionId]?.count { !it.presente } ?: 0
+        _asistencias.value[reunionId]?.count { it.presente == false } ?: 0
 }

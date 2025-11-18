@@ -1,32 +1,31 @@
 package com.example.proyecto.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
+import com.example.proyecto.api.ApiService
+import com.example.proyecto.api.ActasApi          // ✅ IMPORTANTE: API de actas
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.LoginRequest
+import com.example.proyecto.data.SessionData     // Token global
+import com.example.proyecto.data.PublicacionDto
 import com.example.proyecto.data.reuniones.ActaDto
 import com.example.proyecto.data.reuniones.Reunion
+import com.example.proyecto.data.reuniones.ReunionDto
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
-import com.example.proyecto.data.PublicacionDto
-
-// >>> NUEVAS IMPORTACIONES REQUERIDAS PARA FCM <<<
-import com.example.proyecto.api.ApiService
-import com.example.proyecto.data.SessionData // El objeto global para el token
-import com.google.firebase.messaging.FirebaseMessaging
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import android.util.Log // Para mensajes de depuración
-import com.example.proyecto.data.reuniones.ReunionDto
 
-// >>> FIN NUEVAS IMPORTACIONES <<<
-
-
+// =============================
+// UI STATE
+// =============================
 data class LoginUiState(
     val isLoading: Boolean = false,
     val isLoggedIn: Boolean = false,
@@ -35,30 +34,30 @@ data class LoginUiState(
     val currentScreen: AppScreen = AppScreen.LOGIN,
     val errorMessage: String? = null,
     val successMessage: String? = null,
+
+    // Detalles / selección
     val selectedActa: ActaDto? = null,
     val selectedPublicacion: PublicacionDto? = null,
     val selectedReunionEnCurso: ReunionDto? = null,
 )
+
 class LoginViewModel : ViewModel() {
 
-    // Instancia del servicio API
+    // Instancia del servicio API base
     private val apiService: ApiService = ApiClient.apiService
 
     /* ---------- UI STATE ---------- */
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    /* ---------- REUNIONES (reactivo) ---------- */
-    private val _reuniones = MutableStateFlow(demoReuniones()) // <— mock inicial
+    /* ---------- REUNIONES (mock local) ---------- */
+    private val _reuniones = MutableStateFlow(demoReuniones())
     val reuniones: StateFlow<List<Reunion>> = _reuniones.asStateFlow()
 
     // =======================================================
-    // >>> FUNCIONES AUXILIARES FCM <<<
+    // FCM: Obtener y registrar token de notificaciones
     // =======================================================
 
-    /**
-     * Obtiene el token FCM del dispositivo usando Coroutines.
-     */
     private suspend fun getFCMToken(): String? = suspendCoroutine { continuation ->
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (task.isSuccessful) {
@@ -72,15 +71,10 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Envía el token FCM al backend de Django.
-     */
-
     private fun sendFCMTokenToServer(apiToken: String, fcmToken: String) {
         viewModelScope.launch {
             try {
-                // Tu backend devuelve un token tipo DRF (ese hex largoooo),
-                // así que acá debe ir "Token", NO "Bearer".
+                // Tu backend usa DRF Token Auth → "Token <token>"
                 val authHeader = "Token $apiToken"
 
                 val body = mapOf(
@@ -106,8 +100,9 @@ class LoginViewModel : ViewModel() {
             }
         }
     }
+
     // =======================================================
-    // >>> FUNCIÓN DE LOGIN (MODIFICADA) <<<
+    // LOGIN
     // =======================================================
 
     fun login(username: String, password: String) {
@@ -125,36 +120,35 @@ class LoginViewModel : ViewModel() {
                     val body = response.body()
                     if (body?.success == true) {
 
-                        // 1. Almacenamiento Global del JWT y Actualización UI
                         val jwtToken = body.token
-                        SessionData.token = jwtToken // <-- ¡Almacenamiento global para el servicio!
+                        SessionData.token = jwtToken // token global
 
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
                                 isLoggedIn = true,
                                 currentUser = username,
-                                token = jwtToken, // Mantenemos token en UI State también
+                                token = jwtToken,
                                 currentScreen = AppScreen.MAIN_MENU,
                                 successMessage = "¡Bienvenido, $username!"
                             )
                         }
 
-                        // 2. Obtener y registrar Token FCM
+                        // Registrar token FCM en backend
                         if (jwtToken != null) {
                             val fcmToken = getFCMToken()
                             if (fcmToken != null) {
                                 sendFCMTokenToServer(jwtToken, fcmToken)
                             } else {
-                                Log.w("FCM_REG", "No se pudo obtener el token de FCM. Notificaciones podrían fallar.")
+                                Log.w("FCM_REG", "No se pudo obtener el token de FCM.")
                             }
                         }
-
-                        // Cargar reuniones reales después del login (opcional)
-                        // loadReuniones()
                     } else {
                         _uiState.update {
-                            it.copy(isLoading = false, errorMessage = body?.message ?: "Error de autenticación")
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = body?.message ?: "Error de autenticación"
+                            )
                         }
                     }
                 } else {
@@ -167,22 +161,30 @@ class LoginViewModel : ViewModel() {
                     _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = "Error de conexión: ${e.message}") }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Error de conexión: ${e.message}"
+                    )
+                }
             }
         }
     }
 
     fun logout() {
-        _uiState.value = LoginUiState() // resetea UI state
-        SessionData.token = null // Limpia el token global
-        // Nota: En un entorno de producción, aquí se debería borrar el token FCM del Perfil en Django.
+        _uiState.value = LoginUiState()  // resetea estado UI
+        SessionData.token = null        // limpia token global
+        // Si quisieras, aquí podrías también desregistrar el FCM en el backend
     }
 
     fun clearMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
     }
 
-    /* ---------- Navegación ---------- */
+    // =======================================================
+    // NAVEGACIÓN GENERAL
+    // =======================================================
+
     fun navigateTo(screen: AppScreen) {
         _uiState.update { it.copy(currentScreen = screen) }
     }
@@ -191,20 +193,73 @@ class LoginViewModel : ViewModel() {
         _uiState.update { it.copy(currentScreen = AppScreen.MAIN_MENU) }
     }
 
-    /* ---------- Actas ---------- */
+    // =======================================================
+    // ACTAS: DETALLE DESDE LISTADO Y DESDE REUNIONES REALIZADAS
+    // =======================================================
+
+    /**
+     * Abre el detalle de acta cuando YA tienes el ActaDto.
+     * Se usa, por ejemplo, desde la pantalla de listado de Actas.
+     */
     fun openActaDetalle(acta: ActaDto) {
+        // Si quieres bloquear actas no aprobadas, deja esta validación
         if (!acta.aprobada) {
             _uiState.update { it.copy(errorMessage = "El acta aún no está aprobada.") }
             return
         }
-        _uiState.update { it.copy(selectedActa = acta, currentScreen = AppScreen.ACTA_DETALLE) }
+        _uiState.update {
+            it.copy(
+                selectedActa = acta,
+                currentScreen = AppScreen.ACTA_DETALLE
+            )
+        }
     }
 
+    /**
+     * Cerrar el detalle de acta.
+     * Ahora mismo te devuelve a ACTAS. Si prefieres volver a REUNIONES_REALIZADAS,
+     * cambia el currentScreen.
+     */
     fun closeActaDetalle() {
-        _uiState.update { it.copy(selectedActa = null, currentScreen = AppScreen.ACTAS) }
+        _uiState.update {
+            it.copy(
+                selectedActa = null,
+                currentScreen = AppScreen.REUNIONES_REALIZADAS
+            )
+        }
     }
 
-    /* ---------- Foro / Publicaciones ---------- */
+    /**
+     * Llamado desde ReunionesRealizadasScreen cuando tocas "Ver acta".
+     * 1) Usa el token de sesión.
+     * 2) Llama al endpoint /reuniones/api/actas/{id}/ vía ActasApi.
+     * 3) Si funciona, abre el detalle con openActaDetalle(acta).
+     */
+    fun openActaDesdeReunion(actaId: Int) {
+        val tokenActual = _uiState.value.token ?: return
+
+        viewModelScope.launch {
+            try {
+                val api = ApiClient.createAuthorized(tokenActual, ActasApi::class.java)
+                val acta: ActaDto = api.getActaDetalle(actaId)
+
+                openActaDetalle(acta)
+
+            } catch (e: Exception) {
+                Log.e("LoginViewModel", "Error al cargar acta $actaId", e)
+                _uiState.update {
+                    it.copy(
+                        errorMessage = "No se pudo cargar el detalle del acta."
+                    )
+                }
+            }
+        }
+    }
+
+    // =======================================================
+    // FORO / ASISTENCIA
+    // =======================================================
+
     fun openPublicacionDetalle(pub: PublicacionDto) {
         _uiState.update {
             it.copy(
@@ -223,19 +278,10 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /* ---------- Carga de reuniones (API) ---------- */
-    fun loadReuniones() {
-        viewModelScope.launch {
-            try {
-                // TODO: reemplazar por tu endpoint real
-                // val resp = ApiClient.apiService.getReuniones("Bearer ${uiState.value.token}")
-                // if (resp.isSuccessful) _reuniones.value = resp.body().orEmpty()
-                // else _uiState.update { it.copy(errorMessage = "No se pudieron cargar las reuniones") }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Error cargando reuniones: ${e.message}") }
-            }
-        }
-    }
+    // =======================================================
+    // REUNIÓN EN CURSO (detalle)
+    // =======================================================
+
     fun openReunionEnCurso(reunion: ReunionDto) {
         _uiState.update {
             it.copy(
@@ -253,6 +299,7 @@ class LoginViewModel : ViewModel() {
             )
         }
     }
+
     fun updateSelectedReunionEnCurso(actualizada: ReunionDto) {
         _uiState.update { current ->
             if (current.selectedReunionEnCurso?.id == actualizada.id) {
@@ -262,9 +309,32 @@ class LoginViewModel : ViewModel() {
             }
         }
     }
-    /* ---------- Mock local para compilar y probar UI ---------- */
+
+    // =======================================================
+    // CARGA DE REUNIONES (si las traes desde API)
+    // =======================================================
+
+    fun loadReuniones() {
+        viewModelScope.launch {
+            try {
+                // Aquí iría tu llamada real a API si ya la tienes implementada.
+                // Ejemplo:
+                // val resp = ApiClient.apiService.getReuniones("Token ${uiState.value.token}")
+                // if (resp.isSuccessful) _reuniones.value = resp.body().orEmpty()
+                // else _uiState.update { it.copy(errorMessage = "No se pudieron cargar las reuniones") }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = "Error cargando reuniones: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // =======================================================
+    // DEMO LOCAL DE REUNIONES (solo UI)
+    // =======================================================
+
     private fun demoReuniones(): List<Reunion> = listOf(
-        // ... (Reuniones mock sin cambios)
         Reunion(
             id = 1,
             titulo = "Directiva",

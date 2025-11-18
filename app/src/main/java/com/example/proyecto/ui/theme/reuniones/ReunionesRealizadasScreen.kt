@@ -9,18 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.reuniones.ReunionDto
+import com.example.proyecto.data.reuniones.AsistenciaDto
 import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
@@ -41,10 +32,12 @@ fun ReunionesRealizadasScreen(
     val state by reunionesVM.realizadas.collectAsState(
         initial = ReunionesViewModel.SectionState()
     )
+    val misAsistencias by reunionesVM.miAsistenciaPorReunion.collectAsState()
 
-    // Carga inicial solo si hace falta
+    // Carga inicial de reuniones + MIS asistencias
     LaunchedEffect(Unit) {
         reunionesVM.ensureLoaded(ReunionEstado.REALIZADA)
+        reunionesVM.cargarMisAsistencias()
     }
 
     Box(
@@ -83,7 +76,7 @@ fun ReunionesRealizadasScreen(
                             color = Color.White
                         )
                         Text(
-                            text = "Historial y actas",
+                            text = "Historial, actas y tu asistencia",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.85f)
                         )
@@ -149,8 +142,10 @@ fun ReunionesRealizadasScreen(
                             contentPadding = PaddingValues(bottom = 24.dp)
                         ) {
                             items(state.items) { reunion ->
+                                val miAsistencia = misAsistencias[reunion.id]
                                 ReunionRealizadaItem(
                                     reunion = reunion,
+                                    miAsistencia = miAsistencia,
                                     onClick = { onOpen(reunion) }
                                 )
                             }
@@ -165,6 +160,7 @@ fun ReunionesRealizadasScreen(
 @Composable
 private fun ReunionRealizadaItem(
     reunion: ReunionDto,
+    miAsistencia: AsistenciaDto?,
     onClick: () -> Unit
 ) {
     val actaAprobada = reunion.actaAprobada == true
@@ -239,11 +235,11 @@ private fun ReunionRealizadaItem(
 
                     if (actaAprobada) {
                         chipText = "Acta aprobada"
-                        chipBg = Color(0xFF16A34A)
+                        chipBg = Color(0xFF16A34A)   // verde
                         chipFg = Color.White
                     } else {
-                        chipText = "Acta en borrador"
-                        chipBg = Color(0xFFF97316)
+                        chipText = "No aprobada"
+                        chipBg = Color(0xFF9CA3AF)   // gris
                         chipFg = Color.White
                     }
 
@@ -269,6 +265,48 @@ private fun ReunionRealizadaItem(
                             )
                         }
                     }
+                }
+            }
+
+            // ---- Tu asistencia ----
+            Spacer(Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Tu asistencia: ",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF6B7280)
+                )
+
+                val (label, bg, fg) = when {
+                    miAsistencia == null -> Triple(
+                        "Sin registro",
+                        Color(0xFF9CA3AF),
+                        Color.White
+                    )
+                    miAsistencia.presente == true -> Triple(
+                        "Presente",
+                        Color(0xFF16A34A),
+                        Color.White
+                    )
+                    else -> Triple(
+                        "Ausente",
+                        Color(0xFFDC2626),
+                        Color.White
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .background(bg, RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = fg,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }

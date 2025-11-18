@@ -40,5 +40,4 @@ data class ReunionDto(
 
     @Json(name = "acta_id")
     val actaId: Int? = null
-
 )

@@ -22,12 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-// 🔑 IMPORTACIONES CLAVE (Asegúrate que estas rutas coincidan con tu proyecto)
 import com.example.proyecto.data.reuniones.ActaDto
 import com.example.proyecto.viewmodel.ActasViewModel
 import com.example.proyecto.viewmodel.LoginViewModel
 import java.text.Normalizer
-
 
 // 🔑 PALETA DE COLORES PRINCIPAL MODIFICADA AL AZUL VIBRANTE
 val tuColorPrincipal = Color(0xFF42A5F5) // ⬅️ ¡NUEVO AZUL PRINCIPAL!
@@ -54,7 +52,7 @@ fun ActasScreen(
     // Lógica del ViewModel y Auto-refresh
     LaunchedEffect(Unit) { vm.cargarActas(loginUi.token ?: "") } // Pasar token
 
-    // ✅ CORRECCIÓN DEL AUTO-REFRESH (usa LaunchedEffect y delay)
+    // ✅ AUTO-REFRESH
     LaunchedEffect("auto-refresh-actas") {
         while (true) {
             delay(10_000)
@@ -64,24 +62,22 @@ fun ActasScreen(
 
     BackHandler { onBack() }
 
-    // Fondo degradado para el encabezado (Ahora usa los nuevos azules)
+    // Fondo degradado para el encabezado
     val gradientBrush = remember {
         Brush.verticalGradient(listOf(tuColorPrincipal, webColorSecundario))
     }
 
     Scaffold(
-        // 1. BARRA SUPERIOR CON COLOR DE FONDO DEGRADADO
+        // 1. BARRA SUPERIOR
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Aplicamos el degradado solo a esta Columna
                     .background(gradientBrush)
                     .padding(vertical = 12.dp, horizontal = 16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
-                        // Icono en BLANCO para contraste
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
                     Spacer(Modifier.width(8.dp))
@@ -89,21 +85,19 @@ fun ActasScreen(
                         "Actas de Reuniones",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            // Título en BLANCO
                             color = Color.White
                         )
                     )
                 }
             }
         },
-        // 2. BOTÓN INFERIOR FIJO
+        // 2. BOTÓN INFERIOR
         bottomBar = {
             Column(modifier = Modifier.padding(16.dp)) {
                 Button(
                     onClick = onBack,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    // Usando el nuevo azul principal
                     colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
                 ) {
                     Icon(Icons.Default.ArrowBack, contentDescription = null)
@@ -113,7 +107,7 @@ fun ActasScreen(
             }
         }
     ) { paddingValues ->
-        // 3. CONTENIDO PRINCIPAL (Fondo Blanco)
+        // 3. CONTENIDO PRINCIPAL
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -121,27 +115,34 @@ fun ActasScreen(
                 .padding(paddingValues)
         ) {
             when {
-                // Loader
-                loading && actas.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                loading && actas.isEmpty() -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator(color = tuColorPrincipal)
                 }
-                // Error
-                error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+
+                error != null -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     ErrorBox(
                         message = error ?: "Error",
                         onDismiss = { vm.limpiarError() },
-                        onRetry   = { vm.cargarActas(loginUi.token ?: "") }
+                        onRetry = { vm.cargarActas(loginUi.token ?: "") }
                     )
                 }
-                // Lista Vacía
-                actas.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+
+                actas.isEmpty() -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text("No hay reuniones/actas disponibles.", color = grisOscuroTexto)
                 }
-                // Contenido
+
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        // ✅ OPTIMIZACIÓN: Aumentamos el espacio entre tarjetas a 20.dp
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
@@ -154,13 +155,11 @@ fun ActasScreen(
                                 shape = RoundedCornerShape(24.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color.White)
                             ) {
-                                // ✅ OPTIMIZACIÓN: Ajustamos el padding interno a 16.dp
                                 Column(Modifier.padding(16.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            // ⬅️ CORRECCIÓN: Usar reunionTitulo
                                             a.reunionTitulo,
-                                            style = MaterialTheme.typography.titleLarge.copy(color = tuColorPrincipal), // Usando el nuevo azul
+                                            style = MaterialTheme.typography.titleLarge.copy(color = tuColorPrincipal),
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.weight(1f)
                                         )
@@ -170,38 +169,35 @@ fun ActasScreen(
                                         )
                                     }
                                     Spacer(Modifier.height(4.dp))
-                                    // ⬅️ CORRECCIÓN: Usar reunionFecha
                                     Text(a.reunionFecha, style = MaterialTheme.typography.bodySmall)
                                     Spacer(Modifier.height(10.dp))
 
                                     if (!a.resumen.isNullOrBlank()) {
                                         Text(
-                                            a.resumen.take(120) + if (a.resumen.length > 120) "..." else "",
+                                            a.resumen.take(120) +
+                                                    if (a.resumen.length > 120) "..." else "",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Spacer(Modifier.height(8.dp))
                                     }
 
-                                    // Lógica de Asistencia
+                                    // 🔹 LÓGICA DE ASISTENCIA SIMPLIFICADA
                                     val asistentes = asistenciasMap[a.reunion]
-                                    if (asistentes != null) {
-                                        val tuRegistro = asistentes.firstOrNull { asis ->
-                                            // ⬅️ CORRECCIÓN: Usar nombreUsuario
-                                            val nu = norm(asis.nombreUsuario)
-                                            // ⬅️ CORRECCIÓN: Usar nombreCompleto
-                                            val nc = norm(asis.nombreCompleto)
-                                            val rut = norm(asis.rut)
-                                            cu.isNotEmpty() && (nu == cu || nc.contains(cu) || cu.contains(nc) || rut == cu)
+                                    if (asistentes != null && asistentes.isNotEmpty()) {
+                                        val tuRegistro = asistentes.first()
+                                        val presente = tuRegistro.presente == true
+
+                                        if (presente) {
+                                            TuAsistenciaRow("Presente", true)
+                                        } else {
+                                            TuAsistenciaRow("Ausente", false)
                                         }
-                                        when {
-                                            tuRegistro == null ->
-                                                Text("Tu asistencia: — sin registro", style = MaterialTheme.typography.bodySmall)
-                                            tuRegistro.presente ->
-                                                TuAsistenciaRow("Presente", true)
-                                            else ->
-                                                TuAsistenciaRow("Ausente", false)
-                                        }
+                                    } else {
+                                        Text(
+                                            "Tu asistencia: — sin registro",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
                                     }
 
                                     Spacer(Modifier.height(12.dp))
@@ -212,7 +208,6 @@ fun ActasScreen(
                                         enabled = puedeVerActa,
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(50),
-                                        // Usando el nuevo azul principal
                                         colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
                                     ) { Text("Ver acta") }
 
@@ -245,22 +240,29 @@ fun ActasScreen(
     }
 }
 
-// FUNCIONES AUXILIARES (Actualizadas con el nuevo color y DTOs)
+// --------- AUXILIARES ---------
 
 @Composable
 private fun ActaPreviewDialog(acta: ActaDto, onDismiss: () -> Unit, onVerActa: (ActaDto) -> Unit) {
-    val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
+    val principalColor = tuColorPrincipal
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
-        // ⬅️ CORRECCIÓN: Usar reunionTitulo
-        title = { Text(acta.reunionTitulo, fontWeight = FontWeight.Bold, color = principalColor) },
+        title = {
+            Text(
+                acta.reunionTitulo,
+                fontWeight = FontWeight.Bold,
+                color = principalColor
+            )
+        },
         text = {
             Column {
-                // ⬅️ CORRECCIÓN: Usar reunionFecha
                 Text("Fecha: ${acta.reunionFecha}", style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
-                Text(acta.resumen ?: "Sin resumen disponible.", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    acta.resumen ?: "Sin resumen disponible.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         },
         confirmButton = {
@@ -268,12 +270,12 @@ private fun ActaPreviewDialog(acta: ActaDto, onDismiss: () -> Unit, onVerActa: (
                 onClick = { onVerActa(acta) },
                 enabled = acta.aprobada,
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = principalColor) // Usando el nuevo azul
+                colors = ButtonDefaults.buttonColors(containerColor = principalColor)
             ) { Text("Ver acta completa") }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(50)) {
-                Text("Cerrar", color = principalColor) // Usando el nuevo azul
+                Text("Cerrar", color = principalColor)
             }
         }
     )
@@ -281,13 +283,13 @@ private fun ActaPreviewDialog(acta: ActaDto, onDismiss: () -> Unit, onVerActa: (
 
 @Composable
 private fun TuAsistenciaRow(texto: String, presente: Boolean) {
-    val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
+    val principalColor = tuColorPrincipal
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (presente) {
-            Icon(Icons.Filled.CheckCircle, contentDescription = "Presente", tint = principalColor) // Usando el nuevo azul
+            Icon(Icons.Filled.CheckCircle, contentDescription = "Presente", tint = principalColor)
         } else {
             Icon(Icons.Filled.Close, contentDescription = "Ausente", tint = MaterialTheme.colorScheme.error)
         }
@@ -297,17 +299,20 @@ private fun TuAsistenciaRow(texto: String, presente: Boolean) {
 
 @Composable
 private fun StatusPill(text: String, positive: Boolean) {
-    val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
-    val grisClaroFondo = Color(0xFFEEEEEE)
-    val grisOscuroTexto = Color(0xFF616161)
+    val principalColor = tuColorPrincipal
+    val grisClaroFondo = grisClaroFondo
+    val grisOscuroTexto = grisOscuroTexto
 
     Surface(
-        // Si es positivo (aprobada), usa el nuevo color azul
         color = if (positive) principalColor else grisClaroFondo,
         contentColor = if (positive) Color.White else grisOscuroTexto,
         shape = RoundedCornerShape(50)
     ) {
-        Text(text, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge)
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge
+        )
     }
 }
 
@@ -318,13 +323,21 @@ private fun ErrorBox(message: String, onDismiss: () -> Unit, onRetry: () -> Unit
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("Error", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+            Text(
+                "Error",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
             Spacer(Modifier.height(4.dp))
             Text(message, color = MaterialTheme.colorScheme.onErrorContainer)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(50)) { Text("Cerrar") }
-                Button(onClick = onRetry, shape = RoundedCornerShape(50)) { Text("Reintentar") }
+                OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(50)) {
+                    Text("Cerrar")
+                }
+                Button(onClick = onRetry, shape = RoundedCornerShape(50)) {
+                    Text("Reintentar")
+                }
             }
         }
     }
@@ -334,11 +347,11 @@ private fun norm(s: String?): String =
     Normalizer.normalize(s?.trim()?.lowercase() ?: "", Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "")
         .replace(Regex("[^a-z0-9]"), "")
+
+// PREVIEW SOLO PARA DISEÑO (usa datos falsos)
 @Preview(showBackground = true)
 @Composable
 fun PreviewActasScreen() {
-    // 💡 CORRECCIÓN CLAVE: Pasamos 8 argumentos al constructor de ActaDto,
-    // incluyendo el nuevo campo 'autorUsername'.
     val actasEjemplo = listOf(
         ActaDto(
             reunion = 1,
@@ -347,8 +360,8 @@ fun PreviewActasScreen() {
             reunionTitulo = "Reunión de aprobación de cuentas",
             reunionFecha = "2025-11-01",
             reunionTipo = "Ordinaria",
-            autorUsername = "admin_user", // <--- ARGUMENTO AÑADIDO (7º)
-            resumen = "Resumen demo"       // <--- ARGUMENTO ANTERIOR (8º)
+            autorUsername = "admin_user",
+            resumen = "Resumen demo"
         ),
         ActaDto(
             reunion = 2,
@@ -357,12 +370,13 @@ fun PreviewActasScreen() {
             reunionTitulo = "Reunión de planificación",
             reunionFecha = "2025-10-15",
             reunionTipo = "Extraordinaria",
-            autorUsername = "kassandra_user", // <--- ARGUMENTO AÑADIDO (7º)
-            resumen = "Resumen breve"         // <--- ARGUMENTO ANTERIOR (8º)
+            autorUsername = "kassandra_user",
+            resumen = "Resumen breve"
         )
     )
-    val principalColor = Color(0xFF42A5F5) // ⬅️ Nuevo azul
-    val secondaryColor = Color(0xFF1E88E5) // ⬅️ Nuevo azul secundario
+
+    val principalColor = tuColorPrincipal
+    val secondaryColor = webColorSecundario
     val gradientBrush = Brush.verticalGradient(listOf(principalColor, secondaryColor))
 
     MaterialTheme {
@@ -405,29 +419,43 @@ fun PreviewActasScreen() {
             }
         ) { paddingValues ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color.White),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(Color.White),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 items(actasEjemplo, key = { it.reunion }) { a ->
                     Card(
-                        modifier = Modifier.fillMaxWidth().clickable { },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { },
                         elevation = CardDefaults.cardElevation(6.dp),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
                         Column(Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                // ⬅️ CORRECCIÓN: Usar reunionTitulo
-                                Text(a.reunionTitulo, style = MaterialTheme.typography.titleLarge.copy(color = principalColor), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                StatusPill(if (a.aprobada) "Aprobada" else "No aprobada", a.aprobada)
+                                Text(
+                                    a.reunionTitulo,
+                                    style = MaterialTheme.typography.titleLarge.copy(color = principalColor),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StatusPill(
+                                    if (a.aprobada) "Aprobada" else "No aprobada",
+                                    a.aprobada
+                                )
                             }
                             Spacer(Modifier.height(4.dp))
-                            // ⬅️ CORRECCIÓN: Usar reunionFecha
                             Text(a.reunionFecha, style = MaterialTheme.typography.bodySmall)
                             Spacer(Modifier.height(10.dp))
 
-                            TuAsistenciaRow(if (a.aprobada) "Presente" else "Ausente", a.aprobada)
+                            TuAsistenciaRow(
+                                if (a.aprobada) "Presente" else "Ausente",
+                                a.aprobada
+                            )
 
                             Spacer(Modifier.height(12.dp))
                             Button(

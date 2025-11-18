@@ -22,7 +22,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -42,11 +41,7 @@ import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
 import com.example.proyecto.ui.theme.recursos.RecursosScreen
-import com.example.proyecto.ui.theme.reuniones.ReunionesScreen
-import com.example.proyecto.ui.theme.reuniones.ReunionesEnCursoScreen
-import com.example.proyecto.ui.theme.reuniones.ReunionesProgramadasScreen
-import com.example.proyecto.ui.theme.reuniones.ReunionesRealizadasScreen
-import com.example.proyecto.ui.theme.reuniones.ReunionEnCursoDetalleScreen
+import com.example.proyecto.ui.theme.reuniones.*
 import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
@@ -57,8 +52,6 @@ val tuColorTextoPrimario = AppColors.TextPrimary
 val tuColorTextoSecundario = AppColors.GrisOscuroTexto
 val tuColorPrincipal = AppColors.Principal
 val tuColorBlanco = AppColors.CardBg
-val tuGradienteFondo: Brush
-    @Composable get() = AppColors.GradientePrincipal
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -118,6 +111,7 @@ fun MainScreen(
             }
         }
 
+        // 🔹 AQUÍ VIENE LA PARTE IMPORTANTE
         REUNIONES_REALIZADAS -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
@@ -127,11 +121,9 @@ fun MainScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { reunionDto ->
                         if (reunionDto.actaAprobada == true && reunionDto.actaId != null) {
-                            // aquí navegas a ACTA_DETALLE usando reunionDto.actaId
-                            // por ejemplo: viewModel.openActaDesdeReunion(reunionDto.actaId)
+                            viewModel.openActaDesdeReunion(reunionDto.actaId)
                         } else {
-                            // si quieres, muestra un toast / snackbar:
-                            // "El acta aún está en borrador"
+                            // Opcional: mostrar mensaje "El acta aún está en borrador"
                         }
                     }
                 )
@@ -146,7 +138,7 @@ fun MainScreen(
                 ReunionesProgramadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = {
-                        // Abrir detalle/confirmación si lo necesitas
+                        // Detalle de reunión programada (si lo implementas)
                     }
                 )
             }
@@ -160,7 +152,6 @@ fun MainScreen(
                 ReunionesEnCursoScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { reunionDto ->
-                        // guardamos la reunión seleccionada y vamos al detalle
                         viewModel.openReunionEnCurso(reunionDto)
                     }
                 )
@@ -180,7 +171,6 @@ fun MainScreen(
                     reunion = reunion,
                     onBack = { viewModel.closeReunionEnCurso() },
                     onRefresh = {
-                        // 👇 AQUÍ es donde refrescamos SOLO esta reunión
                         reunionesVM.refrescarReunionPorId(reunion.id) { actualizada ->
                             if (actualizada != null) {
                                 viewModel.updateSelectedReunionEnCurso(actualizada)

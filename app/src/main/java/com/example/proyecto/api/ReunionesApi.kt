@@ -38,6 +38,14 @@ interface ReunionesApi {
 
     @GET("reuniones/api/reuniones/{id}/")
     suspend fun obtenerReunion(@Path("id") id: Int): ReunionDto
+    @GET("reuniones/api/asistencias/")
+    suspend fun getMiAsistencia(
+        @Query("reunion") reunionId: Int
+    ): List<AsistenciaDto>
+    @GET("reuniones/api/asistencias/mis/")
+    suspend fun listarMisAsistencias(
+        @Query("page_size") pageSize: Int = 500
+    ): Response<List<AsistenciaDto>>
 
 
 }

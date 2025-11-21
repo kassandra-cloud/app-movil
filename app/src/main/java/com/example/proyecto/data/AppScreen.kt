@@ -10,7 +10,7 @@ enum class AppScreen {
     REUNIONES_PROGRAMADAS,
     REUNIONES_EN_CURSO,
     REUNION_EN_CURSO_DETALLE,
-
+    ANUNCIOS,
     // Actas
     ACTAS,
     ACTA_DETALLE,

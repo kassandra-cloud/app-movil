@@ -35,6 +35,8 @@ import com.example.proyecto.data.AppScreen.*
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
 import com.example.proyecto.ui.talleres.TalleresScreen
+// Import the Anuncios Screen
+import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
 import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.ui.theme.auth.LoginScreen
@@ -46,8 +48,10 @@ import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
-
-// ---------------- Colores menú ----------------
+import com.example.proyecto.viewmodel.AnunciosViewModel
+import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
+import com.google.firebase.messaging.FirebaseMessaging
+// ---------------- Menu Colors ----------------
 val tuColorTextoPrimario = AppColors.TextPrimary
 val tuColorTextoSecundario = AppColors.GrisOscuroTexto
 val tuColorPrincipal = AppColors.Principal
@@ -56,6 +60,14 @@ val tuColorBlanco = AppColors.CardBg
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FirebaseMessaging.getInstance().subscribeToTopic("anuncios_generales")
+            .addOnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    android.util.Log.w("FCM", "Falló la suscripción al topic", task.exception)
+                } else {
+                    android.util.Log.d("FCM", "Suscrito a anuncios_generales correctamente")
+                }
+            }
         setContent {
             ProyectoTheme {
                 MainScreen()
@@ -77,6 +89,22 @@ fun MainScreen(
         LOGIN -> LoginScreen(viewModel)
 
         MAIN_MENU -> MainMenuScreen(viewModel)
+
+
+        ANUNCIOS -> {
+            if (token.isNullOrBlank()) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
+            } else {
+                AnunciosScreen(
+                    // You can implement onBack in AnunciosScreen to call this
+                    // or simply handle the back button press
+                    // For now, assuming AnunciosScreen might have an internal back button:
+                    // onBack = { viewModel.goBackToMainMenu() }
+                )
+                // Note: Ensure AnunciosScreen accepts an onBack parameter or add a BackHandler
+            }
+        }
 
         REUNIONES -> {
             if (token.isNullOrBlank()) {
@@ -111,7 +139,6 @@ fun MainScreen(
             }
         }
 
-        // 🔹 AQUÍ VIENE LA PARTE IMPORTANTE
         REUNIONES_REALIZADAS -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
@@ -123,7 +150,7 @@ fun MainScreen(
                         if (reunionDto.actaAprobada == true && reunionDto.actaId != null) {
                             viewModel.openActaDesdeReunion(reunionDto.actaId)
                         } else {
-                            // Opcional: mostrar mensaje "El acta aún está en borrador"
+                            // Optional: show message "Acta is still a draft"
                         }
                     }
                 )
@@ -138,7 +165,7 @@ fun MainScreen(
                 ReunionesProgramadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = {
-                        // Detalle de reunión programada (si lo implementas)
+                        // Detail of scheduled meeting
                     }
                 )
             }
@@ -271,7 +298,7 @@ fun MainScreen(
     }
 }
 
-// ---------------- Menú principal ----------------
+// ---------------- Menu ----------------
 
 private data class Module(
     val title: String,
@@ -288,6 +315,14 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 
     val modules = remember {
         listOf(
+            // 🔥 2. ADDED ANUNCIOS MODULE AT THE TOP
+            Module(
+                "Anuncios",
+                "Novedades y noticias",
+                Icons.Default.Campaign, // Or Notifications
+                Color(0xFFFF9800), // Orange/Amber Color
+                ANUNCIOS
+            ),
             Module(
                 "Reuniones",
                 "Realizadas, programadas y en curso",
@@ -334,7 +369,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
             .background(tuColorBlanco)
     ) {
         Column(Modifier.fillMaxSize()) {
-            // Header azul
+            // Blue Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -432,6 +467,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     }
 }
 
+// ... (Rest of GridModuleItem and ModuleItem stays exactly as you provided) ...
 @Composable
 fun GridModuleItem(
     title: String,

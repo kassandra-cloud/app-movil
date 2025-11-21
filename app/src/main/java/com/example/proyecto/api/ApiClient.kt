@@ -4,13 +4,16 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-// 💡 CAMBIO: Importar el conversor de Moshi
 import retrofit2.converter.moshi.MoshiConverterFactory
+// 🔥 NUEVOS IMPORTS NECESARIOS
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    private const val BASE_URL = "http://10.4.17.141:8000/"
+    // Asegúrate de que esta IP sea la correcta donde corre tu Django ahora
+    private const val BASE_URL = "http://192.168.0.110:8000/"
 
     // --- Interceptores útiles ---
     private val logging = HttpLoggingInterceptor().apply {
@@ -24,6 +27,12 @@ object ApiClient {
         android.util.Log.d("NET", "${res.code} ${res.request.url} ${(t1 - t0) / 1_000_000} ms")
         res
     }
+
+    // --- Configuración de Moshi para Kotlin ---
+    // 🔥 ESTO ES LO QUE SOLUCIONA EL ERROR DE "Unable to create converter"
+    private val moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
 
     // --- Cliente base SIN token (login/público) ---
     private val baseClient: OkHttpClient by lazy {
@@ -43,8 +52,8 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(baseClient)
-            // 💡 CORRECCIÓN 1: Usar MoshiConverterFactory
-            .addConverterFactory(MoshiConverterFactory.create())
+            // 🔥 USAMOS NUESTRA CONFIGURACIÓN 'moshi' AQUÍ
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }
 
@@ -55,8 +64,6 @@ object ApiClient {
                 if (token.isNotBlank()) {
                     // DRF TokenAuth
                     header("Authorization", "Token $token")
-                    // Si usas JWT, cambia a:
-                    // header("Authorization", "Bearer $token")
                 }
             }.build()
             chain.proceed(req)
@@ -71,8 +78,8 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(authClient(token))
-            // 💡 CORRECCIÓN 2: Usar MoshiConverterFactory
-            .addConverterFactory(MoshiConverterFactory.create())
+            // 🔥 USAMOS NUESTRA CONFIGURACIÓN 'moshi' TAMBIÉN AQUÍ
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
 
     // --- Helpers de creación de servicios ---
@@ -83,10 +90,8 @@ object ApiClient {
     val reunionesApi: ReunionesApi by lazy { retrofit.create(ReunionesApi::class.java) }
     val talleresApi: TalleresApi by lazy { retrofit.create(TalleresApi::class.java) }
     val foroApi: ForoApi by lazy { retrofit.create(ForoApi::class.java) }
+    val recursosApi: RecursosApi by lazy { retrofit.create(RecursosApi::class.java) }
 
     // Para armar URLs absolutas desde la app si lo necesitas
     val baseUrl: String get() = retrofit.baseUrl().toString()
-
-
-    val recursosApi: RecursosApi by lazy { retrofit.create(RecursosApi::class.java) } // ✅ AÑADIR ESTA LÍNEA
 }

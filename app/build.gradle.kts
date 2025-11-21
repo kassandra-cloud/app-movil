@@ -91,12 +91,12 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.retrofit2:converter-gson:$retrofit_version")
 
-    // 🔥 Firebase (BOM + libs sin versión)
+    // Firebase (BOM + libs sin versión)
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
 
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging")
-
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
     // Desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 

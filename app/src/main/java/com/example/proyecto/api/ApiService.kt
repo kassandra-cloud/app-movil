@@ -27,13 +27,13 @@ interface ApiService {
     @GET("votaciones/api/v1/abiertas/")
     suspend fun votacionesAbiertasV1(@Header("Authorization") auth: String): Response<List<VotacionDto>>
 
-    // 🔥 NUEVO: Solicitar código antes de votar
+    // Solicitar código antes de votar
     @POST("votaciones/api/v1/solicitar-codigo/")
     suspend fun solicitarCodigoVotacion(
         @Header("Authorization") auth: String
     ): Response<Map<String, Any>> // Respuesta simple {"ok": true}
 
-    // 🔥 MODIFICADO: Recibe VotarRequest (que ahora tiene el código)
+    //Recibe VotarRequest (que ahora tiene el código)
     @POST("votaciones/api/v1/{id}/votar/")
     suspend fun votarV1(
         @Path("id") votacionId: Int,
@@ -53,4 +53,7 @@ interface ApiService {
 
     @GET("reuniones/api/reuniones/")
     suspend fun listarReuniones(@Query("estado") estado: String? = null, @Query("ordering") ordering: String? = "-fecha", @Query("page") page: Int? = 1, @Query("page_size") pageSize: Int? = 20): Page<ReunionDto>
+    //Endpoint para obtener anuncios
+    @GET("api/anuncios/") suspend fun obtenerAnuncios(@Header("Authorization") auth: String): Response<List<AnuncioDto>>
+
 }

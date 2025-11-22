@@ -55,5 +55,10 @@ interface ApiService {
     suspend fun listarReuniones(@Query("estado") estado: String? = null, @Query("ordering") ordering: String? = "-fecha", @Query("page") page: Int? = 1, @Query("page_size") pageSize: Int? = 20): Page<ReunionDto>
     //Endpoint para obtener anuncios
     @GET("api/anuncios/") suspend fun obtenerAnuncios(@Header("Authorization") auth: String): Response<List<AnuncioDto>>
+    @DELETE("foro/api/v1/comentarios/{id}/")
+    suspend fun eliminarComentario(
+        @Path("id") comentarioId: Int,
+        @Header("Authorization") auth: String
+    ): Response<Unit>
 
 }

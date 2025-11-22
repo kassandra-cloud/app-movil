@@ -268,8 +268,10 @@ fun MainScreen(
                     LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
                     CenterMsg("No hay publicación seleccionada")
                 } else {
+                    // 👇 AQUÍ ESTABA EL ERROR
                     ForoDetalleScreen(
                         token = token,
+                        usuarioActual = uiState.currentUser ?: "", // 👈 AGREGA ESTA LÍNEA
                         publicacion = pub,
                         onBack = { viewModel.closePublicacionDetalle() }
                     )

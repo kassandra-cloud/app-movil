@@ -14,16 +14,15 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+import kotlin.math.max
 
-// Define el estado de la interfaz de usuario del foro
+// Estado de la UI
 data class ForoUiState(
     val cargando: Boolean = false,
     val error: String? = null,
     val publicaciones: List<PublicacionDto> = emptyList(),
-    // para saber si se está posteando comentario en una publicación concreta
-    val posting: Map<Int, Boolean> = emptyMap(),
-    // errores por publicación al comentar
-    val postError: Map<Int, String?> = emptyMap()
+    val posting: Map<Int, Boolean> = emptyMap(), // Para spinners de carga individuales
+    val postError: Map<Int, String?> = emptyMap() // Errores individuales
 )
 
 class ForoViewModel : ViewModel() {
@@ -31,8 +30,7 @@ class ForoViewModel : ViewModel() {
         private set
 
     /**
-     * Carga las publicaciones del foro.
-     * Utiliza un cliente autorizado para resolver el error 401.
+     * Carga la lista de publicaciones del foro.
      */
     fun cargar(token: String) {
         viewModelScope.launch {
@@ -44,11 +42,8 @@ class ForoViewModel : ViewModel() {
             uiState = uiState.copy(cargando = true, error = null)
 
             try {
-                // Crea la instancia de API AUTORIZADA con el token
-                val authorizedApi: ForoApi = ApiClient.createAuthorized(token, ForoApi::class.java)
-
-                // La llamada es limpia; el token se maneja en el cliente HTTP
-                val publicaciones: List<PublicacionDto> = authorizedApi.listar()
+                val authorizedApi = ApiClient.createAuthorized(token, ForoApi::class.java)
+                val publicaciones = authorizedApi.listar()
 
                 uiState = uiState.copy(
                     cargando = false,
@@ -57,42 +52,41 @@ class ForoViewModel : ViewModel() {
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     cargando = false,
-                    error = "Error al cargar el foro. Asegúrese de tener conexión o inicie sesión de nuevo."
+                    error = "Error al cargar el foro. Asegúrese de tener conexión."
                 )
             }
         }
     }
 
     /**
-     * Publica un comentario de texto en una publicación.
+     * Envía un comentario o una respuesta a una publicación.
+     * @param parentId Opcional. Si se envía, el comentario será una respuesta.
      */
-    fun comentar(token: String, publicacionId: Int, texto: String) {
+    fun comentar(token: String, publicacionId: Int, texto: String, parentId: Int? = null) {
         if (texto.isBlank() || token.isBlank()) return
 
         viewModelScope.launch {
+            // Marcamos que se está posteando en ESTA publicación específica
             uiState = uiState.copy(
                 posting = uiState.posting + (publicacionId to true),
                 postError = uiState.postError + (publicacionId to null)
             )
 
-            val authorizedApi: ForoApi = ApiClient.createAuthorized(token, ForoApi::class.java)
+            val authorizedApi = ApiClient.createAuthorized(token, ForoApi::class.java)
 
             try {
                 authorizedApi.comentar(
                     publicacionId = publicacionId,
-                    body = ComentarioCrearRequest(texto = texto)
+                    body = ComentarioCrearRequest(texto = texto, parent = parentId)
                 )
 
-                // Recargar el foro para ver el nuevo comentario
-                val publicacionesActualizadas: List<PublicacionDto> = authorizedApi.listar()
-
-                uiState = uiState.copy(
-                    publicaciones = publicacionesActualizadas
-                )
+                // Recargamos la lista para ver el nuevo comentario
+                val publicacionesActualizadas = authorizedApi.listar()
+                uiState = uiState.copy(publicaciones = publicacionesActualizadas)
 
             } catch (e: Exception) {
                 uiState = uiState.copy(
-                    postError = uiState.postError + (publicacionId to "No se pudo enviar el comentario")
+                    postError = uiState.postError + (publicacionId to "No se pudo enviar: ${e.message}")
                 )
             } finally {
                 uiState = uiState.copy(
@@ -103,7 +97,90 @@ class ForoViewModel : ViewModel() {
     }
 
     /**
-     * Sube un archivo (audio o imagen) a la publicación (Lógica de WhatsApp/Instagram).
+     * Elimina un comentario propio.
+     */
+    fun eliminarComentario(token: String, comentarioId: Int, publicacionId: Int) {
+        if (token.isBlank()) return
+
+        viewModelScope.launch {
+            try {
+                val authorizedApi = ApiClient.createAuthorized(token, ForoApi::class.java)
+                authorizedApi.eliminarComentario(comentarioId)
+
+                // Recargamos para reflejar la eliminación
+                val publicacionesActualizadas = authorizedApi.listar()
+                uiState = uiState.copy(publicaciones = publicacionesActualizadas)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                val mensajeError = if (e.message?.contains("403") == true) {
+                    "No tienes permiso para eliminar esto."
+                } else {
+                    "Error al eliminar: ${e.message}"
+                }
+                uiState = uiState.copy(error = mensajeError)
+            }
+        }
+    }
+
+    /**
+     * Da o quita "Me gusta" a un comentario.
+     * Usa actualización optimista (cambia visualmente antes de confirmar con el servidor).
+     */
+    fun toggleLike(token: String, comentarioId: Int, publicacionId: Int) {
+        if (token.isBlank()) return
+
+        viewModelScope.launch {
+            // 1. Actualización visual inmediata
+            actualizarLikeLocalmente(publicacionId, comentarioId)
+
+            try {
+                val api = ApiClient.createAuthorized(token, ForoApi::class.java)
+                val response = api.toggleLike(comentarioId)
+
+                // Si falla el servidor, revertimos el cambio visual
+                if (!response.isSuccessful) {
+                    actualizarLikeLocalmente(publicacionId, comentarioId)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Si hay error de red, revertimos
+                actualizarLikeLocalmente(publicacionId, comentarioId)
+            }
+        }
+    }
+
+    // Función auxiliar para cambiar el like en la lista local sin recargar todo
+    private fun actualizarLikeLocalmente(pubId: Int, comId: Int) {
+        val listaPubs = uiState.publicaciones.toMutableList()
+        val indexPub = listaPubs.indexOfFirst { it.id == pubId }
+
+        if (indexPub != -1) {
+            val pub = listaPubs[indexPub]
+            val listaComs = pub.comentarios.toMutableList()
+            val indexCom = listaComs.indexOfFirst { it.id == comId }
+
+            if (indexCom != -1) {
+                val c = listaComs[indexCom]
+
+                // Invertimos el estado actual
+                val nuevoLike = !c.meGustaUsuario
+                // Ajustamos el contador (+1 o -1)
+                val nuevoTotal = if (nuevoLike) c.totalLikes + 1 else max(0, c.totalLikes - 1)
+
+                listaComs[indexCom] = c.copy(
+                    meGustaUsuario = nuevoLike,
+                    totalLikes = nuevoTotal
+                )
+
+                listaPubs[indexPub] = pub.copy(comentarios = listaComs)
+                uiState = uiState.copy(publicaciones = listaPubs)
+            }
+        }
+    }
+
+    /**
+     * Sube un archivo (audio o imagen) a la publicación.
      */
     fun enviarArchivo(token: String, publicacionId: Int, file: File, mimeType: String) {
         viewModelScope.launch {
@@ -114,29 +191,23 @@ class ForoViewModel : ViewModel() {
                 postError = uiState.postError + (publicacionId to null)
             )
 
-            val authorizedApi: ForoApi = ApiClient.createAuthorized(token, ForoApi::class.java)
+            val authorizedApi = ApiClient.createAuthorized(token, ForoApi::class.java)
 
             try {
-                // 1. Crear el RequestBody y la parte Multipart para el archivo
                 val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
                 val archivoPart = MultipartBody.Part.createFormData(
-                    "archivo", // Nombre de campo esperado por Django
+                    "archivo",
                     file.name,
                     requestFile
                 )
 
-                // 2. Llamar a la API
                 authorizedApi.subirAdjunto(
                     publicacionId = publicacionId,
                     archivo = archivoPart,
-                    // Se envía el string "true" para la bandera es_mensaje del backend
                     esMensaje = "true"
                 )
 
-                // Recargar el foro para ver el nuevo adjunto
-                val publicacionesActualizadas: List<PublicacionDto> =
-                    authorizedApi.listar()
-
+                val publicacionesActualizadas = authorizedApi.listar()
                 uiState = uiState.copy(
                     publicaciones = publicacionesActualizadas,
                     postError = uiState.postError + (publicacionId to null)

@@ -13,7 +13,6 @@ import com.example.proyecto.data.SessionData
 import kotlinx.coroutines.launch
 
 class AnunciosViewModel : ViewModel() {
-    // Estado de la UI
     var anuncios by mutableStateOf<List<AnuncioDto>>(emptyList())
         private set
     var isLoading by mutableStateOf(false)
@@ -24,7 +23,7 @@ class AnunciosViewModel : ViewModel() {
     fun cargarAnuncios() {
         val token = SessionData.token
         if (token.isNullOrBlank()) {
-            errorMessage = "No hay sesión iniciada"
+            errorMessage = "Error: No hay token de sesión. Cierra sesión y vuelve a entrar."
             return
         }
 
@@ -32,15 +31,22 @@ class AnunciosViewModel : ViewModel() {
             isLoading = true
             errorMessage = null
             try {
+                Log.d("AnunciosVM", "Solicitando anuncios...")
                 val response = ApiClient.apiService.obtenerAnuncios("Token $token")
+
                 if (response.isSuccessful) {
-                    anuncios = response.body() ?: emptyList()
+                    val lista = response.body() ?: emptyList()
+                    Log.d("AnunciosVM", "Éxito! Recibidos ${lista.size} anuncios.")
+                    anuncios = lista
                 } else {
-                    errorMessage = "Error al cargar: ${response.code()}"
+                    val errorBody = response.errorBody()?.string()
+                    errorMessage = "Error servidor (${response.code()}): $errorBody"
+                    Log.e("AnunciosVM", errorMessage!!)
                 }
             } catch (e: Exception) {
-                Log.e("AnunciosVM", "Error red", e)
-                errorMessage = "Error de conexión: ${e.localizedMessage}"
+                // 🔥 Esto capturará errores de Moshi si el JSON no coincide
+                Log.e("AnunciosVM", "Excepción", e)
+                errorMessage = "Error App: ${e.localizedMessage}"
             } finally {
                 isLoading = false
             }
@@ -48,7 +54,6 @@ class AnunciosViewModel : ViewModel() {
     }
 }
 
-// Fábrica para crear el ViewModel (boilerplate estándar)
 class AnunciosViewModelFactory : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {

@@ -1,8 +1,13 @@
 package com.example.proyecto
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,13 +34,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.AppScreen.*
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
 import com.example.proyecto.ui.talleres.TalleresScreen
-// Import the Anuncios Screen
 import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
 import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.ui.theme.ProyectoTheme
@@ -48,26 +53,58 @@ import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
-import com.example.proyecto.viewmodel.AnunciosViewModel
-import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
 import com.google.firebase.messaging.FirebaseMessaging
-// ---------------- Menu Colors ----------------
+
+// ---------------- Colores menú ----------------
 val tuColorTextoPrimario = AppColors.TextPrimary
 val tuColorTextoSecundario = AppColors.GrisOscuroTexto
 val tuColorPrincipal = AppColors.Principal
 val tuColorBlanco = AppColors.CardBg
 
 class MainActivity : ComponentActivity() {
+
+    // 1. Lanzador para pedir permiso de notificaciones (Android 13+) con LOGS claros
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Log.d("FCM", "✅ Permiso de notificaciones CONCEDIDO por el usuario.")
+        } else {
+            Log.w("FCM", "❌ Permiso de notificaciones DENEGADO por el usuario.")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // -------------------------------------------------------------
+        // 2. DIAGNÓSTICO Y SOLICITUD DE PERMISOS (Android 13 / API 33+)
+        // -------------------------------------------------------------
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val estadoPermiso = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+
+            if (estadoPermiso == PackageManager.PERMISSION_GRANTED) {
+                Log.d("FCM", "ℹ️ El permiso de notificaciones YA estaba concedido anteriormente.")
+            } else {
+                Log.d("FCM", "⚠️ No tienes permiso de notificaciones. Solicitando ventana emergente ahora...")
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            Log.d("FCM", "ℹ️ Android versión < 13. No es necesario pedir permiso explícito.")
+        }
+
+        // -------------------------------------------------------------
+        // 3. SUSCRIPCIÓN AL TEMA (TOPIC) FCM
+        // -------------------------------------------------------------
         FirebaseMessaging.getInstance().subscribeToTopic("anuncios_generales")
             .addOnCompleteListener { task ->
-                if (!task.isSuccessful) {
-                    android.util.Log.w("FCM", "Falló la suscripción al topic", task.exception)
+                if (task.isSuccessful) {
+                    Log.d("FCM", "✅ Suscrito correctamente al topic 'anuncios_generales'")
                 } else {
-                    android.util.Log.d("FCM", "Suscrito a anuncios_generales correctamente")
+                    Log.e("FCM", "❌ Falló la suscripción al topic", task.exception)
                 }
             }
+
         setContent {
             ProyectoTheme {
                 MainScreen()
@@ -90,19 +127,12 @@ fun MainScreen(
 
         MAIN_MENU -> MainMenuScreen(viewModel)
 
-
         ANUNCIOS -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
-                AnunciosScreen(
-                    // You can implement onBack in AnunciosScreen to call this
-                    // or simply handle the back button press
-                    // For now, assuming AnunciosScreen might have an internal back button:
-                    // onBack = { viewModel.goBackToMainMenu() }
-                )
-                // Note: Ensure AnunciosScreen accepts an onBack parameter or add a BackHandler
+                AnunciosScreen()
             }
         }
 
@@ -150,7 +180,7 @@ fun MainScreen(
                         if (reunionDto.actaAprobada == true && reunionDto.actaId != null) {
                             viewModel.openActaDesdeReunion(reunionDto.actaId)
                         } else {
-                            // Optional: show message "Acta is still a draft"
+                            // Opcional: mensaje
                         }
                     }
                 )
@@ -165,7 +195,7 @@ fun MainScreen(
                 ReunionesProgramadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = {
-                        // Detail of scheduled meeting
+                        // Detalle de reunión programada
                     }
                 )
             }
@@ -298,7 +328,7 @@ fun MainScreen(
     }
 }
 
-// ---------------- Menu ----------------
+// ---------------- Menú principal (Grid/Lista) ----------------
 
 private data class Module(
     val title: String,
@@ -315,12 +345,11 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 
     val modules = remember {
         listOf(
-            // 🔥 2. ADDED ANUNCIOS MODULE AT THE TOP
             Module(
                 "Anuncios",
                 "Novedades y noticias",
-                Icons.Default.Campaign, // Or Notifications
-                Color(0xFFFF9800), // Orange/Amber Color
+                Icons.Default.Campaign,
+                Color(0xFFFF9800), // Naranja
                 ANUNCIOS
             ),
             Module(
@@ -369,7 +398,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
             .background(tuColorBlanco)
     ) {
         Column(Modifier.fillMaxSize()) {
-            // Blue Header
+            // Header azul
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -424,6 +453,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                 }
             }
 
+            // Contenido (Grid o Lista)
             if (isGridView) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -467,7 +497,6 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     }
 }
 
-// ... (Rest of GridModuleItem and ModuleItem stays exactly as you provided) ...
 @Composable
 fun GridModuleItem(
     title: String,

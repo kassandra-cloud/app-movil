@@ -3,10 +3,10 @@ package com.example.proyecto.api
 import com.example.proyecto.data.AdjuntoDto
 import com.example.proyecto.data.ComentarioCrearRequest
 import com.example.proyecto.data.ComentarioDto
+import com.example.proyecto.data.LikeResponse
 import com.example.proyecto.data.PublicacionDto
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -16,9 +16,7 @@ interface ForoApi {
     suspend fun listar(): List<PublicacionDto>
 
     @GET("foro/api/v1/publicaciones/{id}/comentarios/")
-    suspend fun comentarios(
-        @Path("id") publicacionId: Int
-    ): List<ComentarioDto>
+    suspend fun comentarios(@Path("id") publicacionId: Int): List<ComentarioDto>
 
     @POST("foro/api/v1/publicaciones/{id}/comentarios/")
     suspend fun comentar(
@@ -26,27 +24,27 @@ interface ForoApi {
         @Body body: ComentarioCrearRequest
     ): ComentarioDto
 
+    // 🔹 SUBIR FOTO CON DESCRIPCIÓN
     @Multipart
     @POST("foro/api/v1/publicaciones/{id}/adjuntos/")
     suspend fun subirAdjunto(
         @Path("id") publicacionId: Int,
         @Part archivo: MultipartBody.Part,
-        @Part esMensaje: String
+        @Part("esMensaje") esMensaje: RequestBody,
+        @Part("descripcion") descripcion: RequestBody? = null
     ): AdjuntoDto
 
+    // 🔹 ELIMINAR
     @DELETE("foro/api/v1/comentarios/{id}/")
-    suspend fun eliminarComentario(
-        @Path("id") comentarioId: Int
-    )
+    suspend fun eliminarComentario(@Path("id") comentarioId: Int)
 
+    @DELETE("foro/api/v1/adjuntos/{id}/")
+    suspend fun eliminarAdjunto(@Path("id") adjuntoId: Int)
+
+    // 🔹 LIKES
     @POST("foro/api/v1/comentarios/{id}/like/")
-    suspend fun toggleLike(
-        @Path("id") id: Int
-    ): Response<LikeResponse>
-}
+    suspend fun toggleLike(@Path("id") id: Int): Response<LikeResponse>
 
-@JsonClass(generateAdapter = true)
-data class LikeResponse(
-    val liked: Boolean,
-    @Json(name = "total_likes") val totalLikes: Int
-)
+    @POST("foro/api/v1/adjuntos/{id}/like/")
+    suspend fun toggleLikeAdjunto(@Path("id") id: Int): Response<LikeResponse>
+}

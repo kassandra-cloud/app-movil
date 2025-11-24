@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     // Asegúrate de que esta IP sea la correcta donde corre tu Django ahora
-    private const val BASE_URL = "http://192.168.0.110:8000/"
+    private const val BASE_URL = "http://192.168.0.101:8000/"
 
     // --- Interceptores útiles ---
     private val logging = HttpLoggingInterceptor().apply {
@@ -78,7 +78,7 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(authClient(token))
-            // 🔥 USAMOS NUESTRA CONFIGURACIÓN 'moshi' TAMBIÉN AQUÍ
+            // USAMOS NUESTRA CONFIGURACIÓN 'moshi' TAMBIÉN AQUÍ
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
 

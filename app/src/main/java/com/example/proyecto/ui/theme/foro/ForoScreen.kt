@@ -17,17 +17,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.PublicacionDto
 import com.example.proyecto.viewmodel.ForoViewModel
-import androidx.compose.material3.ExperimentalMaterial3Api
+
 @Composable
 fun ForoScreen(
-    token: String, // 💡 El token debe venir de MainActivity/LoginViewModel
-    onBack: () -> Unit, // 👈 Parámetro para volver atrás
-    onVerComentar: (PublicacionDto) -> Unit, // 👈 Parámetro para navegar al detalle
+    token: String,
+    onBack: () -> Unit,
+    onVerComentar: (PublicacionDto) -> Unit,
     viewModel: ForoViewModel = viewModel()
 ) {
     val uiState = viewModel.uiState
 
-    // LLAMADA INICIAL: Cargar publicaciones al entrar a la pantalla
+    // LLAMADA INICIAL
     LaunchedEffect(token) {
         if (token.isNotBlank()) {
             viewModel.cargar(token)
@@ -39,12 +39,11 @@ fun ForoScreen(
             TopAppBar(
                 title = { Text("Foro de Vecinos") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { // 👈 Botón de volver
+                    IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
-                    // Botón para refrescar manualmente
                     IconButton(onClick = { viewModel.cargar(token) }, enabled = !uiState.cargando) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Refrescar")
                     }
@@ -73,12 +72,10 @@ fun ForoScreen(
                     else -> {
                         LazyColumn(contentPadding = PaddingValues(16.dp)) {
                             items(uiState.publicaciones) { publicacion ->
-                                // 💡 La Card ahora llama al callback de navegación
                                 PublicacionCard(publicacion, onVerComentar)
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
-                        // Mostrar el indicador si está cargando pero hay contenido
                         if (uiState.cargando) {
                             LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
                         }
@@ -92,16 +89,29 @@ fun ForoScreen(
 @Composable
 fun PublicacionCard(
     publicacion: PublicacionDto,
-    onVerComentar: (PublicacionDto) -> Unit // 👈 Callback para el click
+    onVerComentar: (PublicacionDto) -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onVerComentar(publicacion) } // 👈 Al hacer click, navega al detalle
+            .clickable { onVerComentar(publicacion) }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = "Autor: ${publicacion.autor}")
-            Text(text = publicacion.contenido, style = MaterialTheme.typography.bodyLarge)
+            // 🛡️ CORRECCIÓN: Usamos '?:' para manejar nulos
+            Text(
+                text = "Autor: ${publicacion.autor ?: "Anónimo"}",
+                style = MaterialTheme.typography.labelLarge
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 🛡️ CORRECCIÓN: Si contenido es null, mostramos string vacío
+            Text(
+                text = publicacion.contenido ?: "Sin contenido",
+                style = MaterialTheme.typography.bodyLarge
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             TextButton(onClick = { onVerComentar(publicacion) }) {
                 Text("Ver comentarios y detalles...")

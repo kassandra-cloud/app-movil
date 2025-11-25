@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     // Asegúrate de que esta IP sea la correcta donde corre tu Django ahora
-    private const val BASE_URL = "http://192.168.0.101:8000/"
+    private const val BASE_URL = "http://192.168.104.132:8000/"
 
     // --- Interceptores útiles ---
     private val logging = HttpLoggingInterceptor().apply {
@@ -40,10 +40,10 @@ object ApiClient {
             .addInterceptor(logging)
             .addInterceptor(timing)
             .retryOnConnectionFailure(true)
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
-            .writeTimeout(10, TimeUnit.SECONDS)
-            .callTimeout(12, TimeUnit.SECONDS)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
             .build()
     }
 

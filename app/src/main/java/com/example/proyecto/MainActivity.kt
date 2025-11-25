@@ -63,47 +63,45 @@ val tuColorBlanco = AppColors.CardBg
 
 class MainActivity : ComponentActivity() {
 
-    // 1. Lanzador para pedir permiso de notificaciones (Android 13+) con LOGS claros
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            Log.d("FCM", "✅ Permiso de notificaciones CONCEDIDO por el usuario.")
+            Log.d("FCM", "✅ Permiso de notificaciones CONCEDIDO.")
         } else {
-            Log.w("FCM", "❌ Permiso de notificaciones DENEGADO por el usuario.")
+            Log.w("FCM", "❌ Permiso de notificaciones DENEGADO.")
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // -------------------------------------------------------------
-        // 2. DIAGNÓSTICO Y SOLICITUD DE PERMISOS (Android 13 / API 33+)
-        // -------------------------------------------------------------
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val estadoPermiso = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-
-            if (estadoPermiso == PackageManager.PERMISSION_GRANTED) {
-                Log.d("FCM", "ℹ️ El permiso de notificaciones YA estaba concedido anteriormente.")
-            } else {
-                Log.d("FCM", "⚠️ No tienes permiso de notificaciones. Solicitando ventana emergente ahora...")
+            if (estadoPermiso != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-        } else {
-            Log.d("FCM", "ℹ️ Android versión < 13. No es necesario pedir permiso explícito.")
         }
 
-        // -------------------------------------------------------------
-        // 3. SUSCRIPCIÓN AL TEMA (TOPIC) FCM
-        // -------------------------------------------------------------
-        FirebaseMessaging.getInstance().subscribeToTopic("anuncios_generales")
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    Log.d("FCM", "✅ Suscrito correctamente al topic 'anuncios_generales'")
-                } else {
-                    Log.e("FCM", "❌ Falló la suscripción al topic", task.exception)
+        // ==========================================
+        // SUSCRIPCIONES A TÓPICOS (TODOS LOS MÓDULOS)
+        // ==========================================
+        val topics = listOf(
+            "anuncios_generales",
+            "foro_general",
+            "talleres_generales",
+            "recursos_generales",
+            "votaciones_generales" // 👈 NUEVO
+        )
+
+        topics.forEach { topic ->
+            FirebaseMessaging.getInstance().subscribeToTopic(topic)
+                .addOnCompleteListener { task ->
+                    if (!task.isSuccessful) {
+                        Log.e("FCM", "❌ Error suscribiendo a $topic", task.exception)
+                    }
                 }
-            }
+        }
 
         setContent {
             ProyectoTheme {
@@ -268,10 +266,9 @@ fun MainScreen(
                     LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
                     CenterMsg("No hay publicación seleccionada")
                 } else {
-                    // 👇 AQUÍ ESTABA EL ERROR
                     ForoDetalleScreen(
                         token = token,
-                        usuarioActual = uiState.currentUser ?: "", // 👈 AGREGA ESTA LÍNEA
+                        usuarioActual = uiState.currentUser ?: "",
                         publicacion = pub,
                         onBack = { viewModel.closePublicacionDetalle() }
                     )
@@ -347,103 +344,43 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 
     val modules = remember {
         listOf(
-            Module(
-                "Anuncios",
-                "Novedades y noticias",
-                Icons.Default.Campaign,
-                Color(0xFFFF9800), // Naranja
-                ANUNCIOS
-            ),
-            Module(
-                "Reuniones",
-                "Realizadas, programadas y en curso",
-                Icons.Default.List,
-                AppColors.IconoReuniones,
-                REUNIONES
-            ),
-            Module(
-                "Foro",
-                "Espacio de debate",
-                Icons.Default.Person,
-                AppColors.IconoForo,
-                ASISTENCIA
-            ),
-            Module(
-                "Votación",
-                "Sistema de votaciones",
-                Icons.Default.CheckCircle,
-                AppColors.IconoVotacion,
-                VOTACION
-            ),
-            Module(
-                "Talleres",
-                "Visualizar talleres",
-                Icons.Default.Build,
-                AppColors.IconoTalleres,
-                TALLERES
-            ),
-            Module(
-                "Recursos",
-                "Ver documentos",
-                Icons.Default.LibraryBooks,
-                AppColors.Principal,
-                RECURSOS
-            )
+            Module("Anuncios", "Novedades y noticias", Icons.Default.Campaign, Color(0xFFFF9800), ANUNCIOS),
+            Module("Reuniones", "Realizadas y programadas", Icons.Default.List, AppColors.IconoReuniones, REUNIONES),
+            Module("Foro", "Espacio de debate", Icons.Default.Person, AppColors.IconoForo, ASISTENCIA),
+            Module("Votación", "Sistema de votaciones", Icons.Default.CheckCircle, AppColors.IconoVotacion, VOTACION),
+            Module("Talleres", "Visualizar talleres", Icons.Default.Build, AppColors.IconoTalleres, TALLERES),
+            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, AppColors.Principal, RECURSOS)
         )
     }
 
     var isGridView by rememberSaveable { mutableStateOf(false) }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(tuColorBlanco)
-    ) {
+    Box(Modifier.fillMaxSize().background(tuColorBlanco)) {
         Column(Modifier.fillMaxSize()) {
             // Header azul
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
+                modifier = Modifier.fillMaxWidth().height(200.dp)
                     .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
                     .background(AppColors.GradientePrincipal)
                     .padding(horizontal = 24.dp, vertical = 32.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(
-                            "¡BIENVENIDO!",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
-                        Text(
-                            "Hola, $userName",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
+                        Text("¡BIENVENIDO!", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.8f))
+                        Text("Hola, $userName", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { isGridView = !isGridView }) {
-                            Icon(
-                                imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
-                                contentDescription = "Cambiar vista",
-                                tint = Color.White.copy(alpha = 0.9f)
-                            )
+                            Icon(if (isGridView) Icons.Default.ViewList else Icons.Default.GridView, "Cambiar vista", tint = Color.White.copy(alpha = 0.9f))
                         }
                         Button(
                             onClick = { viewModel.logout() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AppColors.BotonSalir,
-                                contentColor = Color.White
-                            ),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.BotonSalir, contentColor = Color.White),
                             shape = RoundedCornerShape(16.dp),
                             elevation = ButtonDefaults.buttonElevation(4.dp)
                         ) {
@@ -455,43 +392,27 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                 }
             }
 
-            // Contenido (Grid o Lista)
+            // Contenido
             if (isGridView) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .offset(y = (-40).dp)
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
                 ) {
                     items(modules) { m ->
-                        GridModuleItem(
-                            title = m.title,
-                            subtitle = m.subtitle,
-                            icon = m.icon,
-                            iconBg = m.color
-                        ) { viewModel.navigateTo(m.screen) }
+                        GridModuleItem(m.title, m.subtitle, m.icon, m.color) { viewModel.navigateTo(m.screen) }
                     }
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .offset(y = (-40).dp)
-                        .padding(horizontal = 24.dp),
+                    modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     items(modules) { m ->
-                        ModuleItem(
-                            title = m.title,
-                            subtitle = m.subtitle,
-                            icon = m.icon,
-                            iconBg = m.color
-                        ) { viewModel.navigateTo(m.screen) }
+                        ModuleItem(m.title, m.subtitle, m.icon, m.color) { viewModel.navigateTo(m.screen) }
                     }
                 }
             }
@@ -500,146 +421,53 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 }
 
 @Composable
-fun GridModuleItem(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    iconBg: Color,
-    onClick: () -> Unit
-) {
+fun GridModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(160.dp),
+        modifier = Modifier.fillMaxWidth().height(160.dp),
         colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
     ) {
-        val interaction = remember { MutableInteractionSource() }
-        val isPressed by interaction.collectIsPressedAsState()
-
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(20.dp))
-                .clickable(
-                    interactionSource = interaction,
-                    indication = null,
-                    onClick = onClick
-                )
-                .graphicsLayer {
-                    val s = if (isPressed) 0.98f else 1f
-                    scaleX = s
-                    scaleY = s
-                }
-                .padding(16.dp),
+            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Card(
-                modifier = Modifier.size(60.dp),
-                colors = CardDefaults.cardColors(containerColor = iconBg),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(8.dp)
-            ) {
+            Card(modifier = Modifier.size(60.dp), colors = CardDefaults.cardColors(containerColor = iconBg), shape = RoundedCornerShape(16.dp)) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(
-                        icon,
-                        contentDescription = title,
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.dp))
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = tuColorTextoPrimario,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = tuColorTextoSecundario.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         }
     }
 }
 
 @Composable
-fun ModuleItem(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    iconBg: Color,
-    onClick: () -> Unit
-) {
+fun ModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
     ) {
-        val interaction = remember { MutableInteractionSource() }
-        val isPressed by interaction.collectIsPressedAsState()
-
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .clickable(
-                    interactionSource = interaction,
-                    indication = null,
-                    onClick = onClick
-                )
-                .graphicsLayer {
-                    val s = if (isPressed) 0.98f else 1f
-                    scaleX = s
-                    scaleY = s
-                }
-                .padding(24.dp),
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Card(
-                modifier = Modifier.size(52.dp),
-                colors = CardDefaults.cardColors(containerColor = iconBg),
-                shape = RoundedCornerShape(14.dp),
-                elevation = CardDefaults.cardElevation(8.dp)
-            ) {
+            Card(modifier = Modifier.size(52.dp), colors = CardDefaults.cardColors(containerColor = iconBg), shape = RoundedCornerShape(14.dp)) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(
-                        icon,
-                        contentDescription = title,
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
                 }
             }
             Spacer(Modifier.width(20.dp))
             Column(Modifier.weight(1f)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = tuColorTextoPrimario
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = tuColorTextoSecundario.copy(alpha = 0.7f)
-                )
+                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f))
             }
-            Icon(
-                Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = tuColorTextoSecundario.copy(alpha = 0.4f),
-                modifier = Modifier.size(24.dp)
-            )
+            Icon(Icons.Default.KeyboardArrowRight, null, tint = tuColorTextoSecundario.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -648,24 +476,5 @@ fun ModuleItem(
 private fun CenterMsg(msg: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(msg)
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun MainMenuScreenPreview() {
-    ProyectoTheme { MainMenuScreen() }
-}
-
-@Preview(showBackground = true, widthDp = 180)
-@Composable
-fun GridModuleItemPreview() {
-    ProyectoTheme {
-        GridModuleItem(
-            title = "Reuniones",
-            subtitle = "Visualizar actas",
-            icon = Icons.Default.List,
-            iconBg = tuColorPrincipal
-        ) {}
     }
 }

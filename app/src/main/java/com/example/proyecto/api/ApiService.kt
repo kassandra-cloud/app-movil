@@ -22,6 +22,12 @@ interface ApiService {
     @POST("usuarios/api/login/")
     suspend fun login(@Body body: LoginRequest): Response<LoginResponse>
 
+    @POST("usuarios/api/cambiar-password-inicial/")
+    suspend fun cambiarPasswordInicial(
+        @Header("Authorization") auth: String,
+        @Body body: Map<String, String>
+    ): Response<Map<String, Any>> // O Response<ResponseBody>
+
     // ================= VOTACIONES (Actualizado) =================
 
     @GET("votaciones/api/v1/abiertas/")

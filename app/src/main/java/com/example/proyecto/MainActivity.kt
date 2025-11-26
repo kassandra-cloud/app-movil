@@ -41,6 +41,7 @@ import com.example.proyecto.ui.talleres.TalleresScreen
 import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
+import com.example.proyecto.ui.theme.auth.ChangePasswordScreen
 import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
@@ -168,6 +169,8 @@ fun MainScreen(
     when (uiState.currentScreen) {
 
         LOGIN -> LoginScreen(viewModel)
+
+        CHANGE_PASSWORD -> ChangePasswordScreen(viewModel)
 
         MAIN_MENU -> MainMenuScreen(viewModel)
 
@@ -331,7 +334,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                 ) {
                     Column {
                         Text("¡BIENVENIDO!", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.8f))
-                        Text("Hola, $userName", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                        Text("$userName", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { isGridView = !isGridView }) {

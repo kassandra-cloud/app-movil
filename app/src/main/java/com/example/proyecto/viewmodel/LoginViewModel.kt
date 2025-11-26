@@ -5,10 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
 import com.example.proyecto.api.ApiService
-import com.example.proyecto.api.ActasApi          // ✅ IMPORTANTE: API de actas
+import com.example.proyecto.api.ActasApi
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.LoginRequest
-import com.example.proyecto.data.SessionData     // Token global
+import com.example.proyecto.data.SessionData
 import com.example.proyecto.data.PublicacionDto
 import com.example.proyecto.data.reuniones.ActaDto
 import com.example.proyecto.data.reuniones.Reunion
@@ -34,6 +34,9 @@ data class LoginUiState(
     val currentScreen: AppScreen = AppScreen.LOGIN,
     val errorMessage: String? = null,
     val successMessage: String? = null,
+
+    //  NUEVO: Bandera para saber si debe cambiar contraseña
+    val isPasswordChangeRequired: Boolean = false,
 
     // Detalles / selección
     val selectedActa: ActaDto? = null,
@@ -90,23 +93,26 @@ class LoginViewModel : ViewModel() {
                         "FCM_REG",
                         "Error HTTP al registrar token FCM: ${resp.code()} - ${resp.errorBody()?.string()}"
                     )
-                    _uiState.update {
-                        it.copy(errorMessage = "Error al registrar notificaciones (${resp.code()})")
-                    }
+                    // Opcional: No mostrar error en UI si falla esto en background
                 }
             } catch (e: Exception) {
                 Log.e("FCM_REG", "Fallo al registrar token FCM: ${e.message}", e)
-                _uiState.update { it.copy(errorMessage = "Error al registrar notificaciones.") }
             }
         }
     }
 
     // =======================================================
-    // LOGIN
+    // LOGIN (MODIFICADO)
     // =======================================================
 
-    fun login(username: String, password: String) {
-        if (username.isBlank() || password.isBlank()) {
+    fun login(loginInput: String, password: String) {
+
+        //  PASO 1: Limpieza automática (Trim)
+        // Quitamos espacios en blanco al inicio y al final de lo que escribió el usuario
+        val usuarioLimpio = loginInput.trim()
+        val passwordLimpia = password.trim()
+
+        if (usuarioLimpio.isBlank() || passwordLimpia.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Por favor, completa todos los campos") }
             return
         }
@@ -115,32 +121,56 @@ class LoginViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = ApiClient.apiService.login(LoginRequest(username, password))
+                //  PASO 2: Enviamos las variables LIMPIAS al servidor
+                val response = ApiClient.apiService.login(LoginRequest(usuarioLimpio, passwordLimpia))
+
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true) {
 
                         val jwtToken = body.token
-                        SessionData.token = jwtToken // token global
+                        SessionData.token = jwtToken
 
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                isLoggedIn = true,
-                                currentUser = username,
-                                token = jwtToken,
-                                currentScreen = AppScreen.MAIN_MENU,
-                                successMessage = "¡Bienvenido, $username!"
-                            )
-                        }
+                        if (body.must_change_password == true) {
+                            // CASO A: Usuario nuevo
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isLoggedIn = true,
+                                    token = jwtToken,
+                                    isPasswordChangeRequired = true,
+                                    currentScreen = AppScreen.CHANGE_PASSWORD,
+                                    successMessage = "Verificación exitosa. Crea tu nueva contraseña."
+                                )
+                            }
+                        } else {
+                            // CASO B: Usuario normal
+                            val usuarioObj = body.user
 
-                        // Registrar token FCM en backend
-                        if (jwtToken != null) {
-                            val fcmToken = getFCMToken()
-                            if (fcmToken != null) {
-                                sendFCMTokenToServer(jwtToken, fcmToken)
+                            val nombreParaMostrar = if (!usuarioObj?.first_name.isNullOrBlank()) {
+                                val primerApellido = usuarioObj?.last_name?.trim()?.split(" ")?.firstOrNull() ?: ""
+                                "${usuarioObj?.first_name} $primerApellido".trim()
                             } else {
-                                Log.w("FCM_REG", "No se pudo obtener el token de FCM.")
+                                usuarioObj?.username ?: usuarioLimpio // Usamos el usuario limpio como respaldo
+                            }
+
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isLoggedIn = true,
+                                    currentUser = nombreParaMostrar,
+                                    token = jwtToken,
+                                    isPasswordChangeRequired = false,
+                                    currentScreen = AppScreen.MAIN_MENU,
+                                    successMessage = "¡Bienvenido, $nombreParaMostrar!"
+                                )
+                            }
+
+                            if (jwtToken != null) {
+                                val fcmToken = getFCMToken()
+                                if (fcmToken != null) {
+                                    sendFCMTokenToServer(jwtToken, fcmToken)
+                                }
                             }
                         }
                     } else {
@@ -154,7 +184,7 @@ class LoginViewModel : ViewModel() {
                 } else {
                     val msg = when (response.code()) {
                         401 -> "Usuario o contraseña incorrectos"
-                        400 -> "Datos de login inválidos"
+                        400 -> "Datos inválidos"
                         500 -> "Error interno del servidor"
                         else -> "Error del servidor: ${response.code()}"
                     }
@@ -171,10 +201,66 @@ class LoginViewModel : ViewModel() {
         }
     }
 
+    //  NUEVA FUNCIÓN: CAMBIAR CONTRASEÑA INICIAL
+    fun changeInitialPassword(newPassword: String) {
+        val token = _uiState.value.token ?: return
+        val apiToken = "Token $token"
+
+        if (newPassword.length < 12) {
+            _uiState.update { it.copy(errorMessage = "La contraseña debe tener al menos 12 caracteres.") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                // ⚠ Debes agregar 'cambiarPasswordInicial' a tu interfaz ApiService
+                // @POST("usuarios/api/cambiar-password-inicial/")
+                // suspend fun cambiarPasswordInicial(@Header("Authorization") auth: String, @Body body: Map<String, String>): Response<Any>
+
+                val body = mapOf("new_password" to newPassword)
+                val response = ApiClient.apiService.cambiarPasswordInicial(apiToken, body)
+
+                if (response.isSuccessful) {
+                    // Éxito: Quitamos bandera y vamos al menú
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isPasswordChangeRequired = false,
+                            currentScreen = AppScreen.MAIN_MENU,
+                            successMessage = "Contraseña actualizada correctamente. ¡Bienvenido!"
+                        )
+                    }
+
+                    // Ahora sí registramos FCM
+                    val fcmToken = getFCMToken()
+                    if (fcmToken != null) {
+                        sendFCMTokenToServer(token, fcmToken)
+                    }
+
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Error al actualizar: ${response.code()}"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Error de conexión: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
     fun logout() {
         _uiState.value = LoginUiState()  // resetea estado UI
         SessionData.token = null        // limpia token global
-        // Si quisieras, aquí podrías también desregistrar el FCM en el backend
     }
 
     fun clearMessages() {
@@ -194,15 +280,10 @@ class LoginViewModel : ViewModel() {
     }
 
     // =======================================================
-    // ACTAS: DETALLE DESDE LISTADO Y DESDE REUNIONES REALIZADAS
+    // ACTAS: DETALLE
     // =======================================================
 
-    /**
-     * Abre el detalle de acta cuando YA tienes el ActaDto.
-     * Se usa, por ejemplo, desde la pantalla de listado de Actas.
-     */
     fun openActaDetalle(acta: ActaDto) {
-        // Si quieres bloquear actas no aprobadas, deja esta validación
         if (!acta.aprobada) {
             _uiState.update { it.copy(errorMessage = "El acta aún no está aprobada.") }
             return
@@ -215,11 +296,6 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Cerrar el detalle de acta.
-     * Ahora mismo te devuelve a ACTAS. Si prefieres volver a REUNIONES_REALIZADAS,
-     * cambia el currentScreen.
-     */
     fun closeActaDetalle() {
         _uiState.update {
             it.copy(
@@ -229,12 +305,6 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Llamado desde ReunionesRealizadasScreen cuando tocas "Ver acta".
-     * 1) Usa el token de sesión.
-     * 2) Llama al endpoint /reuniones/api/actas/{id}/ vía ActasApi.
-     * 3) Si funciona, abre el detalle con openActaDetalle(acta).
-     */
     fun openActaDesdeReunion(actaId: Int) {
         val tokenActual = _uiState.value.token ?: return
 
@@ -242,16 +312,10 @@ class LoginViewModel : ViewModel() {
             try {
                 val api = ApiClient.createAuthorized(tokenActual, ActasApi::class.java)
                 val acta: ActaDto = api.getActaDetalle(actaId)
-
                 openActaDetalle(acta)
-
             } catch (e: Exception) {
                 Log.e("LoginViewModel", "Error al cargar acta $actaId", e)
-                _uiState.update {
-                    it.copy(
-                        errorMessage = "No se pudo cargar el detalle del acta."
-                    )
-                }
+                _uiState.update { it.copy(errorMessage = "No se pudo cargar el detalle del acta.") }
             }
         }
     }
@@ -279,7 +343,7 @@ class LoginViewModel : ViewModel() {
     }
 
     // =======================================================
-    // REUNIÓN EN CURSO (detalle)
+    // REUNIÓN EN CURSO
     // =======================================================
 
     fun openReunionEnCurso(reunion: ReunionDto) {
@@ -311,27 +375,15 @@ class LoginViewModel : ViewModel() {
     }
 
     // =======================================================
-    // CARGA DE REUNIONES (si las traes desde API)
+    // CARGA DE REUNIONES
     // =======================================================
 
     fun loadReuniones() {
-        viewModelScope.launch {
-            try {
-                // Aquí iría tu llamada real a API si ya la tienes implementada.
-                // Ejemplo:
-                // val resp = ApiClient.apiService.getReuniones("Token ${uiState.value.token}")
-                // if (resp.isSuccessful) _reuniones.value = resp.body().orEmpty()
-                // else _uiState.update { it.copy(errorMessage = "No se pudieron cargar las reuniones") }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(errorMessage = "Error cargando reuniones: ${e.message}")
-                }
-            }
-        }
+        // Implementar lógica de carga real si es necesario
     }
 
     // =======================================================
-    // DEMO LOCAL DE REUNIONES (solo UI)
+    // DEMO LOCAL DE REUNIONES
     // =======================================================
 
     private fun demoReuniones(): List<Reunion> = listOf(

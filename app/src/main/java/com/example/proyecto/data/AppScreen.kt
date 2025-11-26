@@ -2,6 +2,7 @@ package com.example.proyecto.data
 
 enum class AppScreen {
     LOGIN,
+    CHANGE_PASSWORD,
     MAIN_MENU,
 
     // Reuniones

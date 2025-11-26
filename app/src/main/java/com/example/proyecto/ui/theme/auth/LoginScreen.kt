@@ -1,12 +1,16 @@
 package com.example.proyecto.ui.theme.auth
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility      // <--- IMPORTANTE
+import androidx.compose.material.icons.filled.VisibilityOff   // <--- IMPORTANTE
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -17,6 +21,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -25,22 +31,25 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.R
 import com.example.proyecto.viewmodel.LoginViewModel
-import com.example.proyecto.ui.theme.AppColors // <-- Importación unificada
+import com.example.proyecto.ui.theme.AppColors
 
-/* Paleta/gradientes exclusivos para el LOGIN - AHORA REFERENCIAN A AppColors */
-// Se inicializan como propiedades de nivel de archivo, sin @Composable
-private val projectHeaderGradient = AppColors.GradientePrincipal // <-- Acceso seguro
-private val projectButtonGradient = Brush.linearGradient(listOf(AppColors.Principal, AppColors.Secundario)) // <-- Unificado
-private val projectTextLink = AppColors.Principal // <-- Unificado
+/* Paleta/gradientes exclusivos para el LOGIN - REFERENCIAN A AppColors */
+private val projectHeaderGradient = AppColors.GradientePrincipal
+private val projectButtonGradient = Brush.linearGradient(listOf(AppColors.Principal, AppColors.Secundario))
+private val projectTextLink = AppColors.Principal
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
-    var username by rememberSaveable { mutableStateOf("") }
+    // Variable genérica para aceptar usuario O correo
+    var loginInput by rememberSaveable { mutableStateOf("") }
+
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    val uiState by viewModel.uiState.collectAsState() // <-- Referencia correcta al ViewModel
 
-    LaunchedEffect(username, password) {
+    // Recolectamos el estado del ViewModel
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(loginInput, password) {
         if (uiState.errorMessage != null || uiState.successMessage != null) viewModel.clearMessages()
     }
 
@@ -60,20 +69,31 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+
+            // CAMPO 1: USUARIO O CORREO
             OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Usuario") },
+                value = loginInput,
+                onValueChange = { loginInput = it },
+                label = { Text("Usuario o Correo") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Person, null) },
                 shape = RoundedCornerShape(12.dp),
                 enabled = !uiState.isLoading,
+
+                // Configuración de teclado para mostrar '@' pero permitir texto libre
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
+
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = projectTextLink, // <-- Color unificado
-                    focusedLabelColor = projectTextLink // <-- Color unificado
+                    focusedBorderColor = projectTextLink,
+                    focusedLabelColor = projectTextLink
                 )
             )
+
+            // CAMPO 2: CONTRASEÑA
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -82,22 +102,37 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Lock, null) },
+
+                //  AQUÍ ESTÁ EL CAMBIO DEL ÍCONO
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        // Se mantiene la implementación original de iconos de texto/emoji
-                        Text(if (passwordVisible) "👁️" else "🔒")
+                        val image = if (passwordVisible)
+                            Icons.Filled.Visibility
+                        else
+                            Icons.Filled.VisibilityOff
+
+                        val description = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+
+                        Icon(imageVector = image, contentDescription = description)
                     }
                 },
+
                 shape = RoundedCornerShape(12.dp),
                 enabled = !uiState.isLoading,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = projectTextLink, // <-- Color unificado
-                    focusedLabelColor = projectTextLink // <-- Color unificado
+                    focusedBorderColor = projectTextLink,
+                    focusedLabelColor = projectTextLink
+                ),
+                // Al dar 'Enter' en la contraseña, intenta loguear
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done
                 )
             )
+
             Text(
                 text = "¿Olvidaste tu contraseña?",
-                color = projectTextLink, // <-- Color unificado
+                color = projectTextLink,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -105,7 +140,7 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 textAlign = TextAlign.End
             )
 
-            if (uiState.errorMessage != null) { // <-- Referencia correcta al ViewModel
+            if (uiState.errorMessage != null) {
                 Text(
                     uiState.errorMessage!!,
                     color = MaterialTheme.colorScheme.error,
@@ -118,14 +153,16 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
 
             AuthButton(
                 text = "Iniciar Sesión",
-                isLoading = uiState.isLoading, // <-- Referencia correcta al ViewModel
-                enabled = !uiState.isLoading && username.isNotBlank() && password.isNotBlank(),
-                onClick = { viewModel.login(username, password) }
+                isLoading = uiState.isLoading,
+                enabled = !uiState.isLoading && loginInput.isNotBlank() && password.isNotBlank(),
+                // Llamamos a la función con el input híbrido
+                onClick = { viewModel.login(loginInput, password) }
             )
         }
     }
 }
 
+// ... (El resto de tus Composables AuthHeader y AuthButton se mantienen igual) ...
 @Composable
 private fun AuthHeader(title: String, subtitle: String) {
     Box(
@@ -133,7 +170,7 @@ private fun AuthHeader(title: String, subtitle: String) {
             .fillMaxWidth()
             .height(250.dp)
             .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-            .background(projectHeaderGradient), // <-- Gradiente unificado
+            .background(projectHeaderGradient),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -170,7 +207,7 @@ private fun AuthButton(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(projectButtonGradient, RoundedCornerShape(16.dp)), // <-- Gradiente unificado
+                .background(projectButtonGradient, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
             if (isLoading) {

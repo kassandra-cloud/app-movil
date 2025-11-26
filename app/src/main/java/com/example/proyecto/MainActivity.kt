@@ -10,8 +10,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -28,11 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -41,9 +37,9 @@ import com.example.proyecto.data.AppScreen.*
 import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
 import com.example.proyecto.ui.talleres.TalleresScreen
-import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
 import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.ui.theme.ProyectoTheme
+import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
 import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
@@ -55,14 +51,14 @@ import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
 import com.google.firebase.messaging.FirebaseMessaging
 
-// ---------------- Colores menú ----------------
+// ---------------- Colores menú y globales ----------------
 val tuColorTextoPrimario = AppColors.TextPrimary
 val tuColorTextoSecundario = AppColors.GrisOscuroTexto
-val tuColorPrincipal = AppColors.Principal
 val tuColorBlanco = AppColors.CardBg
 
 class MainActivity : ComponentActivity() {
 
+    // Launcher para pedir permiso de notificaciones en tiempo de ejecución
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -76,6 +72,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // 1. Pedir permisos de notificación en Android 13+ (Tiramisu)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val estadoPermiso = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             if (estadoPermiso != PackageManager.PERMISSION_GRANTED) {
@@ -83,15 +80,14 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // ==========================================
-        // SUSCRIPCIONES A TÓPICOS (TODOS LOS MÓDULOS)
-        // ==========================================
+        // 2. Suscribirse a los tópicos de Firebase para recibir notificaciones grupales
+        // (Aunque las notificaciones de reuniones van por token directo, esto sirve para anuncios generales)
         val topics = listOf(
             "anuncios_generales",
             "foro_general",
             "talleres_generales",
             "recursos_generales",
-            "votaciones_generales" // 👈 NUEVO
+            "votaciones_generales"
         )
 
         topics.forEach { topic ->
@@ -139,6 +135,7 @@ fun MainScreen(
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
                 CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
             } else {
+                // Obtenemos los estados de las listas desde el ViewModel
                 val stRealizadas by reunionesVM.realizadas.collectAsState(
                     initial = ReunionesViewModel.SectionState()
                 )
@@ -149,6 +146,7 @@ fun MainScreen(
                     initial = ReunionesViewModel.SectionState()
                 )
 
+                // Refrescamos datos al entrar
                 LaunchedEffect(Unit) {
                     reunionesVM.refresh(ReunionEstado.REALIZADA)
                     reunionesVM.refresh(ReunionEstado.PROGRAMADA)
@@ -175,10 +173,11 @@ fun MainScreen(
                 ReunionesRealizadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = { reunionDto ->
+                        // Lógica para abrir acta si está aprobada
                         if (reunionDto.actaAprobada == true && reunionDto.actaId != null) {
                             viewModel.openActaDesdeReunion(reunionDto.actaId)
                         } else {
-                            // Opcional: mensaje
+                            // Opcional: Mostrar mensaje de "Acta no disponible"
                         }
                     }
                 )
@@ -193,7 +192,7 @@ fun MainScreen(
                 ReunionesProgramadasScreen(
                     onBack = { viewModel.navigateTo(REUNIONES) },
                     onOpen = {
-                        // Detalle de reunión programada
+                        // Implementar detalle si es necesario
                     }
                 )
             }
@@ -241,6 +240,20 @@ fun MainScreen(
             onBack = { viewModel.goBackToMainMenu() }
         )
 
+        ACTA_DETALLE -> {
+            val acta = uiState.selectedActa
+            if (acta == null) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
+                CenterMsg("Sin acta seleccionada")
+            } else {
+                ActaDetalleScreen(
+                    acta = acta,
+                    onBack = { viewModel.closeActaDetalle() }
+                )
+            }
+        }
+
+        // Nota: ASISTENCIA se usa internamente para navegar al FORO en tu Enum actual
         ASISTENCIA -> {
             if (token.isNullOrBlank()) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
@@ -284,19 +297,6 @@ fun MainScreen(
                 VotacionesScreen(
                     token = token,
                     onBack = { viewModel.goBackToMainMenu() }
-                )
-            }
-        }
-
-        ACTA_DETALLE -> {
-            val acta = uiState.selectedActa
-            if (acta == null) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
-                CenterMsg("Sin acta seleccionada")
-            } else {
-                ActaDetalleScreen(
-                    acta = acta,
-                    onBack = { viewModel.closeActaDetalle() }
                 )
             }
         }
@@ -353,6 +353,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
         )
     }
 
+    // Estado para alternar entre vista de lista y cuadrícula
     var isGridView by rememberSaveable { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(tuColorBlanco)) {
@@ -392,7 +393,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                 }
             }
 
-            // Contenido
+            // Contenido (Lista o Grid)
             if (isGridView) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),

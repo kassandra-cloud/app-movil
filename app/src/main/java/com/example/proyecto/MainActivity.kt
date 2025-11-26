@@ -1,6 +1,7 @@
 package com.example.proyecto
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -58,284 +59,243 @@ val tuColorBlanco = AppColors.CardBg
 
 class MainActivity : ComponentActivity() {
 
-    // Launcher para pedir permiso de notificaciones en tiempo de ejecución
+    // Estado para manejar notificaciones recibidas mientras la app ya está corriendo
+    private val notificationDataState = mutableStateOf<Map<String, String>?>(null)
+
+    // Launcher para pedir permiso de notificaciones (Android 13+)
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        if (isGranted) {
-            Log.d("FCM", "✅ Permiso de notificaciones CONCEDIDO.")
-        } else {
-            Log.w("FCM", "❌ Permiso de notificaciones DENEGADO.")
-        }
+        if (isGranted) Log.d("FCM", "✅ Permiso de notificaciones CONCEDIDO.")
+        else Log.w("FCM", "❌ Permiso de notificaciones DENEGADO.")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Pedir permisos de notificación en Android 13+ (Tiramisu)
+        // 1. Permisos
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val estadoPermiso = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-            if (estadoPermiso != PackageManager.PERMISSION_GRANTED) {
+            val estado = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            if (estado != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
-        // 2. Suscribirse a los tópicos de Firebase para recibir notificaciones grupales
-        // (Aunque las notificaciones de reuniones van por token directo, esto sirve para anuncios generales)
-        val topics = listOf(
-            "anuncios_generales",
-            "foro_general",
-            "talleres_generales",
-            "recursos_generales",
-            "votaciones_generales"
-        )
+        // 2. Suscripción a tópicos
+        suscribirseATopicos()
 
-        topics.forEach { topic ->
-            FirebaseMessaging.getInstance().subscribeToTopic(topic)
-                .addOnCompleteListener { task ->
-                    if (!task.isSuccessful) {
-                        Log.e("FCM", "❌ Error suscribiendo a $topic", task.exception)
-                    }
-                }
-        }
+        // 3. Capturar notificación si la app se abre desde cero (Cold Start)
+        notificationDataState.value = capturarDatosNotificacion(intent)
 
         setContent {
             ProyectoTheme {
-                MainScreen()
+                // Pasamos el estado observable a la pantalla principal
+                MainScreen(notificationDataState = notificationDataState)
             }
         }
+    }
+
+    // 4. Capturar notificación si la app ya estaba abierta (Warm Start)
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        notificationDataState.value = capturarDatosNotificacion(intent)
+    }
+
+    private fun suscribirseATopicos() {
+        val topics = listOf("anuncios_generales", "foro_general", "votaciones_generales")
+        topics.forEach { FirebaseMessaging.getInstance().subscribeToTopic(it) }
+    }
+
+    private fun capturarDatosNotificacion(intent: Intent?): Map<String, String>? {
+        intent?.extras?.let { bundle ->
+            val tipo = bundle.getString("tipo")
+            // Capturamos cualquier ID relevante que venga en el payload
+            val reunionId = bundle.getString("reunion_id")
+            val actaId = bundle.getString("acta_id")
+
+            if (tipo != null) {
+                Log.d("FCM", "🔔 Notificación: $tipo | RID: $reunionId | AID: $actaId")
+                val data = mutableMapOf("tipo" to tipo)
+                if (reunionId != null) data["reunion_id"] = reunionId
+                if (actaId != null) data["acta_id"] = actaId
+                return data
+            }
+        }
+        return null
     }
 }
 
 @Composable
 fun MainScreen(
     viewModel: LoginViewModel = viewModel(),
-    reunionesVM: ReunionesViewModel = viewModel()
+    reunionesVM: ReunionesViewModel = viewModel(),
+    notificationDataState: MutableState<Map<String, String>?>
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val token = uiState.token
 
+    // Obtenemos el valor actual de la notificación
+    val notificationData = notificationDataState.value
+
+    // --- MANEJO CENTRALIZADO DE NOTIFICACIONES ---
+    LaunchedEffect(notificationData, token) {
+        if (notificationData != null && !token.isNullOrBlank()) {
+            val tipo = notificationData["tipo"]
+            val reunionId = notificationData["reunion_id"]?.toIntOrNull()
+            val actaId = notificationData["acta_id"]?.toIntOrNull()
+
+            when (tipo) {
+                "reunion_iniciada" -> {
+                    if (reunionId != null) {
+                        reunionesVM.refrescarReunionPorId(reunionId) { r ->
+                            if (r != null) viewModel.openReunionEnCurso(r)
+                        }
+                    }
+                }
+                "acta_aprobada" -> {
+                    // Si llega un acta aprobada, navegamos directo a ella
+                    if (actaId != null) {
+                        viewModel.openActaDesdeReunion(actaId)
+                    }
+                }
+            }
+            // Limpiamos el estado para no reprocesar la misma notificación al rotar pantalla
+            notificationDataState.value = null
+        }
+    }
+
+    // --- NAVEGACIÓN ---
     when (uiState.currentScreen) {
 
         LOGIN -> LoginScreen(viewModel)
 
         MAIN_MENU -> MainMenuScreen(viewModel)
 
-        ANUNCIOS -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                AnunciosScreen()
+        ANUNCIOS -> ContenidoProtegido(viewModel) { AnunciosScreen() }
+
+        REUNIONES -> ContenidoProtegido(viewModel) {
+            LaunchedEffect(Unit) {
+                reunionesVM.refresh(ReunionEstado.REALIZADA)
+                reunionesVM.refresh(ReunionEstado.PROGRAMADA)
+                reunionesVM.refresh(ReunionEstado.EN_CURSO)
             }
+            val stRealizadas by reunionesVM.realizadas.collectAsState(ReunionesViewModel.SectionState())
+            val stProgramadas by reunionesVM.programadas.collectAsState(ReunionesViewModel.SectionState())
+            val stEnCurso by reunionesVM.enCurso.collectAsState(ReunionesViewModel.SectionState())
+
+            ReunionesScreen(
+                realizadasCount = stRealizadas.items.size,
+                programadasCount = stProgramadas.items.size,
+                enCursoCount = stEnCurso.items.size,
+                onVerRealizadas = { viewModel.navigateTo(REUNIONES_REALIZADAS) },
+                onVerProgramadas = { viewModel.navigateTo(REUNIONES_PROGRAMADAS) },
+                onVerEnCurso = { viewModel.navigateTo(REUNIONES_EN_CURSO) },
+                onBack = { viewModel.goBackToMainMenu() }
+            )
         }
 
-        REUNIONES -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                // Obtenemos los estados de las listas desde el ViewModel
-                val stRealizadas by reunionesVM.realizadas.collectAsState(
-                    initial = ReunionesViewModel.SectionState()
-                )
-                val stProgramadas by reunionesVM.programadas.collectAsState(
-                    initial = ReunionesViewModel.SectionState()
-                )
-                val stEnCurso by reunionesVM.enCurso.collectAsState(
-                    initial = ReunionesViewModel.SectionState()
-                )
-
-                // Refrescamos datos al entrar
-                LaunchedEffect(Unit) {
-                    reunionesVM.refresh(ReunionEstado.REALIZADA)
-                    reunionesVM.refresh(ReunionEstado.PROGRAMADA)
-                    reunionesVM.refresh(ReunionEstado.EN_CURSO)
+        REUNIONES_REALIZADAS -> ContenidoProtegido(viewModel) {
+            ReunionesRealizadasScreen(
+                onBack = { viewModel.navigateTo(REUNIONES) },
+                onOpen = { dto ->
+                    if (dto.actaAprobada == true && dto.actaId != null) {
+                        viewModel.openActaDesdeReunion(dto.actaId)
+                    }
                 }
-
-                ReunionesScreen(
-                    realizadasCount = stRealizadas.items.size,
-                    programadasCount = stProgramadas.items.size,
-                    enCursoCount = stEnCurso.items.size,
-                    onVerRealizadas = { viewModel.navigateTo(REUNIONES_REALIZADAS) },
-                    onVerProgramadas = { viewModel.navigateTo(REUNIONES_PROGRAMADAS) },
-                    onVerEnCurso = { viewModel.navigateTo(REUNIONES_EN_CURSO) },
-                    onBack = { viewModel.goBackToMainMenu() }
-                )
-            }
+            )
         }
 
-        REUNIONES_REALIZADAS -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                ReunionesRealizadasScreen(
-                    onBack = { viewModel.navigateTo(REUNIONES) },
-                    onOpen = { reunionDto ->
-                        // Lógica para abrir acta si está aprobada
-                        if (reunionDto.actaAprobada == true && reunionDto.actaId != null) {
-                            viewModel.openActaDesdeReunion(reunionDto.actaId)
-                        } else {
-                            // Opcional: Mostrar mensaje de "Acta no disponible"
-                        }
-                    }
-                )
-            }
+        REUNIONES_PROGRAMADAS -> ContenidoProtegido(viewModel) {
+            ReunionesProgramadasScreen(onBack = { viewModel.navigateTo(REUNIONES) }, onOpen = {})
         }
 
-        REUNIONES_PROGRAMADAS -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                ReunionesProgramadasScreen(
-                    onBack = { viewModel.navigateTo(REUNIONES) },
-                    onOpen = {
-                        // Implementar detalle si es necesario
-                    }
-                )
-            }
+        REUNIONES_EN_CURSO -> ContenidoProtegido(viewModel) {
+            ReunionesEnCursoScreen(
+                onBack = { viewModel.navigateTo(REUNIONES) },
+                onOpen = { dto -> viewModel.openReunionEnCurso(dto) }
+            )
         }
 
-        REUNIONES_EN_CURSO -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                ReunionesEnCursoScreen(
-                    onBack = { viewModel.navigateTo(REUNIONES) },
-                    onOpen = { reunionDto ->
-                        viewModel.openReunionEnCurso(reunionDto)
-                    }
-                )
-            }
-        }
-
-        REUNION_EN_CURSO_DETALLE -> {
+        REUNION_EN_CURSO_DETALLE -> ContenidoProtegido(viewModel) {
             val reunion = uiState.selectedReunionEnCurso
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else if (reunion == null) {
+            if (reunion == null) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(REUNIONES_EN_CURSO) }
-                CenterMsg("No hay reunión seleccionada")
             } else {
                 ReunionEnCursoDetalleScreen(
                     reunion = reunion,
                     onBack = { viewModel.closeReunionEnCurso() },
                     onRefresh = {
-                        reunionesVM.refrescarReunionPorId(reunion.id) { actualizada ->
-                            if (actualizada != null) {
-                                viewModel.updateSelectedReunionEnCurso(actualizada)
-                            }
+                        reunionesVM.refrescarReunionPorId(reunion.id) { act ->
+                            if (act != null) viewModel.updateSelectedReunionEnCurso(act)
                         }
                     }
                 )
             }
         }
 
-        ACTAS -> ActasScreen(
-            onVerActa = { acta -> viewModel.openActaDetalle(acta) },
-            onBack = { viewModel.goBackToMainMenu() }
-        )
+        ACTAS -> ContenidoProtegido(viewModel) {
+            ActasScreen(
+                onVerActa = { acta -> viewModel.openActaDetalle(acta) },
+                onBack = { viewModel.goBackToMainMenu() }
+            )
+        }
 
-        ACTA_DETALLE -> {
+        ACTA_DETALLE -> ContenidoProtegido(viewModel) {
             val acta = uiState.selectedActa
             if (acta == null) {
                 LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
-                CenterMsg("Sin acta seleccionada")
             } else {
-                ActaDetalleScreen(
-                    acta = acta,
-                    onBack = { viewModel.closeActaDetalle() }
+                ActaDetalleScreen(acta = acta, onBack = { viewModel.closeActaDetalle() })
+            }
+        }
+
+        ASISTENCIA -> ContenidoProtegido(viewModel) {
+            ForoScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() },
+                onVerComentar = { pub -> viewModel.openPublicacionDetalle(pub) })
+        }
+
+        ASISTENCIA_DETALLE -> ContenidoProtegido(viewModel) {
+            val pub = uiState.selectedPublicacion
+            if (pub == null) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
+            } else {
+                ForoDetalleScreen(
+                    token = token ?: "", usuarioActual = uiState.currentUser ?: "", publicacion = pub,
+                    onBack = { viewModel.closePublicacionDetalle() }
                 )
             }
         }
 
-        // Nota: ASISTENCIA se usa internamente para navegar al FORO en tu Enum actual
-        ASISTENCIA -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                ForoScreen(
-                    token = token,
-                    onBack = { viewModel.goBackToMainMenu() },
-                    onVerComentar = { pub ->
-                        viewModel.openPublicacionDetalle(pub)
-                    }
-                )
-            }
+        VOTACION -> ContenidoProtegido(viewModel) {
+            VotacionesScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() })
         }
 
-        ASISTENCIA_DETALLE -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                val pub = uiState.selectedPublicacion
-                if (pub == null) {
-                    LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
-                    CenterMsg("No hay publicación seleccionada")
-                } else {
-                    ForoDetalleScreen(
-                        token = token,
-                        usuarioActual = uiState.currentUser ?: "",
-                        publicacion = pub,
-                        onBack = { viewModel.closePublicacionDetalle() }
-                    )
-                }
-            }
+        TALLERES -> ContenidoProtegido(viewModel) {
+            TalleresScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() })
         }
 
-        VOTACION -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                VotacionesScreen(
-                    token = token,
-                    onBack = { viewModel.goBackToMainMenu() }
-                )
-            }
-        }
-
-        TALLERES -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                TalleresScreen(
-                    token = token,
-                    onBack = { viewModel.goBackToMainMenu() }
-                )
-            }
-        }
-
-        RECURSOS -> {
-            if (token.isNullOrBlank()) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-                CenterMsg("Sesión no válida. Inicia sesión nuevamente.")
-            } else {
-                RecursosScreen(
-                    token = token,
-                    onBack = { viewModel.goBackToMainMenu() }
-                )
-            }
+        RECURSOS -> ContenidoProtegido(viewModel) {
+            RecursosScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() })
         }
     }
 }
 
-// ---------------- Menú principal (Grid/Lista) ----------------
+/**
+ * Wrapper de seguridad: Si no hay token, redirige al login y muestra carga.
+ */
+@Composable
+fun ContenidoProtegido(viewModel: LoginViewModel, content: @Composable () -> Unit) {
+    val uiState by viewModel.uiState.collectAsState()
+    if (uiState.token.isNullOrBlank()) {
+        LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+    } else {
+        content()
+    }
+}
 
-private data class Module(
-    val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val color: Color,
-    val screen: AppScreen
-)
+// ---------------- UI MENÚ PRINCIPAL ----------------
+private data class Module(val title: String, val subtitle: String, val icon: ImageVector, val color: Color, val screen: AppScreen)
 
 @Composable
 fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
@@ -353,12 +313,10 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
         )
     }
 
-    // Estado para alternar entre vista de lista y cuadrícula
     var isGridView by rememberSaveable { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(tuColorBlanco)) {
         Column(Modifier.fillMaxSize()) {
-            // Header azul
             Box(
                 modifier = Modifier.fillMaxWidth().height(200.dp)
                     .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
@@ -393,29 +351,18 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                 }
             }
 
-            // Contenido (Lista o Grid)
             if (isGridView) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
-                ) {
-                    items(modules) { m ->
-                        GridModuleItem(m.title, m.subtitle, m.icon, m.color) { viewModel.navigateTo(m.screen) }
-                    }
-                }
+                ) { items(modules) { m -> GridModuleItem(m.title, m.subtitle, m.icon, m.color) { viewModel.navigateTo(m.screen) } } }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp)
-                ) {
-                    items(modules) { m ->
-                        ModuleItem(m.title, m.subtitle, m.icon, m.color) { viewModel.navigateTo(m.screen) }
-                    }
-                }
+                    verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)
+                ) { items(modules) { m -> ModuleItem(m.title, m.subtitle, m.icon, m.color) { viewModel.navigateTo(m.screen) } } }
             }
         }
     }
@@ -426,18 +373,14 @@ fun GridModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: C
     Card(
         modifier = Modifier.fillMaxWidth().height(160.dp),
         colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
-        elevation = CardDefaults.cardElevation(6.dp),
-        shape = RoundedCornerShape(20.dp)
+        elevation = CardDefaults.cardElevation(6.dp), shape = RoundedCornerShape(20.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
         ) {
             Card(modifier = Modifier.size(60.dp), colors = CardDefaults.cardColors(containerColor = iconBg), shape = RoundedCornerShape(16.dp)) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.dp))
-                }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             }
             Spacer(Modifier.height(16.dp))
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario)
@@ -451,17 +394,14 @@ fun ModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
-        elevation = CardDefaults.cardElevation(6.dp),
-        shape = RoundedCornerShape(20.dp)
+        elevation = CardDefaults.cardElevation(6.dp), shape = RoundedCornerShape(20.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Card(modifier = Modifier.size(52.dp), colors = CardDefaults.cardColors(containerColor = iconBg), shape = RoundedCornerShape(14.dp)) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
-                }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
             }
             Spacer(Modifier.width(20.dp))
             Column(Modifier.weight(1f)) {
@@ -470,12 +410,5 @@ fun ModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color
             }
             Icon(Icons.Default.KeyboardArrowRight, null, tint = tuColorTextoSecundario.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
         }
-    }
-}
-
-@Composable
-private fun CenterMsg(msg: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(msg)
     }
 }

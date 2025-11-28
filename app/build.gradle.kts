@@ -1,5 +1,3 @@
-// app/build.gradle.kts
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -10,11 +8,13 @@ plugins {
 
 android {
     namespace = "com.example.proyecto"
-    compileSdk = 34
+    // Mantener en 35 para resolver los errores de compatibilidad
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.proyecto"
         minSdk = 24
+        // Mantener en 35 para resolver los errores de compatibilidad
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -46,6 +46,10 @@ android {
 }
 
 dependencies {
+    // ELIMINADA la línea implementation(libs.androidx.compose.foundation)
+    // que causaba la "Unresolved reference" ya que se define como String
+    // más abajo. La definición como String es funcional.
+
     val retrofit_version = "2.11.0"
     val moshi_version = "1.15.0"
     val okhttp_version = "4.12.0"
@@ -64,6 +68,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    // Esta línea se mantiene, usando el String literal que sí funciona.
     implementation("androidx.compose.foundation:foundation")
 
     implementation("androidx.compose.material:material-icons-extended")
@@ -102,6 +108,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
     implementation("androidx.media3:media3-common:1.3.1")
+
     // Desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 

@@ -1,11 +1,11 @@
 [versions]
-agp = "8.5.2"
+agp = "8.6.0"   # ACTUALIZADO: Debe ser 8.6.0 para Compose 2024.06.00 y SDK 35
 kotlin = "1.9.24"
-compose-bom = "2024.06.00"     # cualquier BOM estable reciente
+compose-bom = "2024.06.00"
 compose-compiler = "1.5.14"
 
 [libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.13.1" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.15.0" } # ACTUALIZADO: Requerido por SDK 35
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version = "2.7.0" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version = "1.9.0" }
 

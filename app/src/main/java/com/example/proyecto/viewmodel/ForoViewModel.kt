@@ -16,14 +16,11 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import kotlin.math.max
-import android.webkit.MimeTypeMap
 import android.content.Context
 import android.net.Uri
-import java.io.FileOutputStream
-import com.example.proyecto.network.RetrofitInstance
 import com.example.proyecto.utils.uriToFile
 import com.example.proyecto.utils.getMimeType
-import android.util.Log // Asegurarse de tener este import si se usa Log
+import android.util.Log
 
 
 // Estado de la UI
@@ -175,7 +172,7 @@ class ForoViewModel : ViewModel() {
         uiState = uiState.copy(postError = uiState.postError + (pubId to msg))
     }
 
-    // 🔹 CORRECCIÓN AQUÍ: Manejo seguro de listas nulas
+    // Manejo seguro de listas nulas
     private fun actualizarLikeLocalmente(pubId: Int, itemId: Int, esAdjunto: Boolean) {
         val listaPubs = uiState.publicaciones.toMutableList()
         val indexPub = listaPubs.indexOfFirst { it.id == pubId }
@@ -210,7 +207,6 @@ class ForoViewModel : ViewModel() {
     }
 
     // --- FUNCIÓN PARA ENVIAR TEXTO, FOTOS, AUDIOS Y DOCUMENTOS ---
-    // Reemplaza la función enviarMensaje existente por esta versión.
     fun enviarMensaje(
         token: String,
         publicacionId: Int,

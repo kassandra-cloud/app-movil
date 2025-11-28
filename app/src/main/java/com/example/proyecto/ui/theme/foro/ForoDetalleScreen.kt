@@ -541,12 +541,11 @@ fun ForoDetalleScreen(
                         }
 
                         is ChatItem.Adjunto -> {
-                            // Los adjuntos generalmente no son respuestas anidadas, por lo que no se indentan
+                            // Los adjuntos se dejan sin indentación
                             ChatBubble(
                                 autor = item.dto.autor ?: "Anónimo",
                                 fecha = item.dto.fechaCreacion ?: "",
                                 esMio = item.dto.autor == usuarioActual,
-                                // modifier = Modifier, // Se usa el valor por defecto
                                 contenido = {
                                     Column {
                                         when (item.dto.tipoArchivo) {
@@ -775,17 +774,23 @@ fun ChatBubble(
     autor: String,
     fecha: String,
     esMio: Boolean,
-    // 🔹 NUEVO: Acepta un Modifier para la indentación
     modifier: Modifier = Modifier,
     contenido: @Composable () -> Unit,
     footer: (@Composable () -> Unit)?
 ) {
     Row(
-        // 🔹 APLICAMOS EL MODIFICADOR AQUÍ
+        // APLICAMOS INDENTACIÓN Y FULL WIDTH
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = if (esMio) Arrangement.End else Arrangement.Start
+        // Usamos Arrangement.Start y el Spacer con peso para controlar la alineación
+        horizontalArrangement = Arrangement.Start
     ) {
-        if (!esMio) {
+
+        // 🔹 1. EMPUJAR A LA DERECHA (Mensajes Propios)
+        if (esMio) {
+            // El Spacer toma el espacio restante, empujando el mensaje a la derecha.
+            Spacer(Modifier.weight(1f))
+        } else {
+            // 🔹 2. AVATAR (Izquierda, para Otros)
             Surface(
                 shape = CircleShape,
                 color = Color.Gray,
@@ -798,9 +803,18 @@ fun ChatBubble(
             Spacer(Modifier.width(8.dp))
         }
 
-        Column(modifier = Modifier.weight(1f, fill = false)) {
+        // 🔹 3. CHAT BUBBLE CONTENT (Burbuja del Mensaje)
+        Column(
+            // CRÍTICO: Limita el ancho máximo de la burbuja (ej: 300dp)
+            modifier = Modifier.widthIn(max = 300.dp),
+            // Alineación de elementos internos (autor/fecha/footer)
+            horizontalAlignment = if (esMio) Alignment.End else Alignment.Start
+        ) {
 
-            Row(verticalAlignment = Alignment.Bottom) {
+            Row(
+                modifier = Modifier.fillMaxWidth(), // Para forzar al Row interno a usar el ancho completo de la columna de 300dp
+                horizontalArrangement = if (esMio) Arrangement.End else Arrangement.Start
+            ) {
                 Text(autor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(8.dp))
                 Text(fecha, style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontSize = 10.sp)
@@ -812,9 +826,11 @@ fun ChatBubble(
                 shape = RoundedCornerShape(
                     topStart = 12.dp,
                     topEnd = 12.dp,
+                    // Forma de burbuja estilo WhatsApp
                     bottomStart = if (esMio) 12.dp else 2.dp,
                     bottomEnd = if (esMio) 2.dp else 12.dp
                 ),
+                // COLOR: PrimaryContainer para mí, White para otros
                 color = if (esMio) MaterialTheme.colorScheme.primaryContainer else Color.White,
                 border = if (esMio) null else BorderStroke(1.dp, Color.LightGray),
                 shadowElevation = 1.dp
@@ -827,6 +843,12 @@ fun ChatBubble(
                     }
                 }
             }
+        }
+
+        // 🔹 4. EMPUJAR A LA IZQUIERDA (Mensajes de Otros)
+        if (!esMio) {
+            // El Spacer toma el espacio restante a la derecha, empujando el mensaje a la izquierda.
+            Spacer(Modifier.weight(1f))
         }
     }
 }

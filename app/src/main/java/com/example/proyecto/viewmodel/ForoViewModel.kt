@@ -10,12 +10,23 @@ import com.example.proyecto.api.ForoApi
 import com.example.proyecto.data.ComentarioCrearRequest
 import com.example.proyecto.data.PublicacionDto
 import kotlinx.coroutines.launch
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import kotlin.math.max
+import android.webkit.MimeTypeMap
+import android.content.Context
+import android.net.Uri
+import java.io.FileOutputStream
+import com.example.proyecto.network.RetrofitInstance
+import com.example.proyecto.utils.uriToFile
+import com.example.proyecto.utils.getMimeType
+
+
+
+
 
 // Estado de la UI
 data class ForoUiState(
@@ -75,10 +86,11 @@ class ForoViewModel : ViewModel() {
             try {
                 val api = ApiClient.createAuthorized(token, ForoApi::class.java)
 
-                val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
-                val archivoPart = MultipartBody.Part.createFormData("archivo", file.name, requestFile)
-                val esMensajePart = "true".toRequestBody("text/plain".toMediaTypeOrNull())
-                val descripcionPart = textoCaption?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val requestFile = file.asRequestBody(mimeType.toMediaType())
+                val archivoPart =
+                    MultipartBody.Part.createFormData("archivo", file.name, requestFile)
+                val esMensajePart = "true".toRequestBody("text/plain".toMediaType())
+                val descripcionPart = textoCaption?.toRequestBody("text/plain".toMediaType())
 
                 api.subirAdjunto(
                     publicacionId = publicacionId,
@@ -101,7 +113,8 @@ class ForoViewModel : ViewModel() {
                 val api = ApiClient.createAuthorized(token, ForoApi::class.java)
                 api.eliminarComentario(comentarioId)
                 recargarLista(api)
-            } catch (e: Exception) { /* Manejo error */ }
+            } catch (e: Exception) { /* Manejo error */
+            }
         }
     }
 
@@ -111,7 +124,8 @@ class ForoViewModel : ViewModel() {
                 val api = ApiClient.createAuthorized(token, ForoApi::class.java)
                 api.eliminarAdjunto(adjuntoId)
                 recargarLista(api)
-            } catch (e: Exception) { /* Manejo error */ }
+            } catch (e: Exception) { /* Manejo error */
+            }
         }
     }
 
@@ -121,7 +135,11 @@ class ForoViewModel : ViewModel() {
             try {
                 val api = ApiClient.createAuthorized(token, ForoApi::class.java)
                 val res = api.toggleLike(comentarioId)
-                if (!res.isSuccessful) actualizarLikeLocalmente(publicacionId, comentarioId, esAdjunto = false)
+                if (!res.isSuccessful) actualizarLikeLocalmente(
+                    publicacionId,
+                    comentarioId,
+                    esAdjunto = false
+                )
             } catch (e: Exception) {
                 actualizarLikeLocalmente(publicacionId, comentarioId, esAdjunto = false)
             }
@@ -134,7 +152,11 @@ class ForoViewModel : ViewModel() {
             try {
                 val api = ApiClient.createAuthorized(token, ForoApi::class.java)
                 val res = api.toggleLikeAdjunto(adjuntoId)
-                if (!res.isSuccessful) actualizarLikeLocalmente(publicacionId, adjuntoId, esAdjunto = true)
+                if (!res.isSuccessful) actualizarLikeLocalmente(
+                    publicacionId,
+                    adjuntoId,
+                    esAdjunto = true
+                )
             } catch (e: Exception) {
                 actualizarLikeLocalmente(publicacionId, adjuntoId, esAdjunto = true)
             }
@@ -187,5 +209,55 @@ class ForoViewModel : ViewModel() {
             }
         }
         uiState = uiState.copy(publicaciones = listaPubs)
+    }
+
+    // --- FUNCIÓN PARA ENVIAR TEXTO, FOTOS, AUDIOS Y DOCUMENTOS ---
+    // Reemplaza la función enviarMensaje existente por esta versión.
+    fun enviarMensaje(
+        token: String,
+        publicacionId: Int,
+        texto: String?,
+        uri: Uri?,
+        context: Context,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val api = ApiClient.createAuthorized(token, ForoApi::class.java)
+
+                // Texto
+                val textoPart = texto
+                    ?.takeIf { it.isNotBlank() }
+                    ?.toRequestBody("text/plain".toMediaType())
+
+                // Archivo (opcional)
+                val archivoPart = uri?.let {
+                    val file = uriToFile(context, uri) ?: return@launch onError("No se pudo leer archivo")
+
+                    val mime = getMimeType(file)
+                    val requestBody = file.asRequestBody(mime.toMediaType())
+
+                    MultipartBody.Part.createFormData(
+                        "archivo",
+                        file.name,
+                        requestBody
+                    )
+                }
+
+                api.enviarMensaje(
+                    publicacionId = publicacionId,
+                    texto = textoPart,
+                    archivo = archivoPart
+                )
+
+                onSuccess()
+                cargar(token)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.localizedMessage ?: "Error desconocido")
+            }
+        }
     }
 }

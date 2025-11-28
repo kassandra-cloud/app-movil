@@ -9,6 +9,10 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
+import retrofit2.http.Path
 
 interface ForoApi {
 
@@ -47,4 +51,13 @@ interface ForoApi {
 
     @POST("foro/api/v1/adjuntos/{id}/like/")
     suspend fun toggleLikeAdjunto(@Path("id") id: Int): Response<LikeResponse>
+    // --- AGREGA ESTO DENTRO DE LA INTERFACE ---
+
+    @Multipart
+    @POST("foro/api/v1/publicaciones/{id}/mensaje/")
+    suspend fun enviarMensaje(
+        @Path("id") publicacionId: Int,
+        @Part("texto") texto: RequestBody?,
+        @Part archivo: MultipartBody.Part?
+    ): PublicacionDto
 }

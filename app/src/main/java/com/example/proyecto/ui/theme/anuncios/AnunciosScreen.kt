@@ -13,6 +13,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+// Se removió: import androidx.navigation.NavController
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import com.example.proyecto.data.AnuncioDto
 import com.example.proyecto.viewmodel.AnunciosViewModel
 import com.example.proyecto.viewmodel.AnunciosViewModelFactory
@@ -20,6 +23,8 @@ import com.example.proyecto.viewmodel.AnunciosViewModelFactory
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnunciosScreen(
+    // 1. CAMBIO CLAVE: Usa el callback de retroceso
+    onBack: () -> Unit,
     viewModel: AnunciosViewModel = viewModel(factory = AnunciosViewModelFactory())
 ) {
     LaunchedEffect(Unit) {
@@ -30,6 +35,12 @@ fun AnunciosScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Anuncios Directiva") },
+                // 2. Añadimos el icono de navegación y usamos el callback
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF1976D2), // Azul fuerte
                     titleContentColor = Color.White
@@ -46,7 +57,7 @@ fun AnunciosScreen(
             if (viewModel.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (viewModel.errorMessage != null) {
-                // 🔥 Muestra el error en ROJO grande para que lo veamos
+                //  Muestra el error en ROJO grande para que lo veamos
                 Column(modifier = Modifier.align(Alignment.Center).padding(16.dp)) {
                     Text("OCURRIÓ UN ERROR:", color = Color.Red, fontWeight = FontWeight.Bold)
                     Text(viewModel.errorMessage!!, color = Color.Red)
@@ -59,7 +70,7 @@ fun AnunciosScreen(
                     color = Color.Black
                 )
             } else {
-                // 🔥 Muestra la lista
+                //  Muestra la lista
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),

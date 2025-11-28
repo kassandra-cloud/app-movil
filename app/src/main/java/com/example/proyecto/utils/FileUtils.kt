@@ -83,3 +83,19 @@ private fun rotateBitmap(bitmap: Bitmap, orientation: Int): Bitmap {
 fun getMimeType(file: File): String {
     return "image/jpeg"
 }
+fun getMimeType(context: Context, uri: Uri): String? {
+    return context.contentResolver.getType(uri)
+}
+fun copyUriToFile(context: Context, uri: Uri, fileName: String): File {
+    val tempFile = File(context.cacheDir, fileName)
+    val inputStream = context.contentResolver.openInputStream(uri)
+    val outputStream = FileOutputStream(tempFile)
+
+    inputStream?.copyTo(outputStream)
+
+    outputStream.flush()
+    outputStream.close()
+    inputStream?.close()
+
+    return tempFile
+}

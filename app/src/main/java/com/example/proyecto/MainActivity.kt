@@ -174,7 +174,10 @@ fun MainScreen(
 
         MAIN_MENU -> MainMenuScreen(viewModel)
 
-        ANUNCIOS -> ContenidoProtegido(viewModel) { AnunciosScreen() }
+        // CAMBIO CLAVE: Llama a AnunciosScreen con el callback onBack
+        ANUNCIOS -> ContenidoProtegido(viewModel) {
+            AnunciosScreen(onBack = { viewModel.goBackToMainMenu() })
+        }
 
         REUNIONES -> ContenidoProtegido(viewModel) {
             LaunchedEffect(Unit) {

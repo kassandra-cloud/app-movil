@@ -5,7 +5,6 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-// 🔥 NUEVOS IMPORTS NECESARIOS
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.util.concurrent.TimeUnit
@@ -13,7 +12,7 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     // Asegúrate de que esta IP sea la correcta donde corre tu Django ahora
-    private const val BASE_URL = "http://192.168.1.8:8000/"
+    private const val BASE_URL = "http://192.168.104.132:8000/"
 
     // --- Interceptores útiles ---
     private val logging = HttpLoggingInterceptor().apply {
@@ -29,7 +28,7 @@ object ApiClient {
     }
 
     // --- Configuración de Moshi para Kotlin ---
-    //  ESTO ES LO QUE SOLUCIONA EL ERROR DE "Unable to create converter"
+    // 🔥 ESTO ES LO QUE SOLUCIONA EL ERROR DE "Unable to create converter"
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()
@@ -52,7 +51,7 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(baseClient)
-            //  USAMOS NUESTRA CONFIGURACIÓN 'moshi' AQUÍ
+            // 🔥 USAMOS NUESTRA CONFIGURACIÓN 'moshi' AQUÍ
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }

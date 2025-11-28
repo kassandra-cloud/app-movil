@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     // Asegúrate de que esta IP sea la correcta donde corre tu Django ahora
-    private const val BASE_URL = "http://192.168.104.132:8000/"
+    private const val BASE_URL = "http://10.4.16.106:8000/"
 
     // --- Interceptores útiles ---
     private val logging = HttpLoggingInterceptor().apply {

@@ -50,7 +50,9 @@ import java.io.File
 import java.io.IOException
 import android.util.Log
 
-
+// NUEVOS IMPORTS para AudioPlayer y Descargas
+import com.example.proyecto.ui.components.AudioPlayer
+import com.example.proyecto.utils.startDownload
 // -----------------------------------------------------------
 // CLASES SELLADAS
 // -----------------------------------------------------------
@@ -554,18 +556,49 @@ fun ForoDetalleScreen(
                                             }
 
                                             "audio" -> {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(Icons.Default.Audiotrack, null, tint = Color.Gray)
-                                                    Spacer(Modifier.width(4.dp))
-                                                    Text("Audio adjunto")
+                                                // 🔊 INTEGRACIÓN DEL REPRODUCTOR DE AUDIO
+                                                if (!item.dto.url.isNullOrBlank()) {
+                                                    AudioPlayer(audioUrl = item.dto.url)
+                                                } else {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(Icons.Default.Audiotrack, null, tint = Color.Red)
+                                                        Spacer(Modifier.width(4.dp))
+                                                        Text("Error: Audio no disponible")
+                                                    }
                                                 }
                                             }
 
+                                            // Manejar otros documentos (PDF, DOCX, etc.)
                                             else -> {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(Icons.Default.Description, null, tint = Color.Gray)
-                                                    Spacer(Modifier.width(4.dp))
-                                                    Text("Documento adjunto")
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Default.Description, null, tint = MaterialTheme.colorScheme.secondary)
+                                                    Spacer(Modifier.width(8.dp))
+
+                                                    // 📝 Nombre del archivo
+                                                    val fileName = item.dto.archivo ?: "documento_adjunto"
+                                                    Text(
+                                                        fileName,
+                                                        modifier = Modifier.weight(1f),
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+
+                                                    // ⬇️ Botón de Descarga
+                                                    IconButton(
+                                                        onClick = {
+                                                            if (!item.dto.url.isNullOrBlank()) {
+                                                                startDownload(context, item.dto.url, fileName)
+                                                                Toast.makeText(context, "Descarga iniciada", Toast.LENGTH_SHORT).show()
+                                                            } else {
+                                                                Toast.makeText(context, "URL de descarga no disponible", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Download, contentDescription = "Descargar documento", tint = MaterialTheme.colorScheme.primary)
+                                                    }
                                                 }
                                             }
                                         }

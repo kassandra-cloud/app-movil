@@ -87,7 +87,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
 
-    // Gson (si lo necesitas, si no, puedes eliminar estas dos líneas)
+    // Gson
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.retrofit2:converter-gson:$retrofit_version")
 
@@ -97,7 +97,11 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
-    implementation("androidx.navigation:navigation-compose:2.7.0") // O la última versión estable
+    implementation("androidx.navigation:navigation-compose:2.7.0")
+    // Implementación de ExoPlayer para reproducción de audio/video
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation("androidx.media3:media3-common:1.3.1")
     // Desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
@@ -111,4 +115,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     debugImplementation("com.squareup.okhttp3:logging-interceptor:$okhttp_version")
+
+
 }

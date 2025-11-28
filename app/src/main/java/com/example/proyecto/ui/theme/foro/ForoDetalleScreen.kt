@@ -218,7 +218,7 @@ fun ForoDetalleScreen(
     }
 
     // -----------------------------------------------------------
-    // DIALOGO IMAGEN
+    // DIALOGOS
     // -----------------------------------------------------------
     if (imagenPreviewUri != null) {
         var caption by remember { mutableStateOf("") }
@@ -479,10 +479,15 @@ fun ForoDetalleScreen(
                 items(chatList) { item ->
                     when (item) {
                         is ChatItem.Comentario -> {
+                            // 🔹 CÁLCULO DE INDENTACIÓN (Efecto Escalera)
+                            val isReply = item.dto.parent != null
+                            val indentModifier = if (isReply) Modifier.padding(start = 40.dp) else Modifier
+
                             ChatBubble(
                                 autor = item.dto.autor ?: "Anónimo",
                                 fecha = item.dto.fechaCreacion ?: "",
                                 esMio = item.dto.autor == usuarioActual,
+                                modifier = indentModifier, // 🔹 APLICAMOS EL MODIFICADOR
                                 contenido = {
                                     val parent = pubActual.comentarios?.find { it.id == item.dto.parent }
                                     if (parent != null) {
@@ -536,10 +541,12 @@ fun ForoDetalleScreen(
                         }
 
                         is ChatItem.Adjunto -> {
+                            // Los adjuntos generalmente no son respuestas anidadas, por lo que no se indentan
                             ChatBubble(
                                 autor = item.dto.autor ?: "Anónimo",
                                 fecha = item.dto.fechaCreacion ?: "",
                                 esMio = item.dto.autor == usuarioActual,
+                                // modifier = Modifier, // Se usa el valor por defecto
                                 contenido = {
                                     Column {
                                         when (item.dto.tipoArchivo) {
@@ -768,11 +775,14 @@ fun ChatBubble(
     autor: String,
     fecha: String,
     esMio: Boolean,
+    // 🔹 NUEVO: Acepta un Modifier para la indentación
+    modifier: Modifier = Modifier,
     contenido: @Composable () -> Unit,
     footer: (@Composable () -> Unit)?
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        // 🔹 APLICAMOS EL MODIFICADOR AQUÍ
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (esMio) Arrangement.End else Arrangement.Start
     ) {
         if (!esMio) {

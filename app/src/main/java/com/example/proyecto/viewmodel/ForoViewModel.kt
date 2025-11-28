@@ -23,9 +23,7 @@ import java.io.FileOutputStream
 import com.example.proyecto.network.RetrofitInstance
 import com.example.proyecto.utils.uriToFile
 import com.example.proyecto.utils.getMimeType
-
-
-
+import android.util.Log // Asegurarse de tener este import si se usa Log
 
 
 // Estado de la UI

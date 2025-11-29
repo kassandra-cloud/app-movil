@@ -189,7 +189,7 @@ fun ForgotPasswordScreen(
                     isError = confirmPassword.isNotEmpty() && !passwordsMatch
                 )
 
-                // INDICADORES DE REQUISITOS (Reusando tu componente visual)
+                // INDICADORES DE REQUISITOS
                 Spacer(Modifier.height(16.dp))
                 PasswordRequirementsList(isLengthMet, isUppercaseMet, isSpecialCharMet)
 
@@ -213,5 +213,49 @@ fun ForgotPasswordScreen(
                 }
             }
         }
+    }
+}
+
+// =================================================================
+// COMPONENTES VISUALES COMPARTIDOS
+// =================================================================
+
+@Composable
+fun PasswordRequirementsList(
+    isLengthMet: Boolean,
+    isUppercaseMet: Boolean,
+    isSpecialCharMet: Boolean
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Requisitos de seguridad:",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        RequirementRow("Mínimo 14 caracteres", isLengthMet)
+        RequirementRow("Al menos 1 mayúscula", isUppercaseMet)
+        RequirementRow("Al menos 1 carácter especial (@, #, $, etc.)", isSpecialCharMet)
+    }
+}
+
+@Composable
+fun RequirementRow(text: String, isMet: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 2.dp)
+    ) {
+        Icon(
+            imageVector = if (isMet) Icons.Default.CheckCircle else Icons.Default.Cancel,
+            contentDescription = null,
+            tint = if (isMet) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isMet) MaterialTheme.colorScheme.onSurface else Color.Gray
+        )
     }
 }

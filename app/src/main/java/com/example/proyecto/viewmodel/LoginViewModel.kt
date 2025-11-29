@@ -5,7 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
 import com.example.proyecto.api.ApiService
 import com.example.proyecto.data.AppScreen
-import kotlinx.coroutines.delay
+import com.example.proyecto.data.LoginRequest
+import com.example.proyecto.data.SessionData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,36 +40,104 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                // Usamos la instancia 'apiService' que ya existe en ApiClient
-                val response = ApiClient.apiService.login(com.example.proyecto.data.LoginRequest(user, pass))
+                val cleanUser = user.trim()
 
-                // Suponiendo que tu endpoint devuelve un objeto con 'token'
-                // Ajusta esto según tu respuesta real (LoginResponse)
-                // Aquí simulo éxito para que veas el flujo:
-                delay(1000)
+                // Llamada a la API
+                val response = ApiClient.apiService.login(LoginRequest(cleanUser, pass))
 
-                // SI TU LOGIN REAL FUNCIONA, DESCOMENTA ESTO Y COMENTA LA SIMULACIÓN:
-                /*
-                if (response.token != null) {
-                     _uiState.update {
+                if (response.isSuccessful) {
+                    val loginResponse = response.body()
+
+                    if (loginResponse != null && loginResponse.token != null) {
+
+                        // Guardamos el token en la sesión global
+                        SessionData.token = loginResponse.token
+
+                        // === LÓGICA DE NOMBRE REAL ===
+                        val nombre = loginResponse.user?.first_name
+                        val apellido = loginResponse.user?.last_name
+
+                        val nombreMostrar = if (!nombre.isNullOrBlank()) {
+                            "$nombre ${apellido ?: ""}".trim()
+                        } else {
+                            loginResponse.user?.username ?: cleanUser
+                        }
+
+                        // === LÓGICA DE REDIRECCIÓN (CAMBIO DE CONTRASEÑA) ===
+                        val debeCambiarPass = loginResponse.must_change_password == true
+
+                        val proximaPantalla = if (debeCambiarPass) {
+                            AppScreen.CHANGE_PASSWORD
+                        } else {
+                            AppScreen.MAIN_MENU
+                        }
+
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                token = loginResponse.token,
+                                currentUser = nombreMostrar,
+                                currentScreen = proximaPantalla
+                            )
+                        }
+                    } else {
+                        val msg = loginResponse?.message ?: "Error en las credenciales"
+                        throw Exception(msg)
+                    }
+                } else {
+                    val errorMsg = "Error del servidor: ${response.code()} ${response.message()}"
+                    throw Exception(errorMsg)
+                }
+
+            } catch (e: Exception) {
+                val msg = if (e.message?.contains("401") == true)
+                    "Usuario o contraseña incorrectos"
+                else
+                    e.message ?: "Error desconocido"
+
+                _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------
+    // CAMBIAR CONTRASEÑA INICIAL (Lógica Real Agregada)
+    // -----------------------------------------------------------
+    fun changeInitialPassword(newPass: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            try {
+                // 1. Obtenemos el token de la sesión actual
+                val token = SessionData.token
+                if (token == null) {
+                    throw Exception("No hay sesión activa. Por favor, inicia sesión nuevamente.")
+                }
+
+                // 2. Preparamos el header Auth
+                val authHeader = "Token $token"
+
+                // 3. Llamamos al endpoint del backend
+                val response = ApiClient.apiService.cambiarPasswordInicial(
+                    auth = authHeader,
+                    body = mapOf("new_password" to newPass)
+                )
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val msg = body?.get("message")?.toString() ?: "Contraseña actualizada exitosamente"
+
+                    // 4. Éxito: Navegamos al menú principal
+                    _uiState.update {
                         it.copy(
                             isLoading = false,
-                            token = response.token,
-                            currentUser = user,
+                            successMessage = msg,
                             currentScreen = AppScreen.MAIN_MENU
                         )
                     }
                 } else {
-                    throw Exception("Credenciales inválidas")
+                    val errorMsg = response.message()
+                    throw Exception("Error al actualizar: $errorMsg")
                 }
-                */
-
-                // SIMULACIÓN (BORRAR CUANDO CONECTES EL LOGIN REAL):
-                if (user.lowercase() == "error") throw Exception("Credenciales incorrectas")
-                _uiState.update {
-                    it.copy(isLoading = false, token = "dummy_token", currentUser = user, currentScreen = AppScreen.MAIN_MENU)
-                }
-
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
             }
@@ -87,9 +156,7 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
             try {
-                // Creamos el servicio público (sin token)
                 val api = ApiClient.createPublic(ApiService::class.java)
-
                 val response = api.solicitarCodigo(mapOf("email" to email))
 
                 if (response.isSuccessful) {
@@ -112,7 +179,6 @@ class LoginViewModel : ViewModel() {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 val api = ApiClient.createPublic(ApiService::class.java)
-
                 val response = api.restablecerPassword(mapOf(
                     "email" to email,
                     "code" to code,
@@ -131,12 +197,8 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    fun changeInitialPassword(newPass: String) {
-        // Lógica existente para primer login
-    }
-
     // -----------------------------------------------------------
-    // NAVEGACIÓN
+    // NAVEGACIÓN Y OTROS
     // -----------------------------------------------------------
     fun navigateTo(screen: AppScreen) {
         _uiState.update { it.copy(currentScreen = screen, errorMessage = null, successMessage = null) }
@@ -147,6 +209,7 @@ class LoginViewModel : ViewModel() {
     }
 
     fun logout() {
+        SessionData.token = null
         _uiState.update { LoginUiState(currentScreen = AppScreen.LOGIN) }
     }
 
@@ -164,7 +227,7 @@ class LoginViewModel : ViewModel() {
     fun updateSelectedReunionEnCurso(dto: com.example.proyecto.data.reuniones.ReunionDto) {
         _uiState.update { it.copy(selectedReunionEnCurso = dto) }
     }
-    fun openActaDesdeReunion(actaId: Int) { /* Implementar carga por ID si necesario */ }
+    fun openActaDesdeReunion(actaId: Int) { }
     fun openActaDetalle(acta: com.example.proyecto.data.reuniones.ActaDto) {
         _uiState.update { it.copy(selectedActa = acta, currentScreen = AppScreen.ACTA_DETALLE) }
     }

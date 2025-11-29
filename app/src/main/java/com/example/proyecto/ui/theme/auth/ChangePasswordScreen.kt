@@ -2,218 +2,174 @@ package com.example.proyecto.ui.theme.auth
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-// IMPORTACIONES CORREGIDAS
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType // IMPORTACIÓN AÑADIDA/CORREGIDA
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.proyecto.viewmodel.LoginViewModel
-
-// ==========================================================
-// LÓGICA DE VALIDACIÓN DE CONTRASEÑA
-// ==========================================================
-
-fun checkMinLength(password: String): Boolean = password.length >= 14
-fun checkUppercase(password: String): Boolean = password.any { it.isUpperCase() }
-fun checkSpecialChar(password: String): Boolean = password.contains(Regex("[^A-Za-z0-9]"))
-
-// ==========================================================
-// PANTALLA PRINCIPAL
-// ==========================================================
 
 @Composable
 fun ChangePasswordScreen(viewModel: LoginViewModel) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    var password by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    var isConfirmVisible by remember { mutableStateOf(false) }
+
+    // Estado local para errores de validación antes de enviar
+    var localError by remember { mutableStateOf<String?>(null) }
+
+    // --- VALIDACIONES EN TIEMPO REAL (Igual que ForgotPassword) ---
+    val isLengthMet = newPassword.length >= 14
+    val isUppercaseMet = newPassword.any { it.isUpperCase() }
+    val isSpecialCharMet = newPassword.contains(Regex("[^A-Za-z0-9]"))
+    val passwordsMatch = newPassword == confirmPassword
+
+    // El formulario es válido solo si cumple todo
+    val isFormValid = isLengthMet && isUppercaseMet && isSpecialCharMet && passwordsMatch && newPassword.isNotEmpty()
+
+    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    var showPassword by remember { mutableStateOf(false) }
-    var showConfirmPassword by remember { mutableStateOf(false) }
-
-    val isLengthMet = checkMinLength(password)
-    val isUppercaseMet = checkUppercase(password)
-    val isSpecialCharMet = checkSpecialChar(password)
-
-    val allRequirementsMet = isLengthMet && isUppercaseMet && isSpecialCharMet
-    val passwordsMatch = password == confirmPassword
-
-    val isPasswordValid = allRequirementsMet && passwordsMatch && password.isNotBlank()
-
-    // Mostrar errores o mensajes (manteniendo su lógica original con Toast)
-    LaunchedEffect(uiState.errorMessage, uiState.successMessage) {
+    // Efecto para mostrar errores del servidor
+    LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
             viewModel.clearMessages()
         }
+    }
+
+    // Efecto para mostrar éxito
+    LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
             viewModel.clearMessages()
+            // Al ser cambio exitoso, el ViewModel (si usaste mi versión anterior)
+            // ya debería haber cambiado el currentScreen a MAIN_MENU.
+            // Si no, forzamos logout o navegación aquí.
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Establecer Contraseña",
-            style = MaterialTheme.typography.headlineMedium,
+            text = "Cambio de Contraseña",
+            style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.primary
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Es tu primera vez aquí. Por seguridad, cambia la contraseña temporal por una personal.",
+            text = "Por seguridad, debes cambiar tu contraseña temporal antes de continuar.",
             style = MaterialTheme.typography.bodyMedium
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // CAMPO: Nueva Contraseña (USO SIMPLIFICADO de KeyboardOptions y KeyboardType)
+        // Campo: Nueva Contraseña
         OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Nueva Contraseña") },
+            value = newPassword,
+            onValueChange = {
+                newPassword = it
+                localError = null
+            },
+            label = { Text("Nueva contraseña") },
             singleLine = true,
-            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions( // Usando KeyboardOptions importada
-                keyboardType = KeyboardType.Password // Usando KeyboardType importado
-            ),
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = { showPassword = !showPassword }) {
+                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                     Icon(
-                        imageVector = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                        contentDescription = if (showPassword) "Ocultar contraseña" else "Mostrar contraseña"
+                        imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = "Ver contraseña"
                     )
                 }
-            },
-            modifier = Modifier.fillMaxWidth()
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // CAMPO: Confirmar Contraseña (USO SIMPLIFICADO de KeyboardOptions y KeyboardType)
+        // Campo: Confirmar Contraseña
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("Confirmar Contraseña") },
+            onValueChange = {
+                confirmPassword = it
+                localError = null
+            },
+            label = { Text("Confirmar contraseña") },
             singleLine = true,
-            isError = confirmPassword.isNotBlank() && !passwordsMatch,
-            visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions( // Usando KeyboardOptions importada
-                keyboardType = KeyboardType.Password // Usando KeyboardType importado
-            ),
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = if (isConfirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
+                IconButton(onClick = { isConfirmVisible = !isConfirmVisible }) {
                     Icon(
-                        imageVector = if (showConfirmPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                        contentDescription = if (showConfirmPassword) "Ocultar contraseña" else "Mostrar contraseña"
+                        imageVector = if (isConfirmVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = "Ver contraseña"
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            isError = (confirmPassword.isNotEmpty() && !passwordsMatch)
         )
 
-        if (confirmPassword.isNotBlank() && !passwordsMatch) {
+        // Error simple de coincidencia debajo del campo
+        if (confirmPassword.isNotEmpty() && !passwordsMatch) {
             Text(
-                "Las contraseñas no coinciden",
+                text = "Las contraseñas no coinciden",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.align(Alignment.Start).padding(top = 4.dp)
+                modifier = Modifier.align(Alignment.Start).padding(start = 8.dp, top = 4.dp)
             )
         }
 
+        if (localError != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = localError!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- COMPONENTE VISUAL DE REQUISITOS ---
+        // (Asegúrate que esta función sea visible desde este archivo)
+        PasswordRequirementsList(isLengthMet, isUppercaseMet, isSpecialCharMet)
+
         Spacer(modifier = Modifier.height(24.dp))
 
-        // COMPONENTE: Requisitos de Contraseña
-        PasswordRequirementsList(
-            isLengthMet = isLengthMet,
-            isUppercaseMet = isUppercaseMet,
-            isSpecialCharMet = isSpecialCharMet
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // BOTÓN: Guardar y Entrar
         Button(
             onClick = {
-                viewModel.changeInitialPassword(password)
+                if (isFormValid) {
+                    viewModel.changeInitialPassword(newPassword)
+                } else {
+                    localError = "Por favor cumple con todos los requisitos de seguridad."
+                }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = isPasswordValid && !uiState.isLoading
+            // Deshabilitamos el botón si está cargando O si el formulario no es válido
+            enabled = !uiState.isLoading && isFormValid
         ) {
             if (uiState.isLoading) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             } else {
-                Text("Guardar y Entrar", fontWeight = FontWeight.Bold)
+                Text("Actualizar Contraseña")
             }
         }
-    }
-}
-
-// ==========================================================
-// COMPONENTE: LISTA DE REQUISITOS
-// ==========================================================
-
-@Composable
-fun PasswordRequirementsList(
-    isLengthMet: Boolean,
-    isUppercaseMet: Boolean,
-    isSpecialCharMet: Boolean
-) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        Text("La contraseña debe cumplir con:", style = MaterialTheme.typography.titleSmall)
-        Spacer(Modifier.height(8.dp))
-
-        RequirementItem(label = "Tener al menos 14 caracteres de largo", isMet = isLengthMet)
-        RequirementItem(label = "Incluir al menos una letra mayúscula", isMet = isUppercaseMet)
-        RequirementItem(label = "Incluir al menos un carácter especial (!@#$%^&+=...)", isMet = isSpecialCharMet)
-    }
-}
-
-@Composable
-fun RequirementItem(label: String, isMet: Boolean) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 4.dp)
-    ) {
-        val color = if (isMet) Color(0xFF4CAF50) else Color.Gray
-        val icon = if (isMet) Icons.Default.Check else Icons.Default.Close
-
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = label,
-            color = color,
-            style = MaterialTheme.typography.bodyMedium
-        )
     }
 }

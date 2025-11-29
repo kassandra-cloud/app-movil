@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.R
+import com.example.proyecto.data.AppScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.ui.theme.AppColors
 
@@ -137,15 +138,17 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 )
             )
 
+            // ENLACE RECUPERAR CONTRASEÑA
             Text(
                 text = "¿Olvidaste tu contraseña?",
                 // ✅ Color primario del tema
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.bodyMedium, // Tipografía escalable
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { /* TODO: recuperar contraseña */ },
+                    // 👇 NAVEGACIÓN A PANTALLA DE RECUPERACIÓN
+                    .clickable { viewModel.navigateTo(AppScreen.RECOVER_PASSWORD) },
                 textAlign = TextAlign.End
             )
 
@@ -190,14 +193,14 @@ private fun AuthHeader(title: String, subtitle: String) {
             // Mantenemos blanco sobre gradiente azul para contraste
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineMedium, // Escalable
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium, // Escalable
+                style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.9f)
             )
         }
@@ -217,7 +220,6 @@ private fun AuthButton(
             .fillMaxWidth()
             .height(56.dp),
         enabled = enabled,
-        // El contenedor es transparente porque dibujamos el gradiente en el Box interno
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
         shape = RoundedCornerShape(16.dp),
         contentPadding = PaddingValues(0.dp)
@@ -227,7 +229,6 @@ private fun AuthButton(
                 .fillMaxSize()
                 .background(projectButtonGradient, RoundedCornerShape(16.dp))
                 .then(
-                    // Opacidad visual si está deshabilitado
                     if (!enabled) Modifier.background(Color.Gray.copy(alpha = 0.5f)) else Modifier
                 ),
             contentAlignment = Alignment.Center
@@ -237,7 +238,7 @@ private fun AuthButton(
             } else {
                 Text(
                     text,
-                    style = MaterialTheme.typography.titleMedium, // Escalable
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
             }

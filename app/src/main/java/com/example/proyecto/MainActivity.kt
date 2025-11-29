@@ -9,7 +9,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels // 👈 IMPORTANTE
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -40,10 +40,11 @@ import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
 import com.example.proyecto.ui.talleres.TalleresScreen
 import com.example.proyecto.ui.theme.AppColors
-import com.example.proyecto.ui.theme.ConfiguracionScreen // 👈 IMPORTANTE
+import com.example.proyecto.ui.theme.ConfiguracionScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
 import com.example.proyecto.ui.theme.auth.ChangePasswordScreen
+import com.example.proyecto.ui.theme.auth.ForgotPasswordScreen // 👈 NUEVA IMPORTACIÓN
 import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
@@ -53,20 +54,13 @@ import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
-import com.example.proyecto.viewmodel.ThemeViewModel // 👈 IMPORTANTE
+import com.example.proyecto.viewmodel.ThemeViewModel
 import com.google.firebase.messaging.FirebaseMessaging
-
-// ---------------- Colores menú y globales ----------------
-val tuColorTextoPrimario = AppColors.TextPrimary
-val tuColorTextoSecundario = AppColors.GrisOscuroTexto
-val tuColorBlanco = AppColors.CardBg
 
 class MainActivity : ComponentActivity() {
 
-    // Estado para manejar notificaciones recibidas mientras la app ya está corriendo
     private val notificationDataState = mutableStateOf<Map<String, String>?>(null)
 
-    // Launcher para pedir permiso de notificaciones (Android 13+)
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -77,30 +71,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Permisos
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val estado = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-            if (estado != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
-        // 2. Suscripción a tópicos
         suscribirseATopicos()
-
-        // 3. Capturar notificación si la app se abre desde cero (Cold Start)
         notificationDataState.value = capturarDatosNotificacion(intent)
 
-        // 4. Instanciar ViewModel del Tema
+        // ViewModel del Tema (Inyectado)
         val themeViewModel: ThemeViewModel by viewModels()
 
         setContent {
-            // 5. Envolver la app con el Tema Dinámico usando el ViewModel
+            // Aplicamos tema dinámico
             ProyectoTheme(
                 darkTheme = themeViewModel.isDarkMode,
                 fontScale = themeViewModel.fontScale
             ) {
-                // Pasamos el themeViewModel a la pantalla principal
                 MainScreen(
                     notificationDataState = notificationDataState,
                     themeViewModel = themeViewModel
@@ -109,7 +97,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // 4. Capturar notificación si la app ya estaba abierta (Warm Start)
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         notificationDataState.value = capturarDatosNotificacion(intent)
@@ -125,9 +112,7 @@ class MainActivity : ComponentActivity() {
             val tipo = bundle.getString("tipo")
             val reunionId = bundle.getString("reunion_id")
             val actaId = bundle.getString("acta_id")
-
             if (tipo != null) {
-                Log.d("FCM", "🔔 Notificación: $tipo | RID: $reunionId | AID: $actaId")
                 val data = mutableMapOf("tipo" to tipo)
                 if (reunionId != null) data["reunion_id"] = reunionId
                 if (actaId != null) data["acta_id"] = actaId
@@ -142,12 +127,11 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(
     viewModel: LoginViewModel = viewModel(),
     reunionesVM: ReunionesViewModel = viewModel(),
-    themeViewModel: ThemeViewModel, // 👈 Nuevo Parámetro
+    themeViewModel: ThemeViewModel,
     notificationDataState: MutableState<Map<String, String>?>
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val token = uiState.token
-
     val notificationData = notificationDataState.value
 
     LaunchedEffect(notificationData, token) {
@@ -165,9 +149,7 @@ fun MainScreen(
                     }
                 }
                 "acta_aprobada" -> {
-                    if (actaId != null) {
-                        viewModel.openActaDesdeReunion(actaId)
-                    }
+                    if (actaId != null) viewModel.openActaDesdeReunion(actaId)
                 }
             }
             notificationDataState.value = null
@@ -175,24 +157,23 @@ fun MainScreen(
     }
 
     when (uiState.currentScreen) {
-
         LOGIN -> LoginScreen(viewModel)
+
+        // 👇 CASO DE RECUPERACIÓN DE CONTRASEÑA
+        RECOVER_PASSWORD -> ForgotPasswordScreen(
+            viewModel = viewModel,
+            onBack = { viewModel.navigateTo(LOGIN) }
+        )
 
         CHANGE_PASSWORD -> ChangePasswordScreen(viewModel)
 
         MAIN_MENU -> MainMenuScreen(viewModel)
 
-        // 👇 NUEVA PANTALLA DE CONFIGURACIÓN
         CONFIGURACION -> ContenidoProtegido(viewModel) {
-            ConfiguracionScreen(
-                themeViewModel = themeViewModel,
-                onBack = { viewModel.goBackToMainMenu() }
-            )
+            ConfiguracionScreen(themeViewModel = themeViewModel, onBack = { viewModel.goBackToMainMenu() })
         }
 
-        ANUNCIOS -> ContenidoProtegido(viewModel) {
-            AnunciosScreen(onBack = { viewModel.goBackToMainMenu() })
-        }
+        ANUNCIOS -> ContenidoProtegido(viewModel) { AnunciosScreen(onBack = { viewModel.goBackToMainMenu() }) }
 
         REUNIONES -> ContenidoProtegido(viewModel) {
             LaunchedEffect(Unit) {
@@ -218,11 +199,7 @@ fun MainScreen(
         REUNIONES_REALIZADAS -> ContenidoProtegido(viewModel) {
             ReunionesRealizadasScreen(
                 onBack = { viewModel.navigateTo(REUNIONES) },
-                onOpen = { dto ->
-                    if (dto.actaAprobada == true && dto.actaId != null) {
-                        viewModel.openActaDesdeReunion(dto.actaId)
-                    }
-                }
+                onOpen = { dto -> if (dto.actaAprobada == true && dto.actaId != null) viewModel.openActaDesdeReunion(dto.actaId) }
             )
         }
 
@@ -231,73 +208,42 @@ fun MainScreen(
         }
 
         REUNIONES_EN_CURSO -> ContenidoProtegido(viewModel) {
-            ReunionesEnCursoScreen(
-                onBack = { viewModel.navigateTo(REUNIONES) },
-                onOpen = { dto -> viewModel.openReunionEnCurso(dto) }
-            )
+            ReunionesEnCursoScreen(onBack = { viewModel.navigateTo(REUNIONES) }, onOpen = { viewModel.openReunionEnCurso(it) })
         }
 
         REUNION_EN_CURSO_DETALLE -> ContenidoProtegido(viewModel) {
             val reunion = uiState.selectedReunionEnCurso
-            if (reunion == null) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(REUNIONES_EN_CURSO) }
-            } else {
-                ReunionEnCursoDetalleScreen(
-                    reunion = reunion,
-                    onBack = { viewModel.closeReunionEnCurso() },
-                    onRefresh = {
-                        reunionesVM.refrescarReunionPorId(reunion.id) { act ->
-                            if (act != null) viewModel.updateSelectedReunionEnCurso(act)
-                        }
-                    }
-                )
-            }
+            if (reunion == null) LaunchedEffect(Unit) { viewModel.navigateTo(REUNIONES_EN_CURSO) }
+            else ReunionEnCursoDetalleScreen(
+                reunion = reunion,
+                onBack = { viewModel.closeReunionEnCurso() },
+                onRefresh = { reunionesVM.refrescarReunionPorId(reunion.id) { if (it != null) viewModel.updateSelectedReunionEnCurso(it) } }
+            )
         }
 
         ACTAS -> ContenidoProtegido(viewModel) {
-            ActasScreen(
-                onVerActa = { acta -> viewModel.openActaDetalle(acta) },
-                onBack = { viewModel.goBackToMainMenu() }
-            )
+            ActasScreen(onVerActa = { viewModel.openActaDetalle(it) }, onBack = { viewModel.goBackToMainMenu() })
         }
 
         ACTA_DETALLE -> ContenidoProtegido(viewModel) {
             val acta = uiState.selectedActa
-            if (acta == null) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
-            } else {
-                ActaDetalleScreen(acta = acta, onBack = { viewModel.closeActaDetalle() })
-            }
+            if (acta == null) LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
+            else ActaDetalleScreen(acta = acta, onBack = { viewModel.closeActaDetalle() })
         }
 
         ASISTENCIA -> ContenidoProtegido(viewModel) {
-            ForoScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() },
-                onVerComentar = { pub -> viewModel.openPublicacionDetalle(pub) })
+            ForoScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() }, onVerComentar = { viewModel.openPublicacionDetalle(it) })
         }
 
         ASISTENCIA_DETALLE -> ContenidoProtegido(viewModel) {
             val pub = uiState.selectedPublicacion
-            if (pub == null) {
-                LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
-            } else {
-                ForoDetalleScreen(
-                    token = token ?: "", usuarioActual = uiState.currentUser ?: "", publicacion = pub,
-                    onBack = { viewModel.closePublicacionDetalle() }
-                )
-            }
+            if (pub == null) LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
+            else ForoDetalleScreen(token = token ?: "", usuarioActual = uiState.currentUser ?: "", publicacion = pub, onBack = { viewModel.closePublicacionDetalle() })
         }
 
-        VOTACION -> ContenidoProtegido(viewModel) {
-            VotacionesScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() })
-        }
-
-        TALLERES -> ContenidoProtegido(viewModel) {
-            TalleresScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() })
-        }
-
-        RECURSOS -> ContenidoProtegido(viewModel) {
-            RecursosScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() })
-        }
+        VOTACION -> ContenidoProtegido(viewModel) { VotacionesScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() }) }
+        TALLERES -> ContenidoProtegido(viewModel) { TalleresScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() }) }
+        RECURSOS -> ContenidoProtegido(viewModel) { RecursosScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() }) }
     }
 }
 
@@ -317,7 +263,7 @@ private data class Module(val title: String, val subtitle: String, val icon: Ima
 @Composable
 fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
-    val userName = if (uiState.currentUser.isNullOrBlank()) "Usuario" else uiState.currentUser
+    val userName = uiState.currentUser ?: "Usuario"
 
     val modules = remember {
         listOf(
@@ -332,7 +278,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 
     var isGridView by rememberSaveable { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { // Uso color del tema
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier.fillMaxWidth().height(200.dp)
@@ -348,28 +294,16 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                 ) {
                     Column {
                         Text("¡BIENVENIDO!", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.8f))
-                        Text("$userName", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                        Text(userName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-
-                        // ⚙️ BOTÓN DE CONFIGURACIÓN (NUEVO)
                         IconButton(onClick = { viewModel.navigateTo(CONFIGURACION) }) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Configuración",
-                                tint = Color.White.copy(alpha = 0.9f),
-                                modifier = Modifier.size(28.dp)
-                            )
+                            Icon(Icons.Default.Settings, "Configuración", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(28.dp))
                         }
-
                         IconButton(onClick = { isGridView = !isGridView }) {
                             Icon(if (isGridView) Icons.Default.ViewList else Icons.Default.GridView, "Cambiar vista", tint = Color.White.copy(alpha = 0.9f))
                         }
-
-                        // Botón Salir (más pequeño para que quepa todo)
-                        IconButton(
-                            onClick = { viewModel.logout() },
-                        ) {
+                        IconButton(onClick = { viewModel.logout() }) {
                             Icon(Icons.Default.ExitToApp, "Salir", tint = Color.White)
                         }
                     }
@@ -397,7 +331,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 fun GridModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().height(160.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Uso color del tema
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(6.dp), shape = RoundedCornerShape(20.dp)
     ) {
         Column(
@@ -418,7 +352,7 @@ fun GridModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: C
 fun ModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Uso color del tema
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(6.dp), shape = RoundedCornerShape(20.dp)
     ) {
         Row(

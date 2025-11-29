@@ -66,5 +66,10 @@ interface ApiService {
         @Path("id") comentarioId: Int,
         @Header("Authorization") auth: String
     ): Response<Unit>
+    @POST("api/auth/request-code/")
+    suspend fun solicitarCodigo(@Body body: Map<String, String>): Response<Map<String, String>>
+
+    @POST("api/auth/reset-password-code/")
+    suspend fun restablecerPassword(@Body body: Map<String, String>): Response<Map<String, String>>
 
 }

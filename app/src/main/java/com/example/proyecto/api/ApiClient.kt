@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     // Ajusta la IP según tu entorno (10.0.2.2 para emulador, IP local para físico)
-    private const val BASE_URL = "http://192.168.1.8:8000/"
+    private const val BASE_URL = "http://192.168.0.105:8000/"
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY

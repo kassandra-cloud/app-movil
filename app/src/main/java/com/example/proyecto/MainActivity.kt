@@ -1,6 +1,7 @@
 package com.example.proyecto
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -29,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,7 +46,7 @@ import com.example.proyecto.ui.theme.ConfiguracionScreen
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
 import com.example.proyecto.ui.theme.auth.ChangePasswordScreen
-import com.example.proyecto.ui.theme.auth.ForgotPasswordScreen // 👈 NUEVA IMPORTACIÓN
+import com.example.proyecto.ui.theme.auth.ForgotPasswordScreen
 import com.example.proyecto.ui.theme.auth.LoginScreen
 import com.example.proyecto.ui.theme.foro.ForoDetalleScreen
 import com.example.proyecto.ui.theme.foro.ForoScreen
@@ -71,20 +73,32 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Permiso de notificaciones (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            if (
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
+        // Suscripción a tópicos FCM
         suscribirseATopicos()
         notificationDataState.value = capturarDatosNotificacion(intent)
 
-        // ViewModel del Tema (Inyectado)
+        // ViewModel de tema
         val themeViewModel: ThemeViewModel by viewModels()
 
+        // 👉 Cargar preferencias de tema (oscuro / claro + escala de fuente)
+        val prefsSettings = getSharedPreferences("app_settings", MODE_PRIVATE)
+        val savedDark = prefsSettings.getBoolean("dark_mode", false)
+        val savedScale = prefsSettings.getFloat("font_scale", 1.0f)
+        themeViewModel.setInitialTheme(savedDark, savedScale)
+
         setContent {
-            // Aplicamos tema dinámico
             ProyectoTheme(
                 darkTheme = themeViewModel.isDarkMode,
                 fontScale = themeViewModel.fontScale
@@ -133,7 +147,42 @@ fun MainScreen(
     val uiState by viewModel.uiState.collectAsState()
     val token = uiState.token
     val notificationData = notificationDataState.value
+    val context = LocalContext.current
 
+    // 👉 1) Restaurar sesión guardada al abrir la app
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("app_session", Context.MODE_PRIVATE)
+        val savedToken = prefs.getString("token", null)
+        val savedUser = prefs.getString("user_name", null)
+
+        if (!savedToken.isNullOrBlank() && uiState.token.isNullOrBlank()) {
+            viewModel.restoreSession(savedToken, savedUser)
+        }
+    }
+
+    // 👉 2) Guardar / limpiar sesión cuando cambie token o pantalla
+    LaunchedEffect(uiState.token, uiState.currentScreen) {
+        val prefs = context.getSharedPreferences("app_session", Context.MODE_PRIVATE)
+        if (!uiState.token.isNullOrBlank() && uiState.currentScreen == MAIN_MENU) {
+            prefs.edit()
+                .putString("token", uiState.token)
+                .putString("user_name", uiState.currentUser)
+                .apply()
+        } else if (uiState.token.isNullOrBlank()) {
+            prefs.edit().clear().apply()
+        }
+    }
+
+    // 👉 3) Guardar tema (oscuro/claro + escala) cada vez que cambie
+    LaunchedEffect(themeViewModel.isDarkMode, themeViewModel.fontScale) {
+        val prefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("dark_mode", themeViewModel.isDarkMode)
+            .putFloat("font_scale", themeViewModel.fontScale)
+            .apply()
+    }
+
+    // 👉 4) Manejo de notificaciones push
     LaunchedEffect(notificationData, token) {
         if (notificationData != null && !token.isNullOrBlank()) {
             val tipo = notificationData["tipo"]
@@ -148,6 +197,7 @@ fun MainScreen(
                         }
                     }
                 }
+
                 "acta_aprobada" -> {
                     if (actaId != null) viewModel.openActaDesdeReunion(actaId)
                 }
@@ -156,10 +206,10 @@ fun MainScreen(
         }
     }
 
+    // Navegación central según pantalla actual
     when (uiState.currentScreen) {
         LOGIN -> LoginScreen(viewModel)
 
-        // 👇 CASO DE RECUPERACIÓN DE CONTRASEÑA
         RECOVER_PASSWORD -> ForgotPasswordScreen(
             viewModel = viewModel,
             onBack = { viewModel.navigateTo(LOGIN) }
@@ -170,10 +220,15 @@ fun MainScreen(
         MAIN_MENU -> MainMenuScreen(viewModel)
 
         CONFIGURACION -> ContenidoProtegido(viewModel) {
-            ConfiguracionScreen(themeViewModel = themeViewModel, onBack = { viewModel.goBackToMainMenu() })
+            ConfiguracionScreen(
+                themeViewModel = themeViewModel,
+                onBack = { viewModel.goBackToMainMenu() }
+            )
         }
 
-        ANUNCIOS -> ContenidoProtegido(viewModel) { AnunciosScreen(onBack = { viewModel.goBackToMainMenu() }) }
+        ANUNCIOS -> ContenidoProtegido(viewModel) {
+            AnunciosScreen(onBack = { viewModel.goBackToMainMenu() })
+        }
 
         REUNIONES -> ContenidoProtegido(viewModel) {
             LaunchedEffect(Unit) {
@@ -181,9 +236,15 @@ fun MainScreen(
                 reunionesVM.refresh(ReunionEstado.PROGRAMADA)
                 reunionesVM.refresh(ReunionEstado.EN_CURSO)
             }
-            val stRealizadas by reunionesVM.realizadas.collectAsState(ReunionesViewModel.SectionState())
-            val stProgramadas by reunionesVM.programadas.collectAsState(ReunionesViewModel.SectionState())
-            val stEnCurso by reunionesVM.enCurso.collectAsState(ReunionesViewModel.SectionState())
+            val stRealizadas by reunionesVM.realizadas.collectAsState(
+                ReunionesViewModel.SectionState()
+            )
+            val stProgramadas by reunionesVM.programadas.collectAsState(
+                ReunionesViewModel.SectionState()
+            )
+            val stEnCurso by reunionesVM.enCurso.collectAsState(
+                ReunionesViewModel.SectionState()
+            )
 
             ReunionesScreen(
                 realizadasCount = stRealizadas.items.size,
@@ -199,51 +260,106 @@ fun MainScreen(
         REUNIONES_REALIZADAS -> ContenidoProtegido(viewModel) {
             ReunionesRealizadasScreen(
                 onBack = { viewModel.navigateTo(REUNIONES) },
-                onOpen = { dto -> if (dto.actaAprobada == true && dto.actaId != null) viewModel.openActaDesdeReunion(dto.actaId) }
+                onOpen = { dto ->
+                    if (dto.actaAprobada == true && dto.actaId != null) {
+                        viewModel.openActaDesdeReunion(dto.actaId)
+                    }
+                }
             )
         }
 
         REUNIONES_PROGRAMADAS -> ContenidoProtegido(viewModel) {
-            ReunionesProgramadasScreen(onBack = { viewModel.navigateTo(REUNIONES) }, onOpen = {})
+            ReunionesProgramadasScreen(
+                onBack = { viewModel.navigateTo(REUNIONES) },
+                onOpen = {}
+            )
         }
 
         REUNIONES_EN_CURSO -> ContenidoProtegido(viewModel) {
-            ReunionesEnCursoScreen(onBack = { viewModel.navigateTo(REUNIONES) }, onOpen = { viewModel.openReunionEnCurso(it) })
+            ReunionesEnCursoScreen(
+                onBack = { viewModel.navigateTo(REUNIONES) },
+                onOpen = { viewModel.openReunionEnCurso(it) }
+            )
         }
 
         REUNION_EN_CURSO_DETALLE -> ContenidoProtegido(viewModel) {
             val reunion = uiState.selectedReunionEnCurso
-            if (reunion == null) LaunchedEffect(Unit) { viewModel.navigateTo(REUNIONES_EN_CURSO) }
-            else ReunionEnCursoDetalleScreen(
-                reunion = reunion,
-                onBack = { viewModel.closeReunionEnCurso() },
-                onRefresh = { reunionesVM.refrescarReunionPorId(reunion.id) { if (it != null) viewModel.updateSelectedReunionEnCurso(it) } }
-            )
+            if (reunion == null) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(REUNIONES_EN_CURSO) }
+            } else {
+                ReunionEnCursoDetalleScreen(
+                    reunion = reunion,
+                    onBack = { viewModel.closeReunionEnCurso() },
+                    onRefresh = {
+                        reunionesVM.refrescarReunionPorId(reunion.id) { ref ->
+                            if (ref != null) viewModel.updateSelectedReunionEnCurso(ref)
+                        }
+                    }
+                )
+            }
         }
 
         ACTAS -> ContenidoProtegido(viewModel) {
-            ActasScreen(onVerActa = { viewModel.openActaDetalle(it) }, onBack = { viewModel.goBackToMainMenu() })
+            ActasScreen(
+                onVerActa = { viewModel.openActaDetalle(it) },
+                onBack = { viewModel.goBackToMainMenu() }
+            )
         }
 
         ACTA_DETALLE -> ContenidoProtegido(viewModel) {
             val acta = uiState.selectedActa
-            if (acta == null) LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
-            else ActaDetalleScreen(acta = acta, onBack = { viewModel.closeActaDetalle() })
+            if (acta == null) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(ACTAS) }
+            } else {
+                ActaDetalleScreen(
+                    acta = acta,
+                    onBack = { viewModel.closeActaDetalle() }
+                )
+            }
         }
 
         ASISTENCIA -> ContenidoProtegido(viewModel) {
-            ForoScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() }, onVerComentar = { viewModel.openPublicacionDetalle(it) })
+            ForoScreen(
+                token = token ?: "",
+                onBack = { viewModel.goBackToMainMenu() },
+                onVerComentar = { viewModel.openPublicacionDetalle(it) }
+            )
         }
 
         ASISTENCIA_DETALLE -> ContenidoProtegido(viewModel) {
             val pub = uiState.selectedPublicacion
-            if (pub == null) LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
-            else ForoDetalleScreen(token = token ?: "", usuarioActual = uiState.currentUser ?: "", publicacion = pub, onBack = { viewModel.closePublicacionDetalle() })
+            if (pub == null) {
+                LaunchedEffect(Unit) { viewModel.navigateTo(ASISTENCIA) }
+            } else {
+                ForoDetalleScreen(
+                    token = token ?: "",
+                    usuarioActual = uiState.currentUser ?: "",
+                    publicacion = pub,
+                    onBack = { viewModel.closePublicacionDetalle() }
+                )
+            }
         }
 
-        VOTACION -> ContenidoProtegido(viewModel) { VotacionesScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() }) }
-        TALLERES -> ContenidoProtegido(viewModel) { TalleresScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() }) }
-        RECURSOS -> ContenidoProtegido(viewModel) { RecursosScreen(token = token ?: "", onBack = { viewModel.goBackToMainMenu() }) }
+        VOTACION -> ContenidoProtegido(viewModel) {
+            VotacionesScreen(
+                token = token ?: "",
+                onBack = { viewModel.goBackToMainMenu() }
+            )
+        }
+
+        TALLERES -> ContenidoProtegido(viewModel) {
+            TalleresScreen(
+                token = token ?: "",
+                onBack = { viewModel.goBackToMainMenu() }
+            )
+        }
+
+        RECURSOS -> ContenidoProtegido(viewModel) {
+            RecursosScreen(
+                token = token ?: "",
+                onBack = { viewModel.goBackToMainMenu() }
+            )
+        }
     }
 }
 
@@ -252,13 +368,24 @@ fun ContenidoProtegido(viewModel: LoginViewModel, content: @Composable () -> Uni
     val uiState by viewModel.uiState.collectAsState()
     if (uiState.token.isNullOrBlank()) {
         LaunchedEffect(Unit) { viewModel.navigateTo(LOGIN) }
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        Box(
+            Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
     } else {
         content()
     }
 }
 
-private data class Module(val title: String, val subtitle: String, val icon: ImageVector, val color: Color, val screen: AppScreen)
+private data class Module(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val color: Color,
+    val screen: AppScreen
+)
 
 @Composable
 fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
@@ -267,107 +394,268 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 
     val modules = remember {
         listOf(
-            Module("Anuncios", "Novedades y noticias", Icons.Default.Campaign, Color(0xFFFF9800), ANUNCIOS),
-            Module("Reuniones", "Realizadas y programadas", Icons.Default.List, AppColors.IconoReuniones, REUNIONES),
-            Module("Foro", "Espacio de debate", Icons.Default.Person, AppColors.IconoForo, ASISTENCIA),
-            Module("Votación", "Sistema de votaciones", Icons.Default.CheckCircle, AppColors.IconoVotacion, VOTACION),
-            Module("Talleres", "Visualizar talleres", Icons.Default.Build, AppColors.IconoTalleres, TALLERES),
-            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, AppColors.Principal, RECURSOS)
+            Module(
+                "Anuncios",
+                "Novedades y noticias",
+                Icons.Default.Campaign,
+                Color(0xFFFF9800),
+                ANUNCIOS
+            ),
+            Module(
+                "Reuniones",
+                "Realizadas y programadas",
+                Icons.Default.List,
+                AppColors.IconoReuniones,
+                REUNIONES
+            ),
+            Module(
+                "Foro",
+                "Espacio de debate",
+                Icons.Default.Person,
+                AppColors.IconoForo,
+                ASISTENCIA
+            ),
+            Module(
+                "Votación",
+                "Sistema de votaciones",
+                Icons.Default.CheckCircle,
+                AppColors.IconoVotacion,
+                VOTACION
+            ),
+            Module(
+                "Talleres",
+                "Visualizar talleres",
+                Icons.Default.Build,
+                AppColors.IconoTalleres,
+                TALLERES
+            ),
+            Module(
+                "Recursos",
+                "Ver documentos",
+                Icons.Default.LibraryBooks,
+                AppColors.Principal,
+                RECURSOS
+            )
         )
     }
 
     var isGridView by rememberSaveable { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Column(Modifier.fillMaxSize()) {
+            // Cabecera con bienvenida
             Box(
-                modifier = Modifier.fillMaxWidth().height(200.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
                     .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
                     .background(AppColors.GradientePrincipal)
                     .padding(horizontal = 24.dp, vertical = 32.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("¡BIENVENIDO!", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.8f))
-                        Text(userName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                        Text(
+                            "¡BIENVENIDO!",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        Text(
+                            userName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { viewModel.navigateTo(CONFIGURACION) }) {
-                            Icon(Icons.Default.Settings, "Configuración", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(28.dp))
+                            Icon(
+                                Icons.Default.Settings,
+                                "Configuración",
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
                         IconButton(onClick = { isGridView = !isGridView }) {
-                            Icon(if (isGridView) Icons.Default.ViewList else Icons.Default.GridView, "Cambiar vista", tint = Color.White.copy(alpha = 0.9f))
+                            Icon(
+                                if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
+                                "Cambiar vista",
+                                tint = Color.White.copy(alpha = 0.9f)
+                            )
                         }
                         IconButton(onClick = { viewModel.logout() }) {
-                            Icon(Icons.Default.ExitToApp, "Salir", tint = Color.White)
+                            Icon(
+                                Icons.Default.ExitToApp,
+                                "Salir",
+                                tint = Color.White
+                            )
                         }
                     }
                 }
             }
 
+            // Contenido: grid o lista
             if (isGridView) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset(y = (-40).dp)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
-                ) { items(modules) { m -> GridModuleItem(m.title, m.subtitle, m.icon, m.color) { viewModel.navigateTo(m.screen) } } }
+                ) {
+                    items(modules) { m ->
+                        GridModuleItem(
+                            title = m.title,
+                            subtitle = m.subtitle,
+                            icon = m.icon,
+                            iconBg = m.color
+                        ) { viewModel.navigateTo(m.screen) }
+                    }
+                }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().offset(y = (-40).dp).padding(horizontal = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)
-                ) { items(modules) { m -> ModuleItem(m.title, m.subtitle, m.icon, m.color) { viewModel.navigateTo(m.screen) } } }
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset(y = (-40).dp)
+                        .padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    items(modules) { m ->
+                        ModuleItem(
+                            title = m.title,
+                            subtitle = m.subtitle,
+                            icon = m.icon,
+                            iconBg = m.color
+                        ) { viewModel.navigateTo(m.screen) }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun GridModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color, onClick: () -> Unit) {
+fun GridModuleItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconBg: Color,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(160.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(6.dp), shape = RoundedCornerShape(20.dp)
+        elevation = CardDefaults.cardElevation(6.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Card(modifier = Modifier.size(60.dp), colors = CardDefaults.cardColors(containerColor = iconBg), shape = RoundedCornerShape(16.dp)) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
+            Card(
+                modifier = Modifier.size(60.dp),
+                colors = CardDefaults.cardColors(containerColor = iconBg),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                }
             }
             Spacer(Modifier.height(16.dp))
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), textAlign = TextAlign.Center)
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
 
 @Composable
-fun ModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color, onClick: () -> Unit) {
+fun ModuleItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconBg: Color,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(6.dp), shape = RoundedCornerShape(20.dp)
+        elevation = CardDefaults.cardElevation(6.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onClick)
+                .padding(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Card(modifier = Modifier.size(52.dp), colors = CardDefaults.cardColors(containerColor = iconBg), shape = RoundedCornerShape(14.dp)) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
+            Card(
+                modifier = Modifier.size(52.dp),
+                colors = CardDefaults.cardColors(containerColor = iconBg),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                }
             }
             Spacer(Modifier.width(20.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
             }
-            Icon(Icons.Default.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

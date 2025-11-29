@@ -21,4 +21,8 @@ class ThemeViewModel : ViewModel() {
     fun changeFontScale(scale: Float) {
         fontScale = scale
     }
+    fun setInitialTheme(dark: Boolean, scale: Float) {
+        isDarkMode = dark
+        fontScale = scale.coerceIn(0.8f, 1.4f)
+    }
 }

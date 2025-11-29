@@ -53,7 +53,7 @@ class LoginViewModel : ViewModel() {
                         // Guardamos el token en la sesión global
                         SessionData.token = loginResponse.token
 
-                        // === LÓGICA DE NOMBRE REAL ===
+                        // === Nombre a mostrar ===
                         val nombre = loginResponse.user?.first_name
                         val apellido = loginResponse.user?.last_name
 
@@ -63,7 +63,7 @@ class LoginViewModel : ViewModel() {
                             loginResponse.user?.username ?: cleanUser
                         }
 
-                        // === LÓGICA DE REDIRECCIÓN (CAMBIO DE CONTRASEÑA) ===
+                        // === Redirección (cambio de contraseña inicial) ===
                         val debeCambiarPass = loginResponse.must_change_password == true
 
                         val proximaPantalla = if (debeCambiarPass) {
@@ -101,22 +101,19 @@ class LoginViewModel : ViewModel() {
     }
 
     // -----------------------------------------------------------
-    // CAMBIAR CONTRASEÑA INICIAL (Lógica Real Agregada)
+    // CAMBIAR CONTRASEÑA INICIAL
     // -----------------------------------------------------------
     fun changeInitialPassword(newPass: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                // 1. Obtenemos el token de la sesión actual
                 val token = SessionData.token
                 if (token == null) {
                     throw Exception("No hay sesión activa. Por favor, inicia sesión nuevamente.")
                 }
 
-                // 2. Preparamos el header Auth
                 val authHeader = "Token $token"
 
-                // 3. Llamamos al endpoint del backend
                 val response = ApiClient.apiService.cambiarPasswordInicial(
                     auth = authHeader,
                     body = mapOf("new_password" to newPass)
@@ -126,7 +123,6 @@ class LoginViewModel : ViewModel() {
                     val body = response.body()
                     val msg = body?.get("message")?.toString() ?: "Contraseña actualizada exitosamente"
 
-                    // 4. Éxito: Navegamos al menú principal
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -179,11 +175,13 @@ class LoginViewModel : ViewModel() {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 val api = ApiClient.createPublic(ApiService::class.java)
-                val response = api.restablecerPassword(mapOf(
-                    "email" to email,
-                    "code" to code,
-                    "new_password" to newPass
-                ))
+                val response = api.restablecerPassword(
+                    mapOf(
+                        "email" to email,
+                        "code" to code,
+                        "new_password" to newPass
+                    )
+                )
 
                 if (response.isSuccessful) {
                     _uiState.update { it.copy(isLoading = false, successMessage = "¡Contraseña actualizada! Inicia sesión.") }
@@ -205,7 +203,13 @@ class LoginViewModel : ViewModel() {
     }
 
     fun goBackToMainMenu() {
-        _uiState.update { it.copy(currentScreen = AppScreen.MAIN_MENU, selectedReunionEnCurso = null, selectedActa = null) }
+        _uiState.update {
+            it.copy(
+                currentScreen = AppScreen.MAIN_MENU,
+                selectedReunionEnCurso = null,
+                selectedActa = null
+            )
+        }
     }
 
     fun logout() {
@@ -219,25 +223,81 @@ class LoginViewModel : ViewModel() {
 
     // Navegación de detalles
     fun openReunionEnCurso(dto: com.example.proyecto.data.reuniones.ReunionDto) {
-        _uiState.update { it.copy(selectedReunionEnCurso = dto, currentScreen = AppScreen.REUNION_EN_CURSO_DETALLE) }
+        _uiState.update {
+            it.copy(
+                selectedReunionEnCurso = dto,
+                currentScreen = AppScreen.REUNION_EN_CURSO_DETALLE
+            )
+        }
     }
+
     fun closeReunionEnCurso() {
-        _uiState.update { it.copy(selectedReunionEnCurso = null, currentScreen = AppScreen.REUNIONES_EN_CURSO) }
+        _uiState.update {
+            it.copy(
+                selectedReunionEnCurso = null,
+                currentScreen = AppScreen.REUNIONES_EN_CURSO
+            )
+        }
     }
+
     fun updateSelectedReunionEnCurso(dto: com.example.proyecto.data.reuniones.ReunionDto) {
         _uiState.update { it.copy(selectedReunionEnCurso = dto) }
     }
-    fun openActaDesdeReunion(actaId: Int) { }
+
+    fun openActaDesdeReunion(actaId: Int) {
+        // Implementable más adelante si lo necesitas
+    }
+
     fun openActaDetalle(acta: com.example.proyecto.data.reuniones.ActaDto) {
-        _uiState.update { it.copy(selectedActa = acta, currentScreen = AppScreen.ACTA_DETALLE) }
+        _uiState.update {
+            it.copy(
+                selectedActa = acta,
+                currentScreen = AppScreen.ACTA_DETALLE
+            )
+        }
     }
+
     fun closeActaDetalle() {
-        _uiState.update { it.copy(selectedActa = null, currentScreen = AppScreen.ACTAS) }
+        _uiState.update {
+            it.copy(
+                selectedActa = null,
+                currentScreen = AppScreen.ACTAS
+            )
+        }
     }
+
     fun openPublicacionDetalle(pub: com.example.proyecto.data.PublicacionDto) {
-        _uiState.update { it.copy(selectedPublicacion = pub, currentScreen = AppScreen.ASISTENCIA_DETALLE) }
+        _uiState.update {
+            it.copy(
+                selectedPublicacion = pub,
+                currentScreen = AppScreen.ASISTENCIA_DETALLE
+            )
+        }
     }
+
     fun closePublicacionDetalle() {
-        _uiState.update { it.copy(selectedPublicacion = null, currentScreen = AppScreen.ASISTENCIA) }
+        _uiState.update {
+            it.copy(
+                selectedPublicacion = null,
+                currentScreen = AppScreen.ASISTENCIA
+            )
+        }
+    }
+
+    // -----------------------------------------------------------
+    // RESTAURAR SESIÓN DESDE SharedPreferences
+    // -----------------------------------------------------------
+    fun restoreSession(token: String, userName: String?) {
+        SessionData.token = token
+
+        _uiState.update {
+            it.copy(
+                token = token,
+                currentUser = userName ?: it.currentUser,
+                currentScreen = AppScreen.MAIN_MENU,
+                errorMessage = null,
+                successMessage = null
+            )
+        }
     }
 }

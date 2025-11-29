@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
+import com.example.proyecto.api.ActasApi // <-- Importar ActasApi
+import com.example.proyecto.data.SessionData // <-- Necesario para el token
 import com.example.proyecto.data.reuniones.ActaDto
 import com.example.proyecto.data.reuniones.AsistenciaDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,6 +75,35 @@ class ActasViewModel : ViewModel() {
     fun limpiarError() {
         _error.value = null
     }
+
+    // 🆕 NUEVA FUNCIÓN: Registra la consulta del acta
+    fun registrarConsulta(actaId: Int) {
+        val token = SessionData.token ?: run {
+            Log.w("ActasVM", "No se puede registrar consulta sin token de sesión.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                // Se necesita una instancia autorizada para llamar a la API
+                val api = ApiClient.createAuthorized(token, ActasApi::class.java)
+
+                // Llamamos a la nueva función
+                val response = api.registrarConsultaActa(actaId)
+
+                if (response.isSuccessful) {
+                    Log.d("ActasVM", "Consulta de Acta $actaId registrada con éxito. (HTTP 204)")
+                } else {
+                    // Si falla (ej: 404 si el acta no existe), lo logueamos
+                    Log.e("ActasVM", "Error ${response.code()} al registrar consulta de Acta $actaId")
+                }
+            } catch (e: Exception) {
+                // Error de red, timeout, etc.
+                Log.e("ActasVM", "Excepción al registrar consulta de Acta $actaId", e)
+            }
+        }
+    }
+
 
     // ---- Utilidades para la UI ----
 

@@ -9,6 +9,8 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.Response
 import com.example.proyecto.data.reuniones.ReunionDto
+import retrofit2.http.Headers
+import retrofit2.http.POST
 interface ReunionesApi {
     @GET("reuniones/api/actas/")
     suspend fun listarActas(
@@ -47,5 +49,8 @@ interface ReunionesApi {
         @Query("page_size") pageSize: Int = 500
     ): Response<List<AsistenciaDto>>
 
+    @Headers("Content-Type: application/json")
+    @POST("reuniones/api/actas/{id}/consultar/")
+    suspend fun registrarConsultaActa(@Path("id") actaId: Int): Response<Unit>
 
 }

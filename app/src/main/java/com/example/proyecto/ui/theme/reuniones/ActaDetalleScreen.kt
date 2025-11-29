@@ -12,30 +12,39 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect // <-- Importar LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel // <-- Importar viewModel
 import com.example.proyecto.data.reuniones.ActaDto
-// 🔑 IMPORTAMOS SOLAMENTE LA FUENTE DE COLORES CENTRALIZADA
 import com.example.proyecto.ui.theme.AppColors
+import com.example.proyecto.viewmodel.ActasViewModel // <-- Importar ActasViewModel
 
-// 🔑 DEFINICIONES DE COLOR UNIFICADAS: Usamos AppColors directamente
-val ColorPrincipal = AppColors.Principal // #287BFF
-val ColorSecundario = AppColors.Secundario // #5C9FF7 (Azul más claro para acento/chip)
-val ColorCardBg = AppColors.GrisClaroFondo // #EEEEEE (Gris muy claro para el fondo de tarjeta)
-val ColorTextPrimary = AppColors.TextPrimary // #1E1E28 (Texto oscuro)
-val ColorGrisOscuroTexto = AppColors.GrisOscuroTexto // #616161 (Gris oscuro para fechas/subtítulos)
+val ColorPrincipal = AppColors.Principal
+val ColorSecundario = AppColors.Secundario
+val ColorCardBg = AppColors.GrisClaroFondo
+val ColorTextPrimary = AppColors.TextPrimary
+val ColorGrisOscuroTexto = AppColors.GrisOscuroTexto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActaDetalleScreen(
     acta: ActaDto,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    // 🆕 Se inyecta el ViewModel (o una función de registro)
+    viewModel: ActasViewModel = viewModel()
 ) {
     BackHandler { onBack() }
+
+    // 🆕 LÓGICA CLAVE: Registra la consulta del acta la primera vez que se carga la pantalla
+    LaunchedEffect(key1 = acta.reunion) {
+        viewModel.registrarConsulta(acta.reunion)
+    }
+    // -------------------------------------------------------------------------------------
 
     Box(
         modifier = Modifier
@@ -172,7 +181,8 @@ fun PreviewActaDetalleScreen() {
     MaterialTheme {
         ActaDetalleScreen(
             acta = actaEjemplo,
-            onBack = {}
+            onBack = {},
+            // Nota: Aquí el preview no tiene un ViewModel real, pero la llamada de registro no fallará.
         )
     }
 }

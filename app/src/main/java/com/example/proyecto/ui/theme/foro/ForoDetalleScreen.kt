@@ -11,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -29,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -43,16 +41,15 @@ import coil.request.ImageRequest
 import com.example.proyecto.data.AdjuntoDto
 import com.example.proyecto.data.ComentarioDto
 import com.example.proyecto.data.PublicacionDto
+import com.example.proyecto.ui.components.AudioPlayer
+import com.example.proyecto.ui.theme.AppColors // 👈 IMPORTANTE: Tus colores
 import com.example.proyecto.utils.getMimeType
+import com.example.proyecto.utils.startDownload
 import com.example.proyecto.utils.uriToFile
 import com.example.proyecto.viewmodel.ForoViewModel
 import java.io.File
 import java.io.IOException
-import android.util.Log
 
-// NUEVOS IMPORTS para AudioPlayer y Descargas
-import com.example.proyecto.ui.components.AudioPlayer
-import com.example.proyecto.utils.startDownload
 // -----------------------------------------------------------
 // CLASES SELLADAS
 // -----------------------------------------------------------
@@ -109,57 +106,31 @@ fun ForoDetalleScreen(
     var docPreviewUri by remember { mutableStateOf<Uri?>(null) }
     var caption by remember { mutableStateOf("") }
 
-
-
     // -----------------------------------------------------------
-    // VARIABLES PARA AUDIO
+    // VARIABLES AUDIO Y ARCHIVOS
     // -----------------------------------------------------------
     var isRecording by remember { mutableStateOf(false) }
     var recorder: MediaRecorder? by remember { mutableStateOf(null) }
     var audioFile: File? by remember { mutableStateOf(null) }
 
-    // -----------------------------------------------------------
-    // DOCUMENTOS - LAUNCHER FUNCIONAL
-    // -----------------------------------------------------------
-    val docLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let { docPreviewUri = it }
+    val docLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        docPreviewUri = uri
     }
-
-    val audioLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let { audioPreviewUri = it }
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        imagenPreviewUri = uri
     }
-
-    // -----------------------------------------------------------
-    // PERMISO DE MIC
-    // -----------------------------------------------------------
-    val micPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
+    val micPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) Toast.makeText(context, "Permiso denegado", Toast.LENGTH_SHORT).show()
     }
 
-    // -----------------------------------------------------------
-    // FUNCIONES AUDIO
-    // -----------------------------------------------------------
     fun startRecording() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
-
         val file = File(context.cacheDir, "nota_voz.m4a")
         audioFile = file
-
-        val r = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            MediaRecorder(context)
-        else MediaRecorder()
-
+        val r = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else MediaRecorder()
         r.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
@@ -181,216 +152,72 @@ fun ForoDetalleScreen(
             recorder?.stop()
             recorder?.release()
         } catch (_: Exception) {}
-
         recorder = null
         isRecording = false
-
         audioFile?.let { file ->
-            vm.enviarArchivo(
-                token = token,
-                publicacionId = pubActual.id,
-                file = file,
-                mimeType = "audio/m4a",
-                textoCaption = ""
-            )
+            vm.enviarArchivo(token, pubActual.id, file, "audio/m4a", "")
             Toast.makeText(context, "Audio enviado", Toast.LENGTH_SHORT).show()
         }
     }
 
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        imagenPreviewUri = uri
-    }
-
-    val adjuntosPrincipales = remember(pubActual) {
-        (pubActual.adjuntos ?: emptyList()).filter { !it.esMensaje }
-    }
-
+    val adjuntosPrincipales = remember(pubActual) { (pubActual.adjuntos ?: emptyList()).filter { !it.esMensaje } }
     val chatList = remember(pubActual) {
         val comentarios = (pubActual.comentarios ?: emptyList()).map { ChatItem.Comentario(it) }
-        val adjuntos = (pubActual.adjuntos ?: emptyList())
-            .filter { it.esMensaje }
-            .map { ChatItem.Adjunto(it) }
-
+        val adjuntos = (pubActual.adjuntos ?: emptyList()).filter { it.esMensaje }.map { ChatItem.Adjunto(it) }
         (comentarios + adjuntos).sortedBy { it.fecha }
     }
 
     // -----------------------------------------------------------
-    // DIALOGOS
+    // DIALOGOS DE CONFIRMACIÓN DE ENVÍO
     // -----------------------------------------------------------
-    if (imagenPreviewUri != null) {
-        var caption by remember { mutableStateOf("") }
-
-        Dialog(onDismissRequest = { imagenPreviewUri = null }) {
-            Card(shape = RoundedCornerShape(16.dp)) {
+    // (Mantenemos la lógica de diálogos igual, solo asegurando colores)
+    if (imagenPreviewUri != null || audioPreviewUri != null || docPreviewUri != null) {
+        Dialog(onDismissRequest = {
+            imagenPreviewUri = null; audioPreviewUri = null; docPreviewUri = null; caption = ""
+        }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Enviar Imagen", style = MaterialTheme.typography.titleMedium)
+                    Text("Confirmar Envío", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(16.dp))
 
-                    AsyncImage(
-                        model = imagenPreviewUri,
-                        contentDescription = null,
-                        modifier = Modifier.heightIn(max = 250.dp).clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Fit
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = caption,
-                        onValueChange = { caption = it },
-                        placeholder = { Text("Comentario opcional...") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        OutlinedButton(onClick = { imagenPreviewUri = null }) {
-                            Text("Cancelar")
-                        }
-                        Button(onClick = {
-                            imagenPreviewUri?.let { uri ->
-                                val file = uriToFile(context, uri)
-                                if (file != null) {
-                                    vm.enviarArchivo(
-                                        token,
-                                        pubActual.id,
-                                        file,
-                                        getMimeType(file),
-                                        caption
-                                    )
-                                }
-                            }
-                            imagenPreviewUri = null
-                        }) {
-                            Text("Enviar")
-                        }
+                    if (imagenPreviewUri != null) {
+                        AsyncImage(
+                            model = imagenPreviewUri, contentDescription = null,
+                            modifier = Modifier.heightIn(max = 200.dp).clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else if (docPreviewUri != null) {
+                        Icon(Icons.Default.Description, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text("Documento seleccionado", style = MaterialTheme.typography.bodySmall)
                     }
-                }
-            }
-        }
-    }
-    if (audioPreviewUri != null) {
-        Dialog(onDismissRequest = { audioPreviewUri = null; caption = "" }) {
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Enviar Audio", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(16.dp))
-
-                    // Player simple
-                    Text("Archivo de audio seleccionado") // puedes mejorar con MediaPlayer
 
                     Spacer(Modifier.height(16.dp))
-
                     OutlinedTextField(
-                        value = caption,
-                        onValueChange = { caption = it },
+                        value = caption, onValueChange = { caption = it },
                         placeholder = { Text("Comentario opcional...") },
                         modifier = Modifier.fillMaxWidth()
                     )
-
                     Spacer(Modifier.height(16.dp))
-
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        OutlinedButton(onClick = { audioPreviewUri = null; caption = "" }) {
-                            Text("Cancelar")
-                        }
+                        OutlinedButton(onClick = { imagenPreviewUri = null; docPreviewUri = null; caption = "" }) { Text("Cancelar") }
                         Button(onClick = {
-                            audioPreviewUri?.let { uri ->
-                                val file = uriToFile(context, uri)
-                                if (file != null) {
-                                    vm.enviarArchivo(token, pubActual.id, file, "audio/m4a", caption)
-                                }
+                            val uri = imagenPreviewUri ?: docPreviewUri
+                            uri?.let { u ->
+                                val file = uriToFile(context, u)
+                                if (file != null) vm.enviarArchivo(token, pubActual.id, file, getMimeType(file), caption)
                             }
-                            audioPreviewUri = null
-                            caption = ""
+                            imagenPreviewUri = null; docPreviewUri = null; caption = ""
                         }) { Text("Enviar") }
                     }
                 }
             }
         }
     }
-    if (docPreviewUri != null) {
-        Dialog(onDismissRequest = { docPreviewUri = null; caption = "" }) {
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Enviar Documento", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(16.dp))
 
-                    // Intentamos mostrar el nombre real
-                    val fileName = remember(docPreviewUri) {
-                        docPreviewUri?.let { uri ->
-                            var name = "Desconocido"
-                            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                                val index = cursor.getColumnIndex("_display_name")
-                                if (cursor.moveToFirst() && index != -1) {
-                                    name = cursor.getString(index)
-                                }
-                            }
-                            name
-                        } ?: "Desconocido"
-                    }
-
-                    Text("Archivo: $fileName")
-
-                    Spacer(Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = caption,
-                        onValueChange = { caption = it },
-                        placeholder = { Text("Comentario opcional...") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        OutlinedButton(onClick = { docPreviewUri = null; caption = "" }) {
-                            Text("Cancelar")
-                        }
-                        Button(onClick = {
-                            docPreviewUri?.let { uri ->
-                                try {
-                                    // Crear archivo temporal en cache
-                                    val inputStream = context.contentResolver.openInputStream(uri)
-                                    val tempFile = File(context.cacheDir, fileName)
-                                    inputStream?.use { input ->
-                                        tempFile.outputStream().use { output ->
-                                            input.copyTo(output)
-                                        }
-                                    }
-
-                                    // Enviar archivo
-                                    vm.enviarArchivo(
-                                        token = token,
-                                        publicacionId = pubActual.id,
-                                        file = tempFile,
-                                        mimeType = getMimeType(tempFile),
-                                        textoCaption = caption
-                                    )
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Error al enviar documento", Toast.LENGTH_SHORT).show()
-                                    e.printStackTrace()
-                                }
-                            }
-                            docPreviewUri = null
-                            caption = ""
-                        }) {
-                            Text("Enviar")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-
-    // -----------------------------------------------------------
-    // DIALOGO BORRAR
-    // -----------------------------------------------------------
+    // Dialogo Borrar
     if (itemAEliminar != null) {
         AlertDialog(
             onDismissRequest = { itemAEliminar = null },
@@ -404,34 +231,36 @@ fun ForoDetalleScreen(
                         null -> {}
                     }
                     itemAEliminar = null
-                }) { Text("Eliminar", color = Color.Red) }
+                }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = {
-                TextButton(onClick = { itemAEliminar = null }) { Text("Cancelar") }
-            }
+            dismissButton = { TextButton(onClick = { itemAEliminar = null }) { Text("Cancelar") } }
         )
     }
 
     // -----------------------------------------------------------
-    // UI PRINCIPAL
+    // UI PRINCIPAL SCAFFOLD
     // -----------------------------------------------------------
-
     Scaffold(
         topBar = {
-            SmallTopAppBar(
+            // ✅ BARRA CON GRADIENTE DE MARCA
+            TopAppBar(
                 title = {
                     Column {
                         Text("Foro", style = MaterialTheme.typography.titleMedium)
-                        Text("#${pubActual.autor ?: "Anónimo"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray)
+                        Text("#${pubActual.autor ?: "Anónimo"}", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                ),
+                modifier = Modifier.background(AppColors.GradientePrincipal)
             )
         }
     ) { padding ->
@@ -440,311 +269,162 @@ fun ForoDetalleScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF5F5F5))
+                // ✅ Fondo Dinámico
+                .background(MaterialTheme.colorScheme.background)
         ) {
 
             // -----------------------------------------------------------
-            // LISTA DE MENSAJES
+            // LISTA DE MENSAJES (CHAT)
             // -----------------------------------------------------------
             LazyColumn(
                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                 contentPadding = PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // CABECERA PUBLICACION
+                // CABECERA DE LA PUBLICACIÓN ORIGINAL
                 item {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(12.dp)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(pubActual.contenido ?: "", style = MaterialTheme.typography.bodyLarge)
-                            Text(pubActual.fechaCreacion ?: "", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            Text(pubActual.contenido ?: "", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                            Spacer(Modifier.height(4.dp))
+                            Text(pubActual.fechaCreacion ?: "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                             if (adjuntosPrincipales.isNotEmpty()) {
                                 Spacer(Modifier.height(12.dp))
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    items(adjuntosPrincipales) { adj ->
-                                        ImagenOficial(adj)
-                                    }
+                                    items(adjuntosPrincipales) { adj -> ImagenOficial(adj) }
                                 }
                             }
                         }
                     }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 }
 
-                // CHAT
+                // MENSAJES
                 items(chatList) { item ->
-                    when (item) {
-                        is ChatItem.Comentario -> {
-                            // 🔹 CÁLCULO DE INDENTACIÓN (Efecto Escalera)
-                            val isReply = item.dto.parent != null
-                            val indentModifier = if (isReply) Modifier.padding(start = 40.dp) else Modifier
+                    val esMio = when(item) {
+                        is ChatItem.Comentario -> item.dto.autor == usuarioActual
+                        is ChatItem.Adjunto -> item.dto.autor == usuarioActual
+                    }
+                    val autor = if(item is ChatItem.Comentario) item.dto.autor else (item as ChatItem.Adjunto).dto.autor
+                    val fecha = item.fecha
 
-                            ChatBubble(
-                                autor = item.dto.autor ?: "Anónimo",
-                                fecha = item.dto.fechaCreacion ?: "",
-                                esMio = item.dto.autor == usuarioActual,
-                                modifier = indentModifier, // 🔹 APLICAMOS EL MODIFICADOR
-                                contenido = {
-                                    val parent = pubActual.comentarios?.find { it.id == item.dto.parent }
-                                    if (parent != null) {
-                                        Text("↳ @${parent.autor}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    Text(item.dto.contenido ?: "")
-                                },
-                                footer = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(
-                                            onClick = {
-                                                comentarioAResponder = item.dto.autor
-                                                parentId = item.dto.id
-                                            },
-                                            modifier = Modifier.size(20.dp)
-                                        ) {
-                                            Icon(Icons.AutoMirrored.Filled.Reply, null, tint = Color.Gray)
-                                        }
+                    // Renderizar Comentario o Adjunto
+                    if (item is ChatItem.Comentario) {
+                        val isReply = item.dto.parent != null
+                        // Sangría visual para respuestas
+                        val indentModifier = if (isReply) Modifier.padding(start = 20.dp) else Modifier
 
-                                        Spacer(Modifier.width(8.dp))
-
-                                        IconButton(
-                                            onClick = { vm.toggleLike(token, item.dto.id, pubActual.id) },
-                                            modifier = Modifier.size(20.dp)
-                                        ) {
-                                            Icon(
-                                                if (item.dto.meGustaUsuario) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                                                null,
-                                                tint = if (item.dto.meGustaUsuario) MaterialTheme.colorScheme.primary else Color.Gray
-                                            )
-                                        }
-
-                                        if (item.dto.totalLikes > 0)
-                                            Text(" ${item.dto.totalLikes}", fontSize = 12.sp, color = Color.Gray)
-
-                                        if (item.dto.autor == usuarioActual) {
-                                            Spacer(Modifier.width(8.dp))
-                                            IconButton(
-                                                onClick = { itemAEliminar = DeleteTarget.Comentario(item.dto.id) },
-                                                modifier = Modifier.size(20.dp)
-                                            ) {
-                                                Icon(Icons.Default.Delete, null, tint = Color.Red)
-                                            }
-                                        }
-                                    }
+                        ChatBubble(
+                            autor = autor ?: "Anónimo",
+                            fecha = fecha,
+                            esMio = esMio,
+                            modifier = indentModifier,
+                            contenido = {
+                                val parent = pubActual.comentarios?.find { it.id == item.dto.parent }
+                                if (parent != null) {
+                                    Text("↳ @${parent.autor}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
-                            )
-                        }
-
-                        is ChatItem.Adjunto -> {
-                            // Los adjuntos se dejan sin indentación
-                            ChatBubble(
-                                autor = item.dto.autor ?: "Anónimo",
-                                fecha = item.dto.fechaCreacion ?: "",
-                                esMio = item.dto.autor == usuarioActual,
-                                contenido = {
-                                    Column {
-                                        when (item.dto.tipoArchivo) {
-                                            "imagen" -> {
-                                                AsyncImage(
-                                                    model = item.dto.url,
-                                                    contentDescription = null,
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .heightIn(max = 250.dp)
-                                                        .clip(RoundedCornerShape(8.dp)),
-                                                    contentScale = ContentScale.Crop
-                                                )
-                                            }
-
-                                            "audio" -> {
-                                                // 🔊 INTEGRACIÓN DEL REPRODUCTOR DE AUDIO
-                                                if (!item.dto.url.isNullOrBlank()) {
-                                                    AudioPlayer(audioUrl = item.dto.url)
-                                                } else {
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Icon(Icons.Default.Audiotrack, null, tint = Color.Red)
-                                                        Spacer(Modifier.width(4.dp))
-                                                        Text("Error: Audio no disponible")
-                                                    }
-                                                }
-                                            }
-
-                                            // Manejar otros documentos (PDF, DOCX, etc.)
-                                            else -> {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Icon(Icons.Default.Description, null, tint = MaterialTheme.colorScheme.secondary)
-                                                    Spacer(Modifier.width(8.dp))
-
-                                                    // 📝 Nombre del archivo
-                                                    val fileName = item.dto.archivo ?: "documento_adjunto"
-                                                    Text(
-                                                        fileName,
-                                                        modifier = Modifier.weight(1f),
-                                                        style = MaterialTheme.typography.bodyMedium
-                                                    )
-
-                                                    // ⬇️ Botón de Descarga
-                                                    IconButton(
-                                                        onClick = {
-                                                            if (!item.dto.url.isNullOrBlank()) {
-                                                                startDownload(context, item.dto.url, fileName)
-                                                                Toast.makeText(context, "Descarga iniciada", Toast.LENGTH_SHORT).show()
-                                                            } else {
-                                                                Toast.makeText(context, "URL de descarga no disponible", Toast.LENGTH_SHORT).show()
-                                                            }
-                                                        },
-                                                        modifier = Modifier.size(36.dp)
-                                                    ) {
-                                                        Icon(Icons.Default.Download, contentDescription = "Descargar documento", tint = MaterialTheme.colorScheme.primary)
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        if (!item.dto.descripcion.isNullOrBlank()) {
-                                            Spacer(Modifier.height(8.dp))
-                                            Text(item.dto.descripcion, style = MaterialTheme.typography.bodyMedium)
-                                        }
-                                    }
-                                },
-                                footer = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-
-                                        IconButton(
-                                            onClick = {
-                                                comentarioAResponder = item.dto.autor
-                                                parentId = null
-                                            },
-                                            modifier = Modifier.size(20.dp)
-                                        ) {
-                                            Icon(Icons.AutoMirrored.Filled.Reply, null, tint = Color.Gray)
-                                        }
-
-                                        Spacer(Modifier.width(8.dp))
-
-                                        IconButton(
-                                            onClick = { vm.toggleLikeAdjunto(token, item.dto.id, pubActual.id) },
-                                            modifier = Modifier.size(20.dp)
-                                        ) {
-                                            Icon(
-                                                if (item.dto.meGustaUsuario) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                                                null,
-                                                tint = if (item.dto.meGustaUsuario) MaterialTheme.colorScheme.primary else Color.Gray
-                                            )
-                                        }
-
-                                        if (item.dto.totalLikes > 0)
-                                            Text(" ${item.dto.totalLikes}", fontSize = 12.sp, color = Color.Gray)
-
-                                        if (item.dto.autor == usuarioActual) {
-                                            Spacer(Modifier.width(8.dp))
-                                            IconButton(
-                                                onClick = { itemAEliminar = DeleteTarget.Adjunto(item.dto.id) },
-                                                modifier = Modifier.size(20.dp)
-                                            ) {
-                                                Icon(Icons.Default.Delete, null, tint = Color.Red)
-                                            }
-                                        }
-                                    }
-                                }
-                            )
-                        }
+                                Text(item.dto.contenido ?: "", style = MaterialTheme.typography.bodyMedium)
+                            },
+                            footer = {
+                                ChatFooterActions(
+                                    esMio = esMio,
+                                    liked = item.dto.meGustaUsuario,
+                                    likes = item.dto.totalLikes,
+                                    onReply = { comentarioAResponder = item.dto.autor; parentId = item.dto.id },
+                                    onLike = { vm.toggleLike(token, item.dto.id, pubActual.id) },
+                                    onDelete = { itemAEliminar = DeleteTarget.Comentario(item.dto.id) }
+                                )
+                            }
+                        )
+                    } else if (item is ChatItem.Adjunto) {
+                        ChatBubble(
+                            autor = autor ?: "Anónimo",
+                            fecha = fecha,
+                            esMio = esMio,
+                            contenido = {
+                                ChatAttachmentContent(item.dto, context)
+                            },
+                            footer = {
+                                ChatFooterActions(
+                                    esMio = esMio,
+                                    liked = item.dto.meGustaUsuario,
+                                    likes = item.dto.totalLikes,
+                                    onReply = { comentarioAResponder = item.dto.autor; parentId = null },
+                                    onLike = { vm.toggleLikeAdjunto(token, item.dto.id, pubActual.id) },
+                                    onDelete = { itemAEliminar = DeleteTarget.Adjunto(item.dto.id) }
+                                )
+                            }
+                        )
                     }
                 }
             }
 
             // -----------------------------------------------------------
-            // INPUT
+            // BARRA DE INPUT
             // -----------------------------------------------------------
-
             Column(
                 modifier = Modifier
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface) // ✅ Fondo barra input
                     .padding(8.dp)
             ) {
-
+                // Barra de respuesta activa
                 if (comentarioAResponder != null) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFEEEEEE), RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                             .padding(8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Respondiendo a @$comentarioAResponder", fontSize = 12.sp)
-                        Icon(
-                            Icons.Default.Close,
-                            null,
-                            modifier = Modifier.clickable {
-                                comentarioAResponder = null
-                                parentId = null
-                            }
-                        )
+                        Text("Respondiendo a @$comentarioAResponder", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.Close, null, modifier = Modifier.clickable { comentarioAResponder = null; parentId = null }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
-                if (errorSend != null)
-                    Text(errorSend, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                if (errorSend != null) Text(errorSend, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    // IMAGEN
+                    // Botones de adjuntos
                     IconButton(onClick = { galleryLauncher.launch("image/*") }) {
                         Icon(Icons.Default.Image, null, tint = MaterialTheme.colorScheme.primary)
                     }
-
-                    // DOCUMENTO
                     IconButton(onClick = { docLauncher.launch("*/*") }) {
-                        Icon(Icons.Default.Description, null, tint = Color.Gray)
+                        Icon(Icons.Default.Description, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    // Audio
+                    IconButton(onClick = { if (isRecording) stopRecordingAndSend() else startRecording() }) {
+                        Icon(Icons.Default.Mic, "Grabar", tint = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary)
                     }
 
-                    // AUDIO
-                    IconButton(
-                        onClick = {
-                            if (isRecording) {
-                                stopRecordingAndSend()  // Detiene la grabación y envía
-                            } else {
-                                startRecording()        // Empieza la grabación
-                            }
-                        }
-                    ) {
-                        Icon(
-                            Icons.Default.Mic,
-                            "Grabar",
-                            tint = if (isRecording) Color.Red else MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                    // TEXTO
+                    // Campo de texto
                     OutlinedTextField(
                         value = nuevoComentario,
                         onValueChange = { nuevoComentario = it },
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                         placeholder = { Text(if (isRecording) "Grabando..." else "Comentar...") },
-                        shape = RoundedCornerShape(24.dp)
+                        shape = RoundedCornerShape(24.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
                     )
 
-                    // ENVIAR
+                    // Enviar
                     IconButton(
                         onClick = {
                             vm.comentar(token, pubActual.id, nuevoComentario, parentId)
-                            nuevoComentario = ""
-                            comentarioAResponder = null
-                            parentId = null
+                            nuevoComentario = ""; comentarioAResponder = null; parentId = null
                         },
                         enabled = !posting && nuevoComentario.isNotBlank()
                     ) {
-                        if (posting)
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        else
-                            Icon(Icons.Default.Send, null, tint = MaterialTheme.colorScheme.primary)
+                        if (posting) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        else Icon(Icons.Default.Send, null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -753,7 +433,7 @@ fun ForoDetalleScreen(
 }
 
 // -----------------------------------------------------------
-// COMPONENTES
+// COMPONENTES DE AYUDA
 // -----------------------------------------------------------
 
 @Composable
@@ -762,9 +442,7 @@ fun ImagenOficial(adjunto: AdjuntoDto) {
     AsyncImage(
         model = ImageRequest.Builder(context).data(adjunto.url).crossfade(true).build(),
         contentDescription = null,
-        modifier = Modifier.size(100.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.LightGray),
+        modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
         contentScale = ContentScale.Crop
     )
 }
@@ -779,23 +457,14 @@ fun ChatBubble(
     footer: (@Composable () -> Unit)?
 ) {
     Row(
-        // APLICAMOS INDENTACIÓN Y FULL WIDTH
         modifier = modifier.fillMaxWidth(),
-        // Usamos Arrangement.Start y el Spacer con peso para controlar la alineación
         horizontalArrangement = Arrangement.Start
     ) {
-
-        // 🔹 1. EMPUJAR A LA DERECHA (Mensajes Propios)
-        if (esMio) {
-            // El Spacer toma el espacio restante, empujando el mensaje a la derecha.
-            Spacer(Modifier.weight(1f))
-        } else {
-            // 🔹 2. AVATAR (Izquierda, para Otros)
-            Surface(
-                shape = CircleShape,
-                color = Color.Gray,
-                modifier = Modifier.size(32.dp)
-            ) {
+        // Empujar a la derecha si es mío
+        if (esMio) Spacer(Modifier.weight(1f))
+        else {
+            // Avatar para otros
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(32.dp)) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(autor.take(1).uppercase(), color = Color.White, fontSize = 14.sp)
                 }
@@ -803,40 +472,38 @@ fun ChatBubble(
             Spacer(Modifier.width(8.dp))
         }
 
-        // 🔹 3. CHAT BUBBLE CONTENT (Burbuja del Mensaje)
+        // Contenido Burbuja
         Column(
-            // CRÍTICO: Limita el ancho máximo de la burbuja (ej: 300dp)
             modifier = Modifier.widthIn(max = 300.dp),
-            // Alineación de elementos internos (autor/fecha/footer)
             horizontalAlignment = if (esMio) Alignment.End else Alignment.Start
         ) {
-
             Row(
-                modifier = Modifier.fillMaxWidth(), // Para forzar al Row interno a usar el ancho completo de la columna de 300dp
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = if (esMio) Arrangement.End else Arrangement.Start
             ) {
-                Text(autor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Text(autor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(Modifier.width(8.dp))
-                Text(fecha, style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontSize = 10.sp)
+                Text(fecha, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
             }
 
             Spacer(Modifier.height(4.dp))
 
             Surface(
                 shape = RoundedCornerShape(
-                    topStart = 12.dp,
-                    topEnd = 12.dp,
-                    // Forma de burbuja estilo WhatsApp
+                    topStart = 12.dp, topEnd = 12.dp,
                     bottomStart = if (esMio) 12.dp else 2.dp,
                     bottomEnd = if (esMio) 2.dp else 12.dp
                 ),
-                // COLOR: PrimaryContainer para mí, White para otros
-                color = if (esMio) MaterialTheme.colorScheme.primaryContainer else Color.White,
-                border = if (esMio) null else BorderStroke(1.dp, Color.LightGray),
+                // ✅ Colores dinámicos para burbujas
+                color = if (esMio) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                border = if (esMio) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 shadowElevation = 1.dp
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    contenido()
+                    // El contenido hereda el color de texto correcto automáticamente
+                    CompositionLocalProvider(LocalContentColor provides if(esMio) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface) {
+                        contenido()
+                    }
                     if (footer != null) {
                         Spacer(Modifier.height(8.dp))
                         footer()
@@ -845,10 +512,67 @@ fun ChatBubble(
             }
         }
 
-        // 🔹 4. EMPUJAR A LA IZQUIERDA (Mensajes de Otros)
-        if (!esMio) {
-            // El Spacer toma el espacio restante a la derecha, empujando el mensaje a la izquierda.
-            Spacer(Modifier.weight(1f))
+        // Empujar a la izquierda si no es mío
+        if (!esMio) Spacer(Modifier.weight(1f))
+    }
+}
+
+@Composable
+fun ChatFooterActions(esMio: Boolean, liked: Boolean, likes: Int, onReply: ()->Unit, onLike: ()->Unit, onDelete: ()->Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        val tintColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+
+        IconButton(onClick = onReply, modifier = Modifier.size(20.dp)) {
+            Icon(Icons.AutoMirrored.Filled.Reply, null, tint = tintColor)
+        }
+        Spacer(Modifier.width(8.dp))
+        IconButton(onClick = onLike, modifier = Modifier.size(20.dp)) {
+            Icon(
+                if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                null,
+                tint = if (liked) MaterialTheme.colorScheme.primary else tintColor
+            )
+        }
+        if (likes > 0) Text(" $likes", fontSize = 12.sp, color = tintColor)
+
+        if (esMio) {
+            Spacer(Modifier.width(8.dp))
+            IconButton(onClick = onDelete, modifier = Modifier.size(20.dp)) {
+                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+fun ChatAttachmentContent(dto: AdjuntoDto, context: android.content.Context) {
+    Column {
+        when (dto.tipoArchivo) {
+            "imagen" -> AsyncImage(
+                model = dto.url, contentDescription = null,
+                modifier = Modifier.fillMaxWidth().heightIn(max = 250.dp).clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            "audio" -> if (!dto.url.isNullOrBlank()) AudioPlayer(audioUrl = dto.url) else Text("Audio no disponible", color = MaterialTheme.colorScheme.error)
+            else -> {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Description, null, tint = MaterialTheme.colorScheme.secondary)
+                    Spacer(Modifier.width(8.dp))
+                    Text(dto.archivo ?: "Documento", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    IconButton(onClick = {
+                        if (!dto.url.isNullOrBlank()) {
+                            startDownload(context, dto.url, dto.archivo ?: "doc")
+                            Toast.makeText(context, "Descargando...", Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Icon(Icons.Default.Download, null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+        if (!dto.descripcion.isNullOrBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(dto.descripcion, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

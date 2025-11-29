@@ -9,15 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,12 +51,13 @@ fun ReunionesEnCursoScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FB))
+            // ✅ Fondo Dinámico
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // CABECERA
+            // CABECERA CON GRADIENTE
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -79,7 +74,7 @@ fun ReunionesEnCursoScreen(
                     ) {
                         IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Volver",
                                 tint = Color.White
                             )
@@ -102,7 +97,7 @@ fun ReunionesEnCursoScreen(
                 }
             }
 
-            // CONTENIDO
+            // CONTENIDO FLOTANTE
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -115,7 +110,7 @@ fun ReunionesEnCursoScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
 
@@ -128,13 +123,13 @@ fun ReunionesEnCursoScreen(
                             Text(
                                 text = "Ocurrió un error al cargar las reuniones.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFFB91C1C)
+                                color = MaterialTheme.colorScheme.error
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 text = state.error ?: "",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF6B7280)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -148,7 +143,7 @@ fun ReunionesEnCursoScreen(
                             Text(
                                 text = "No hay reuniones en curso.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF6B7280)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -184,7 +179,8 @@ fun ReunionEnCursoItem(
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE7F2FF)
+            // ✅ Tarjeta Dinámica
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -203,20 +199,22 @@ fun ReunionEnCursoItem(
                         text = reunion.titulo,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827)
+                        // ✅ Color Principal
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = reunion.fechaInicio,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6B7280)
+                        // ✅ Color Secundario
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color(0xFF9CA3AF)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
 
@@ -227,7 +225,7 @@ fun ReunionEnCursoItem(
                     text = reunion.tabla.take(100) +
                             if (reunion.tabla.length > 100) "..." else "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF4B5563)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(8.dp))
             }
@@ -248,7 +246,7 @@ fun ReunionEnCursoDetalleScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit
 ) {
-    // 🔁 Refresco automático cada 5 segundos mientras estés en esta pantalla
+    // 🔁 Refresco automático
     LaunchedEffect(reunion.id) {
         while (isActive) {
             onRefresh()
@@ -256,7 +254,6 @@ fun ReunionEnCursoDetalleScreen(
         }
     }
 
-    // 🔹 Limpieza básica de los "\n" para que se vean como saltos de línea
     val textoTranscripcion = (reunion.actaContenido ?: "")
         .replace("\\n", "\n")
         .replace("\\r", "")
@@ -265,12 +262,13 @@ fun ReunionEnCursoDetalleScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FB))
+            // ✅ Fondo Dinámico
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // CABECERA (la dejamos igual, pero puedes simplificar si quieres)
+            // CABECERA
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -287,7 +285,7 @@ fun ReunionEnCursoDetalleScreen(
                     ) {
                         IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Volver",
                                 tint = Color.White
                             )
@@ -321,7 +319,8 @@ fun ReunionEnCursoDetalleScreen(
             ) {
                 Card(
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    // ✅ Tarjeta Dinámica
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(3.dp)
                 ) {
                     Column(
@@ -332,7 +331,8 @@ fun ReunionEnCursoDetalleScreen(
                         Text(
                             text = "Transcripción (borrador)",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(Modifier.height(8.dp))
 
@@ -340,13 +340,13 @@ fun ReunionEnCursoDetalleScreen(
                             Text(
                                 text = "Aún no hay texto de transcripción disponible para esta reunión.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF6B7280)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
                             Text(
                                 text = textoTranscripcion,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF111827)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -357,15 +357,23 @@ fun ReunionEnCursoDetalleScreen(
         }
     }
 }
-/* =========== CHIP DE ESTADO =========== */
+
+/* =========== CHIP DE ESTADO (ESTA ES LA PARTE QUE FALTABA) =========== */
 
 @Composable
 fun TranscripcionChip(
     estado: String?,
     hasContenido: Boolean
 ) {
+    // Definimos colores. Para estados neutros, usamos los colores del tema.
+    // Para estados específicos (Éxito, Error, Pendiente), mantenemos los colores semánticos fijos
+    // pero aseguramos contraste con texto blanco.
     val (texto, bg, fg) = when (estado) {
-        "NO_SUBIDO" -> Triple("Sin audio subido", Color(0xFFE5E7EB), Color(0xFF374151))
+        "NO_SUBIDO" -> Triple(
+            "Sin audio subido",
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant
+        )
         "PENDIENTE" -> Triple("Pendiente de procesar", Color(0xFFF97316), Color.White)
         "PROCESANDO" -> Triple("Procesando transcripción...", Color(0xFF0EA5E9), Color.White)
         "COMPLETADO" -> {
@@ -376,7 +384,11 @@ fun TranscripcionChip(
             }
         }
         "ERROR" -> Triple("Error en transcripción", Color(0xFFDC2626), Color.White)
-        else -> Triple("Estado no disponible", Color(0xFFE5E7EB), Color(0xFF374151))
+        else -> Triple(
+            "Estado no disponible",
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 
     Box(
@@ -398,7 +410,6 @@ fun TranscripcionChip(
 @Composable
 fun ReunionesEnCursoPreview() {
     ProyectoTheme {
-        // Solo para ver la lista vacía en preview
         ReunionesEnCursoScreen(
             onBack = {},
             onOpen = {}

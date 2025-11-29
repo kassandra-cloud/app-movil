@@ -12,21 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-// Importaciones de gráficos necesarias para el borde del botón
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.BorderStroke
-// -----------------------------------------------------------------
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.taller.TallerDto
+import com.example.proyecto.ui.theme.AppColors // 👈 Importamos tus colores para el gradiente
 import com.example.proyecto.viewmodel.TalleresViewModel
-
-// 🎨 PALETA DE COLORES (Consistente con los cambios anteriores)
-val ColorPrincipal = Color(0xFF42A5F5) // Azul Vibrante
-val ColorSecundario = Color(0xFF1E88E5) // Azul Oscuro para contraste
-val ColorGrisOscuroTexto = Color(0xFF616161) // Texto gris oscuro
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,46 +30,61 @@ fun TalleresScreen(
 ) {
     val state = vm.uiState
 
-    // Cargar los talleres al inicio
     LaunchedEffect(Unit) { vm.cargar() }
 
     Scaffold(
         topBar = {
-            // Aplicamos los nuevos colores a la Top Bar
+            // ✅ BARRA CON GRADIENTE DE MARCA
             TopAppBar(
-                title = { Text("Talleres", color = Color.White) },
+                title = { Text("Talleres") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ColorPrincipal,
-                    scrolledContainerColor = ColorPrincipal
-                )
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                ),
+                modifier = Modifier.background(AppColors.GradientePrincipal)
             )
         }
     ) { padding ->
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Color.White) // Fondo principal blanco
+                // ✅ Fondo Dinámico (Blanco en día, Negro en noche)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
         ) {
             when {
-                // Loader
-                state.cargando -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = ColorPrincipal)
-                // Error
+                state.cargando -> CircularProgressIndicator(
+                    Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.primary
+                )
+
                 state.error != null -> {
                     Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No se pudo cargar.\n${state.error}", color = MaterialTheme.colorScheme.error)
+                        Text(
+                            "No se pudo cargar.\n${state.error}",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                         Spacer(Modifier.height(12.dp))
-                        Button(onClick = vm::cargar, colors = ButtonDefaults.buttonColors(containerColor = ColorPrincipal)) { Text("Reintentar") }
+                        Button(
+                            onClick = vm::cargar,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) { Text("Reintentar") }
                     }
                 }
-                // Lista Vacía
-                state.talleres.isEmpty() -> Text("Sin talleres disponibles", Modifier.align(Alignment.Center), color = ColorGrisOscuroTexto)
-                // Contenido
+
+                state.talleres.isEmpty() -> Text(
+                    "Sin talleres disponibles",
+                    Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
                 else -> LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -102,17 +110,20 @@ private fun TallerCard(
     onInscribir: () -> Unit,
     onDesinscribir: () -> Unit
 ) {
-    // Se usa inscritosCount, que es la propiedad Kotlin correcta del DTO.
     val sinCupos = t.cuposDisponibles <= 0
     val yaInscrito = t.inscritosCount > 0
 
-    val colorIcono = if (yaInscrito) ColorSecundario else ColorPrincipal
+    // Color del ícono depende del estado
+    val colorIcono = if (yaInscrito) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp), // Esquinas más redondeadas
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(8.dp) // Sombra más pronunciada
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            // ✅ Tarjeta Dinámica (Blanco / Gris oscuro)
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(Modifier.padding(20.dp)) {
 
@@ -127,10 +138,9 @@ private fun TallerCard(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     t.nombre,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        color = ColorPrincipal,
-                        fontWeight = FontWeight.Bold
-                    ),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    // ✅ Título usa color Primario del tema
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -143,7 +153,8 @@ private fun TallerCard(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
-                color = ColorGrisOscuroTexto
+                // ✅ Texto secundario (Gris adaptativo)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(12.dp))
@@ -152,55 +163,61 @@ private fun TallerCard(
             Text(
                 "Totales: ${t.cuposTotales} · Inscritos: ${t.inscritosCount} · Disponibles: ${t.cuposDisponibles}",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (sinCupos) MaterialTheme.colorScheme.error else ColorGrisOscuroTexto,
+                color = if (sinCupos) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.SemiBold
             )
 
             Spacer(Modifier.height(4.dp))
 
-            // 🔑 4. Información de Fechas (Manejo de nulos)
-            // Se asume que t.fechaInicio y t.fechaTermino son String?
-            val inicio = t.fechaInicio ?: "Fecha de inicio no definida"
-            val termino = t.fechaTermino ?: "Fecha de término no definida"
+            // 4. Fechas
+            val inicio = t.fechaInicio ?: "N/D"
+            val termino = t.fechaTermino ?: "N/D"
 
             Text(
                 "Inicia: $inicio · Termina: $termino",
                 style = MaterialTheme.typography.bodySmall,
-                color = ColorGrisOscuroTexto
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            // Si el formato de fecha es complejo (ej. ISO 8601), deberá aplicar un formateador (SimpleDateFormat o java.time)
-            // en el ViewModel para que se vea bien aquí, pero por ahora mostramos el String crudo o el mensaje N/D.
 
             Spacer(Modifier.height(16.dp))
 
             // 5. Botones de Acción
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
 
-                // Botón de Desinscribir (OutlinedButton)
                 OutlinedButton(
                     onClick = onDesinscribir,
-                    enabled = yaInscrito && !inscribiendo, // Solo se puede desinscribir si ya está inscrito
+                    enabled = yaInscrito && !inscribiendo,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorGrisOscuroTexto),
-                    border = BorderStroke(1.dp, ColorGrisOscuroTexto)
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        // ✅ Color de borde y texto adaptativo
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    // Borde manual usando el color 'outline' del tema
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
                     Text("Desinscribirme")
                 }
 
                 Spacer(Modifier.width(8.dp))
 
-                // Botón de Inscribir (Principal)
                 Button(
                     onClick = onInscribir,
-                    enabled = !yaInscrito && !sinCupos && !inscribiendo, // Solo inscribir si hay cupos y no está inscrito
+                    enabled = !yaInscrito && !sinCupos && !inscribiendo,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (yaInscrito) ColorGrisOscuroTexto else ColorPrincipal,
-                        disabledContainerColor = Color(0xFFBDBDBD) // Gris oscuro para sin cupos/ya inscrito
+                        // ✅ Fondo del botón: Gris si ya inscrito, Primario si disponible
+                        containerColor = if (yaInscrito) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
+                        // Texto: OnSurfaceVariant si gris, OnPrimary si azul
+                        contentColor = if (yaInscrito) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
                 ) {
                     if (inscribiendo) {
-                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                        CircularProgressIndicator(
+                            Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
                         Spacer(Modifier.width(8.dp))
                         Text("Procesando...")
                     } else if (yaInscrito) {

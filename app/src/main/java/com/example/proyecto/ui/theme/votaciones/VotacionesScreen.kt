@@ -11,12 +11,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Security // Icono de seguridad
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -24,35 +23,32 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.votaciones.ResultadoVotacionDto
 import com.example.proyecto.data.votaciones.VotacionDto
+import com.example.proyecto.ui.theme.AppColors // 👈 Importante: Tus colores
 import com.example.proyecto.viewmodel.VotacionesViewModel
+import kotlinx.coroutines.delay
 
-val tuColorPrincipal = Color(0xFF42A5F5)
-val webColorSecundario = Color(0xFF1E88E5)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VotacionesScreen(
     token: String,
     onBack: () -> Unit,
     vm: VotacionesViewModel = viewModel()
 ) {
-    val ui by vm.ui.collectAsState() // Usar 'by' para acceso directo
+    val ui by vm.ui.collectAsState()
     val resultados by vm.resultados.collectAsState()
-
-    val gradientBrush = remember { Brush.verticalGradient(listOf(tuColorPrincipal, webColorSecundario)) }
 
     var votacionPreview by remember { mutableStateOf<VotacionDto?>(null) }
 
-    // 🔥 ESTADOS PARA EL DIÁLOGO DE VERIFICACIÓN
+    // Estados para MFA
     var showVerificationDialog by remember { mutableStateOf(false) }
     var pendingVotacionId by remember { mutableStateOf<Int?>(null) }
     var pendingOpcionId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(token) { vm.cargarAbiertas(token) }
 
-    // Limpiar mensajes (ej: "Voto registrado") después de un tiempo
     LaunchedEffect(ui.mensaje) {
         if (ui.mensaje != null) {
-            kotlinx.coroutines.delay(3000)
+            delay(3000)
             vm.clearMessages()
         }
     }
@@ -66,20 +62,39 @@ fun VotacionesScreen(
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.fillMaxWidth().background(gradientBrush).padding(12.dp, 16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null, tint = Color.White) }
-                    Spacer(Modifier.width(8.dp))
-                    Text("Votaciones abiertas", style = MaterialTheme.typography.titleLarge.copy(color = Color.White, fontWeight = FontWeight.Bold))
-                }
-            }
+            // ✅ BARRA SUPERIOR ESTÁNDAR CON GRADIENTE
+            TopAppBar(
+                title = { Text("Votaciones abiertas") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                ),
+                modifier = Modifier.background(AppColors.GradientePrincipal)
+            )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(paddingValues).padding(horizontal = 16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background) // ✅ Fondo Dinámico
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+        ) {
 
-            if (ui.cargando) LinearProgressIndicator(Modifier.fillMaxWidth(), color = tuColorPrincipal)
-            ui.error?.let { Text("Error: $it", color = MaterialTheme.colorScheme.error) }
-            ui.mensaje?.let { Text(it, color = tuColorPrincipal, fontWeight = FontWeight.Bold) }
+            if (ui.cargando) LinearProgressIndicator(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
+
+            ui.error?.let {
+                Text("Error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+            }
+            ui.mensaje?.let {
+                Text(it, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            }
 
             Spacer(Modifier.height(8.dp))
 
@@ -95,13 +110,9 @@ fun VotacionesScreen(
                                 vm.cargarResultados(token, votacion.id)
                             },
                             onVote = { opcionId ->
-                                // 🔥 AL TOCAR UNA OPCIÓN:
-                                // 1. Guardamos qué quería votar
                                 pendingVotacionId = votacion.id
                                 pendingOpcionId = opcionId
-                                // 2. Pedimos al backend que mande el código
                                 vm.solicitarCodigo(token)
-                                // 3. Mostramos el diálogo
                                 showVerificationDialog = true
                             }
                         )
@@ -111,7 +122,6 @@ fun VotacionesScreen(
         }
     }
 
-    // Diálogo de Resultados
     if (votacionPreview != null) {
         VotacionResultadoDialog(
             votacion = votacionPreview!!,
@@ -121,13 +131,11 @@ fun VotacionesScreen(
         )
     }
 
-    // 🔥 DIÁLOGO DE SEGURIDAD (MFA)
     if (showVerificationDialog) {
         VerificationVoteDialog(
             onDismiss = { showVerificationDialog = false },
             onConfirm = { codigo ->
                 if (pendingVotacionId != null && pendingOpcionId != null) {
-                    // 4. ENVIAMOS EL VOTO CON EL CÓDIGO
                     vm.votar(token, pendingVotacionId!!, pendingOpcionId!!, codigo)
                     showVerificationDialog = false
                 }
@@ -136,7 +144,6 @@ fun VotacionesScreen(
     }
 }
 
-// 🔥 COMPONENTE DIÁLOGO DE VERIFICACIÓN
 @Composable
 fun VerificationVoteDialog(
     onDismiss: () -> Unit,
@@ -146,11 +153,14 @@ fun VerificationVoteDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Filled.Security, null, tint = tuColorPrincipal) },
+        icon = { Icon(Icons.Filled.Security, null, tint = MaterialTheme.colorScheme.primary) },
         title = { Text("Seguridad de Voto") },
         text = {
             Column {
-                Text("Hemos enviado un código a tu correo. Ingrésalo para confirmar tu voto.", fontSize = MaterialTheme.typography.bodyMedium.fontSize)
+                Text(
+                    "Hemos enviado un código a tu correo. Ingrésalo para confirmar tu voto.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = code,
@@ -166,40 +176,52 @@ fun VerificationVoteDialog(
             Button(
                 onClick = { onConfirm(code) },
                 enabled = code.length >= 4,
-                colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Validar y Votar")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancelar") }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface, // ✅ Fondo diálogo dinámico
+        textContentColor = MaterialTheme.colorScheme.onSurface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface
     )
 }
 
-// ... (Tus componentes VotacionItem, VotacionResultadoDialog, EmptyVotaciones se mantienen IGUAL) ...
 @Composable
 private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowResults: () -> Unit) {
-    // Copia aquí tu VotacionItem original, no ha cambiado lógica interna,
-    // solo la llamada externa onVote ahora abre el diálogo.
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(8.dp)
+        // ✅ Tarjeta dinámica (blanca en día, gris en noche)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(Modifier.padding(20.dp).fillMaxWidth()) {
-            Icon(Icons.Filled.CheckCircle, null, tint = tuColorPrincipal, modifier = Modifier.size(40.dp).align(Alignment.CenterHorizontally))
+            Icon(
+                Icons.Filled.CheckCircle,
+                null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(40.dp).align(Alignment.CenterHorizontally)
+            )
             Spacer(Modifier.height(8.dp))
-            Text(votacion.pregunta, style = MaterialTheme.typography.titleMedium.copy(color = tuColorPrincipal, fontWeight = FontWeight.Bold), modifier = Modifier.align(Alignment.CenterHorizontally))
+
+            Text(
+                votacion.pregunta,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface, // ✅ Texto principal
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
             Spacer(Modifier.height(12.dp))
 
             if (votacion.yaVote) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                    Icon(Icons.Filled.CheckCircle, "Voto Realizado", tint = webColorSecundario)
+                    Icon(Icons.Filled.CheckCircle, "Voto Realizado", tint = MaterialTheme.colorScheme.secondary)
                     Spacer(Modifier.width(8.dp))
                     val opTexto = votacion.opciones.find { it.id == votacion.opcionVotadaId }?.texto ?: "Tu opción"
-                    Text("Ya votaste: $opTexto", color = webColorSecundario)
+                    Text("Ya votaste: $opTexto", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -207,11 +229,17 @@ private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowRes
             if (!votacion.yaVote) {
                 votacion.opciones.forEach { opcion ->
                     Button(
-                        onClick = { onVote(opcion.id) }, // <-- Esto dispara el diálogo en el padre
+                        onClick = { onVote(opcion.id) },
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = webColorSecundario)
-                    ) { Text(opcion.texto, color = Color.White) }
+                        // ✅ Botones con color secundario del tema
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary
+                        )
+                    ) {
+                        Text(opcion.texto, style = MaterialTheme.typography.labelLarge)
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -220,7 +248,7 @@ private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowRes
                 onClick = onShowResults,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = tuColorPrincipal)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text(if (votacion.yaVote) "Ver resultados" else "Ver resultados parciales")
             }
@@ -228,32 +256,60 @@ private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowRes
     }
 }
 
-// ... (Copiar VotacionResultadoDialog, ResultadosCard y EmptyVotaciones igual que antes)
 @Composable
 private fun VotacionResultadoDialog(votacion: VotacionDto, resultados: ResultadoVotacionDto?, onDismiss: () -> Unit, onRefresh: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
-        title = { Text(votacion.pregunta, fontWeight = FontWeight.Bold, color = tuColorPrincipal) },
+        title = {
+            Text(
+                votacion.pregunta,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleMedium
+            )
+        },
         text = {
-            if (resultados == null) CircularProgressIndicator(color = tuColorPrincipal)
+            if (resultados == null) CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             else ResultadosCard(resultados)
         },
-        confirmButton = { Button(onClick = onRefresh, colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal)) { Text("Actualizar") } },
-        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("Cerrar") } }
+        confirmButton = {
+            Button(
+                onClick = onRefresh,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) { Text("Actualizar") }
+        },
+        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("Cerrar") } },
+        containerColor = MaterialTheme.colorScheme.surface,
+        textContentColor = MaterialTheme.colorScheme.onSurface
     )
 }
 
 @Composable
 private fun ResultadosCard(result: ResultadoVotacionDto) {
     Column(Modifier.fillMaxWidth()) {
-        Text("Total votos: ${result.totalVotos}", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "Total votos: ${result.totalVotos}",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(Modifier.height(8.dp))
         result.opciones.forEach { op ->
             val pct = if (result.totalVotos > 0) op.votos.toFloat() / result.totalVotos else 0f
-            Text(op.texto)
-            LinearProgressIndicator(progress = pct, modifier = Modifier.fillMaxWidth().height(8.dp), color = tuColorPrincipal)
-            Text("${(pct*100).toInt()}% (${op.votos})", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(op.texto, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+
+            LinearProgressIndicator(
+                progress = pct,
+                modifier = Modifier.fillMaxWidth().height(8.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
+            Text(
+                "${(pct*100).toInt()}% (${op.votos})",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -263,8 +319,18 @@ private fun ResultadosCard(result: ResultadoVotacionDto) {
 private fun EmptyVotaciones(onRecargar: () -> Unit) {
     Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Filled.Info, null, tint = tuColorPrincipal, modifier = Modifier.size(40.dp))
-            Text("No hay votaciones", color = tuColorPrincipal)
+            Icon(
+                Icons.Filled.Info,
+                null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(40.dp)
+            )
+            Text(
+                "No hay votaciones",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(Modifier.height(8.dp))
             Button(onClick = onRecargar) { Text("Actualizar") }
         }
     }

@@ -1,11 +1,12 @@
 package com.example.proyecto.ui.theme.reuniones
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape // 🔑 IMPORTACIÓN CORREGIDA
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
@@ -38,48 +39,38 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // -------------------------------------------------------------------------
-// COLORES UNIFICADOS
-// -------------------------------------------------------------------------
-
-private val PrimaryBlue = AppColors.Principal
-private val TextSecondary = AppColors.GrisOscuroTexto
-private val TextPrimary = AppColors.TextPrimary
-private val HeaderBgLight = AppColors.GrisClaroFondo
-
-// -------------------------------------------------------------------------
 // AUXILIARES
 // -------------------------------------------------------------------------
 
-/** 🔑 MEJORA: Header de día con fondo claro unificado y esquinas redondeadas. */
 @Composable
 private fun DiaHeaderProgramadas(dia: LocalDate) {
     val formato = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM yyyy", Locale("es"))
     Surface(
-        color = HeaderBgLight,
+        // ✅ Color adaptable: SurfaceVariant (gris suave en día, gris medio en noche)
+        color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp)) // Corregido: RoundedCornerShape está disponible
+            .clip(RoundedCornerShape(8.dp))
     ) {
         Text(
             text = dia.format(formato).replaceFirstChar { it.titlecase(Locale("es")) },
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            color = TextPrimary
+            // ✅ Color de texto sobre variante
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 private val CHILE_TZ_PROGRAMADAS: ZoneId = ZoneId.of("America/Santiago")
 
-/** Acepta ISO con o sin offset. */
 private fun parseChileProgramadas(iso: String): LocalDateTime = runCatching {
     OffsetDateTime.parse(iso).atZoneSameInstant(CHILE_TZ_PROGRAMADAS).toLocalDateTime()
 }.getOrElse {
     LocalDateTime.parse(iso)
 }
 
-/** 🔑 MEJORA: Tarjeta con mayor elevación y jerarquía. */
 @Composable
 private fun ReunionProgramadaCard(
     r: ReunionDto,
@@ -91,28 +82,33 @@ private fun ReunionProgramadaCard(
     ElevatedCard(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = AppColors.CardBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.elevatedCardColors(
+            // ✅ Tarjeta dinámica (Blanca / Gris Oscuro)
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
                 r.titulo,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                color = TextPrimary
+                // ✅ Color principal del tema
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 inicio.format(horaFmt),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                // ✅ Color secundario
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             r.tabla?.takeIf { it.isNotBlank() }?.let {
                 Spacer(Modifier.height(6.dp))
                 Text(
                     it,
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -120,7 +116,7 @@ private fun ReunionProgramadaCard(
 }
 
 // -------------------------------------------------------------------------
-// CALENDARIO + SELECTOR DE MES
+// CALENDARIO
 // -------------------------------------------------------------------------
 
 @Composable
@@ -132,25 +128,28 @@ private fun CalendarDay(
     modifier: Modifier = Modifier
 ) {
     val dayOfMonth = day.dayOfMonth.toString()
-    val primaryColor = PrimaryBlue
-    val onPrimaryColor = Color.White
+
+    // ✅ Colores del tema
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+    val textColor = if (isSelected) onPrimaryColor else MaterialTheme.colorScheme.onSurface
 
     val selectionBg = if (isSelected) primaryColor else Color.Transparent
-    val textColor = if (isSelected) onPrimaryColor else TextPrimary
 
     Column(
         modifier = modifier
+            .clip(RoundedCornerShape(40)) // Ripple circular
             .clickable { onDateSelected(day) }
             .padding(2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
-            modifier = Modifier.size(30.dp),
+            modifier = Modifier.size(32.dp),
             contentAlignment = Alignment.Center
         ) {
             if (isSelected) {
-                Canvas(modifier = Modifier.size(30.dp)) {
+                Canvas(modifier = Modifier.size(32.dp)) {
                     drawCircle(
                         color = selectionBg,
                         radius = size.minDimension / 2,
@@ -168,10 +167,11 @@ private fun CalendarDay(
             )
         }
 
+        // Puntito indicador de reunión
         if (isMarked) {
             Canvas(modifier = Modifier.size(4.dp)) {
                 drawCircle(
-                    color = primaryColor,
+                    color = if (isSelected) onPrimaryColor else primaryColor,
                     radius = 4f,
                     center = Offset(size.width / 2, size.height / 2)
                 )
@@ -180,7 +180,6 @@ private fun CalendarDay(
     }
 }
 
-/** Calendario con dropdown de los 12 meses del año actual. */
 @Composable
 private fun MonthlyCalendarViewProgramadas(
     currentMonth: YearMonth,
@@ -190,27 +189,11 @@ private fun MonthlyCalendarViewProgramadas(
     onMonthChange: (YearMonth) -> Unit
 ) {
     val daysOfWeek = listOf("L", "M", "Mi", "J", "V", "S", "D")
-    val monthFormatter = remember {
-        DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
-    }
+    val monthFormatter = remember { DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es")) }
 
-    val meetingMonths = remember(uniqueDates) {
-        uniqueDates
-            .map { YearMonth.from(it) }
-            .toSet()
-    }
-
-    val monthsOfYear = remember(currentMonth.year) {
-        (1..12).map { monthNumber ->
-            YearMonth.of(currentMonth.year, monthNumber)
-        }
-    }
-
-    var monthMenuExpanded by remember { mutableStateOf(false) }
-
+    // ... (Cálculos de calendario idénticos) ...
     val firstDayOfMonth = currentMonth.atDay(1)
-    val startDayOffset =
-        (firstDayOfMonth.dayOfWeek.value - DayOfWeek.MONDAY.value + 7) % 7
+    val startDayOffset = (firstDayOfMonth.dayOfWeek.value - DayOfWeek.MONDAY.value + 7) % 7
     val daysInMonth = currentMonth.lengthOfMonth()
 
     val days = remember(currentMonth) {
@@ -223,91 +206,46 @@ private fun MonthlyCalendarViewProgramadas(
         list
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        // Fila de navegación + selector de mes
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Navegación Mes
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
+                .padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
-                Icon(
-                    Icons.Default.KeyboardArrowLeft,
-                    contentDescription = "Mes anterior",
-                    tint = PrimaryBlue
-                )
+                Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Anterior", tint = MaterialTheme.colorScheme.primary)
             }
 
-            Box {
-                Text(
-                    text = currentMonth
-                        .format(monthFormatter)
-                        .replaceFirstChar { it.titlecase(Locale("es")) },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryBlue,
-                    modifier = Modifier.clickable { monthMenuExpanded = true }
-                )
-
-                DropdownMenu(
-                    expanded = monthMenuExpanded,
-                    onDismissRequest = { monthMenuExpanded = false }
-                ) {
-                    monthsOfYear.forEach { ym ->
-                        val hasMeetings = ym in meetingMonths
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    ym.format(monthFormatter)
-                                        .replaceFirstChar { it.titlecase(Locale("es")) },
-                                    color = if (hasMeetings) TextPrimary
-                                    else TextSecondary
-                                )
-                            },
-                            onClick = {
-                                monthMenuExpanded = false
-                                onMonthChange(ym)
-                            }
-                        )
-                    }
-                }
-            }
+            Text(
+                text = currentMonth.format(monthFormatter).replaceFirstChar { it.titlecase(Locale("es")) },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
 
             IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
-                Icon(
-                    Icons.Default.KeyboardArrowRight,
-                    contentDescription = "Mes siguiente",
-                    tint = PrimaryBlue
-                )
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Siguiente", tint = MaterialTheme.colorScheme.primary)
             }
         }
 
-        // Días de la semana
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        // Cabecera Días
+        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
             daysOfWeek.forEach { dayName ->
                 Text(
                     text = dayName,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = TextPrimary
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-        Spacer(Modifier.height(4.dp))
 
-        // Grilla de días
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp)
-        ) {
+        // Grilla
+        Column(modifier = Modifier.fillMaxWidth()) {
             days.chunked(7).forEach { week ->
                 Row(Modifier.fillMaxWidth()) {
                     week.forEach { day ->
@@ -317,27 +255,15 @@ private fun MonthlyCalendarViewProgramadas(
                                 isMarked = day in uniqueDates,
                                 isSelected = day == selectedDate,
                                 onDateSelected = onDateSelected,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
+                                modifier = Modifier.weight(1f).aspectRatio(1f)
                             )
                         } else {
-                            Spacer(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
-                            )
+                            Spacer(modifier = Modifier.weight(1f).aspectRatio(1f))
                         }
                     }
                 }
             }
         }
-
-        Divider(
-            Modifier
-                .padding(top = 8.dp)
-                .padding(horizontal = 16.dp)
-        )
     }
 }
 
@@ -354,108 +280,81 @@ fun ReunionesProgramadasScreen(
 ) {
     val st by vm.programadas.collectAsState(initial = ReunionesViewModel.SectionState())
 
-    // Carga inicial
     LaunchedEffect(Unit) {
         if (!st.initialized && !st.loading) {
             vm.refresh(ReunionEstado.PROGRAMADA)
         }
     }
 
-    Scaffold(
-        topBar = {
-            SmallTopAppBar(
-                title = { Text("Reuniones programadas", color = TextPrimary) },
-                navigationIcon = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            // ✅ Fondo Dinámico
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+
+            // 1. CABECERA AZUL CON GRADIENTE (Estilo Unificado)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp) // Un poco más alto para dar espacio al calendario flotante
+                    .background(AppColors.GradientePrincipal)
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = PrimaryBlue
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = Color.White)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Reuniones Programadas",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Consulta la agenda por día",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.85f)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.smallTopAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = TextPrimary,
-                    navigationIconContentColor = PrimaryBlue
-                )
-            )
+                }
+            }
+
+            // Espacio vacío para que el contenido suba
         }
-    ) { padding ->
-        when {
-            st.loading && st.items.isEmpty() -> Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = PrimaryBlue)
+
+        // 2. CONTENIDO SUPERPUESTO (Calendario + Lista)
+        // Usamos una columna que empieza desplazada hacia arriba
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 100.dp) // Ajustamos para que la tarjeta tape parte del azul
+                .padding(horizontal = 20.dp)
+        ) {
+
+            // Lógica de fechas
+            val reunionesPorDia = remember(st.items) {
+                st.items.groupBy { parseChileProgramadas(it.fechaInicio).toLocalDate() }
+            }
+            val uniqueMeetingDates = remember(reunionesPorDia) { reunionesPorDia.keys.toSet() }
+            val initialDate = uniqueMeetingDates.minOrNull() ?: LocalDate.now(CHILE_TZ_PROGRAMADAS)
+            var selectedDate by remember(uniqueMeetingDates) { mutableStateOf(initialDate) }
+            var currentMonth by remember(uniqueMeetingDates) { mutableStateOf(YearMonth.from(initialDate)) }
+            val reunionesSeleccionadas = remember(selectedDate, reunionesPorDia) {
+                reunionesPorDia[selectedDate]?.sortedBy { parseChileProgramadas(it.fechaInicio) }.orEmpty()
             }
 
-            st.error != null -> Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
+            // --- TARJETA DE CALENDARIO FLOTANTE ---
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Error: ${st.error}")
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = { vm.refresh(ReunionEstado.PROGRAMADA) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryBlue
-                        )
-                    ) {
-                        Text("Reintentar")
-                    }
-                }
-            }
-
-            st.items.isEmpty() -> Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No hay reuniones programadas.", color = TextSecondary)
-            }
-
-            else -> {
-                // Agrupamos reuniones por día
-                val reunionesPorDia = remember(st.items) {
-                    st.items.groupBy {
-                        parseChileProgramadas(it.fechaInicio).toLocalDate()
-                    }
-                }
-
-                val uniqueMeetingDates = remember(reunionesPorDia) {
-                    reunionesPorDia.keys.toSet()
-                }
-
-                val initialDate = uniqueMeetingDates.minOrNull()
-                    ?: LocalDate.now(CHILE_TZ_PROGRAMADAS)
-
-                var selectedDate by remember(uniqueMeetingDates) {
-                    mutableStateOf(initialDate)
-                }
-                var currentMonth by remember(uniqueMeetingDates) {
-                    mutableStateOf(YearMonth.from(initialDate))
-                }
-
-                // Reuniones SOLO del día seleccionado
-                val reunionesSeleccionadas = remember(selectedDate, reunionesPorDia) {
-                    reunionesPorDia[selectedDate]
-                        ?.sortedBy { parseChileProgramadas(it.fechaInicio) }
-                        .orEmpty()
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                ) {
-                    // --- CALENDARIO + SELECTOR DE MES ---
+                Column(Modifier.padding(16.dp)) {
                     MonthlyCalendarViewProgramadas(
                         currentMonth = currentMonth,
                         uniqueDates = uniqueMeetingDates,
@@ -463,51 +362,61 @@ fun ReunionesProgramadasScreen(
                         onDateSelected = { newDate ->
                             selectedDate = newDate
                             val newMonth = YearMonth.from(newDate)
-                            if (newMonth != currentMonth) {
-                                currentMonth = newMonth
-                            }
+                            if (newMonth != currentMonth) currentMonth = newMonth
                         },
                         onMonthChange = { newMonth ->
                             currentMonth = newMonth
-                            val dateInMonth = uniqueMeetingDates
-                                .filter { YearMonth.from(it) == newMonth }
-                                .minOrNull()
+                            val dateInMonth = uniqueMeetingDates.filter { YearMonth.from(it) == newMonth }.minOrNull()
                             selectedDate = dateInMonth ?: newMonth.atDay(1)
                         }
                     )
+                }
+            }
 
-                    // --- CONTENIDO DEL DÍA SELECCIONADO ---
-                    if (reunionesSeleccionadas.isEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 16.dp)
-                        ) {
+            Spacer(Modifier.height(16.dp))
+
+            // --- LISTA DE REUNIONES ---
+            // Usamos Box con weight para que ocupe el resto de la pantalla
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    st.loading && st.items.isEmpty() -> CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    st.error != null -> Text(
+                        "Error: ${st.error}",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.error
+                    )
+
+                    reunionesSeleccionadas.isEmpty() -> Column(
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Sin reuniones",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "No hay nada programado para el\n${selectedDate.format(DateTimeFormatter.ofPattern("dd 'de' MMMM"))}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    else -> LazyColumn(
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
                             DiaHeaderProgramadas(selectedDate)
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                "No hay reuniones programadas para esta fecha.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
-                            )
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            item("header-$selectedDate") {
-                                DiaHeaderProgramadas(selectedDate)
-                            }
-                            items(
-                                items = reunionesSeleccionadas,
-                                key = { it.id ?: "${it.titulo}-${it.fechaInicio}" }
-                            ) { r ->
-                                ReunionProgramadaCard(r) { onOpen(r) }
-                            }
+                        items(items = reunionesSeleccionadas) { r ->
+                            ReunionProgramadaCard(r) { onOpen(r) }
                         }
                     }
                 }
@@ -516,14 +425,10 @@ fun ReunionesProgramadasScreen(
     }
 }
 
-// ====================== PREVIEW ======================
 @Preview(showBackground = true)
 @Composable
 fun PreviewReunionesProgramadasScreen() {
     ProyectoTheme {
-        ReunionesProgramadasScreen(
-            onBack = {},
-            onOpen = {}
-        )
+        ReunionesProgramadasScreen()
     }
 }

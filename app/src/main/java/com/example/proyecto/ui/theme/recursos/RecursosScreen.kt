@@ -27,20 +27,19 @@ import com.example.proyecto.api.ApiClient
 import com.example.proyecto.api.RecursosApi
 import com.example.proyecto.data.recursos.CrearSolicitudReq
 import com.example.proyecto.data.recursos.RecursoDto
+import com.example.proyecto.ui.theme.AppColors // 👈 Importamos tus colores
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-// --- COLORES Y CONSTANTES ---
-val tuColorPrincipal = Color(0xFF42A5F5)
+// --- COLORES DE ESTADO (Estos se mantienen fijos por semántica, pero se usan con cuidado) ---
 val ColorAprobada = Color(0xFF4CAF50)
 val ColorRechazada = Color(0xFFF44336)
 val ColorPendiente = Color(0xFFFFC107)
 val ColorNoDisponible = Color(0xFF9E9E9E)
 
-// ✅ ENUM ACTUALIZADO CON "DISPONIBLES"
 enum class RecursosFilter(val label: String) {
     TODOS("Todos"),
     DISPONIBLES("Disponibles"),
@@ -59,17 +58,15 @@ fun RecursosScreen(
     token: String,
     onBack: () -> Unit
 ) {
-    // Configuración del ViewModel (se reinicia si cambia el usuario)
     val recursosApi: RecursosApi = remember(token) {
         ApiClient.createAuthorized(token, RecursosApi::class.java)
     }
 
     val vm: RecursosViewModel = viewModel(
-        key = token, // Clave para reiniciar el VM si cambia el token
+        key = token,
         factory = RecursosViewModelFactory(recursosApi)
     )
 
-    // Estados del ViewModel
     val recursos by vm.recursos.collectAsState()
     val isLoading by vm.isLoading.collectAsState()
     val errorMessage by vm.errorMessage.collectAsState()
@@ -78,7 +75,6 @@ fun RecursosScreen(
     var selectedRecursoId by remember { mutableStateOf<Int?>(null) }
     var selectedFilter by rememberSaveable { mutableStateOf(RecursosFilter.TODOS) }
 
-    // Recarga automática al entrar a la pantalla (Sincronización)
     LaunchedEffect(Unit) {
         vm.cargarRecursos()
     }
@@ -87,14 +83,20 @@ fun RecursosScreen(
 
     Scaffold(
         topBar = {
+            // ✅ BARRA CON GRADIENTE DE MARCA
             TopAppBar(
-                title = { Text("Recursos Comunitarios", color = Color.White) },
+                title = { Text("Recursos Comunitarios") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = tuColorPrincipal)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent, // Transparente para ver el gradiente
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                ),
+                modifier = Modifier.background(AppColors.GradientePrincipal)
             )
         },
     ) { paddingValues ->
@@ -102,31 +104,31 @@ fun RecursosScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color.White)
+                // ✅ Fondo Dinámico (Gris claro en día, Oscuro en noche)
+                .background(MaterialTheme.colorScheme.background)
         ) {
+
             // Barra de progreso y mensajes
             if (isLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = tuColorPrincipal)
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
             }
             errorMessage?.let {
                 Text("Error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
             }
             reservaMessage?.let {
-                Text(it, color = if (it.contains("Error")) MaterialTheme.colorScheme.error else tuColorPrincipal, modifier = Modifier.padding(16.dp))
+                Text(
+                    it,
+                    color = if (it.contains("Error")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(16.dp)
+                )
             }
 
             // Barra de Filtros
             RecursosFilterBar(selected = selectedFilter, onSelectedChange = { selectedFilter = it })
 
-            // ✅ LÓGICA DE FILTRADO ACTUALIZADA
             val recursosFiltrados = when (selectedFilter) {
                 RecursosFilter.TODOS -> recursos
-
-                RecursosFilter.DISPONIBLES -> recursos.filter {
-                    // Disponible globalmente Y sin solicitud activa del usuario
-                    it.disponible && (it.estadoUltimaSolicitud == null || it.estadoUltimaSolicitud == "RECHAZADA")
-                }
-
+                RecursosFilter.DISPONIBLES -> recursos.filter { it.disponible && (it.estadoUltimaSolicitud == null || it.estadoUltimaSolicitud == "RECHAZADA") }
                 RecursosFilter.PENDIENTES -> recursos.filter { it.estadoUltimaSolicitud == "PENDIENTE" }
                 RecursosFilter.APROBADOS -> recursos.filter { it.estadoUltimaSolicitud == "APROBADA" }
                 RecursosFilter.RECHAZADOS -> recursos.filter { it.estadoUltimaSolicitud == "RECHAZADA" }
@@ -139,7 +141,10 @@ fun RecursosScreen(
                 }
                 !isLoading && recursosFiltrados.isEmpty() && errorMessage == null -> {
                     Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                        Text("No se encontraron recursos para este filtro.", color = Color.Gray)
+                        Text(
+                            "No se encontraron recursos para este filtro.",
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
                     }
                 }
                 else -> {
@@ -157,7 +162,6 @@ fun RecursosScreen(
         }
     }
 
-    // Mostrar el diálogo si hay un recurso seleccionado
     selectedRecursoId?.let { id ->
         val recurso = recursos.firstOrNull { it.id == id }
         if (recurso != null) {
@@ -167,12 +171,7 @@ fun RecursosScreen(
                 onConfirm = { fechaInicio, fechaFin, motivo ->
                     selectedRecursoId = null
                     vm.crearSolicitud(
-                        CrearSolicitudReq(
-                            recurso = id,
-                            fechaInicio = fechaInicio,
-                            fechaFin = fechaFin,
-                            motivo = motivo
-                        )
+                        CrearSolicitudReq(recurso = id, fechaInicio = fechaInicio, fechaFin = fechaFin, motivo = motivo)
                     )
                 }
             )
@@ -203,7 +202,14 @@ private fun RecursosFilterBar(selected: RecursosFilter, onSelectedChange: (Recur
                 readOnly = true,
                 label = { Text("Filtrar por estado") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier.menuAnchor().fillMaxWidth()
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                // ✅ Colores adaptativos para el input
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
             ExposedDropdownMenu(
                 expanded = expanded,
@@ -229,16 +235,17 @@ private fun RecursosFilterBar(selected: RecursosFilter, onSelectedChange: (Recur
 
 @Composable
 fun RecursoItem(recurso: RecursoDto, onReservarClick: (Int) -> Unit, modifier: Modifier) {
+    // Definimos visuales según estado, pero usando colores del tema donde sea posible
     val visuals = when (recurso.estadoUltimaSolicitud) {
-        "APROBADA" -> RecursoVisuals("RESERVA APROBADA", "APROBADA", ColorAprobada, Color.White, ColorAprobada, Icons.Filled.CheckCircle)
-        "RECHAZADA" -> RecursoVisuals("SOLICITUD RECHAZADA", "RECHAZADA", ColorRechazada, Color.White, ColorRechazada, Icons.Filled.Cancel)
-        "PENDIENTE" -> RecursoVisuals("SOLICITUD PENDIENTE", "PENDIENTE", ColorPendiente, Color.White, ColorPendiente, Icons.Filled.Schedule)
+        "APROBADA" -> RecursoVisuals("RESERVA APROBADA", "APROBADA", ColorAprobada, MaterialTheme.colorScheme.surface, ColorAprobada, Icons.Filled.CheckCircle)
+        "RECHAZADA" -> RecursoVisuals("SOLICITUD RECHAZADA", "RECHAZADA", ColorRechazada, MaterialTheme.colorScheme.surface, ColorRechazada, Icons.Filled.Cancel)
+        "PENDIENTE" -> RecursoVisuals("SOLICITUD PENDIENTE", "PENDIENTE", ColorPendiente, MaterialTheme.colorScheme.surface, ColorPendiente, Icons.Filled.Schedule)
         else -> RecursoVisuals(
             if (recurso.disponible) "RESERVAR RECURSO" else "NO DISPONIBLE HOY",
             if (recurso.disponible) "DISPONIBLE" else "NO DISPONIBLE",
-            if (recurso.disponible) tuColorPrincipal else ColorNoDisponible,
-            Color.White,
-            if (recurso.disponible) tuColorPrincipal else ColorNoDisponible,
+            if (recurso.disponible) MaterialTheme.colorScheme.primary else ColorNoDisponible,
+            MaterialTheme.colorScheme.surface,
+            if (recurso.disponible) MaterialTheme.colorScheme.primary else ColorNoDisponible,
             if (recurso.disponible) Icons.Filled.Info else Icons.Filled.Block
         )
     }
@@ -258,7 +265,11 @@ fun RecursoItem(recurso: RecursoDto, onReservarClick: (Int) -> Unit, modifier: M
     ) {
         Column(Modifier.padding(16.dp).fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(recurso.nombre, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, color = visuals.colorEstadoTexto), modifier = Modifier.weight(1f))
+                Text(
+                    recurso.nombre,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, color = visuals.colorEstadoTexto),
+                    modifier = Modifier.weight(1f)
+                )
                 visuals.estadoIcon?.let {
                     Column(horizontalAlignment = Alignment.End) {
                         Icon(it, null, tint = visuals.colorEstadoTexto, modifier = Modifier.size(32.dp))
@@ -267,14 +278,22 @@ fun RecursoItem(recurso: RecursoDto, onReservarClick: (Int) -> Unit, modifier: M
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text(recurso.descripcion ?: "Sin descripción", style = MaterialTheme.typography.bodyMedium, color = Color.DarkGray)
+            Text(
+                recurso.descripcion ?: "Sin descripción",
+                style = MaterialTheme.typography.bodyMedium,
+                // ✅ Texto secundario adaptable
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { onReservarClick(recurso.id) },
                 enabled = finalEnabled,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = visuals.colorBoton)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = visuals.colorBoton,
+                    contentColor = Color.White // Texto botón siempre blanco para contraste con colores fuertes
+                )
             ) {
                 Text(visuals.textoBoton, fontWeight = FontWeight.Bold)
             }
@@ -288,7 +307,7 @@ private data class RecursoVisuals(
 )
 
 // =============================================================================
-// 4. DIÁLOGO DE SOLICITUD (PERSONALIZADO, VALIDADO Y SCROLLABLE)
+// 4. DIÁLOGO DE SOLICITUD
 // =============================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -302,14 +321,11 @@ private fun SolicitudDialog(
     var showDatePickerFin by rememberSaveable { mutableStateOf(false) }
     var motivo by rememberSaveable { mutableStateOf("") }
 
-    // ScrollState para contenido que se encoge con el teclado
     val scrollState = rememberScrollState()
 
-    // --- VALIDACIÓN: Solo fechas futuras ---
     val dateValidator = remember {
         object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                // Fecha actual a medianoche UTC
                 val today = LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
                 return utcTimeMillis >= today
             }
@@ -326,13 +342,12 @@ private fun SolicitudDialog(
     val fechaInicioStringUI = datePickerStateInicio.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate().format(formatterUI) } ?: "Seleccionar"
     val fechaFinStringUI = datePickerStateFin.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate().format(formatterUI) } ?: "Seleccionar"
 
-    // Validación del formulario
     val isFormValid = datePickerStateInicio.selectedDateMillis != null &&
             datePickerStateFin.selectedDateMillis != null &&
             datePickerStateInicio.selectedDateMillis!! <= datePickerStateFin.selectedDateMillis!! &&
             motivo.isNotBlank()
 
-    // --- CONTROLADORES DE DATE PICKERS ---
+    // --- DIÁLOGO FECHAS ---
     if (showDatePickerInicio) {
         DatePickerDialog(
             onDismissRequest = { showDatePickerInicio = false },
@@ -349,35 +364,31 @@ private fun SolicitudDialog(
         ) { DatePicker(state = datePickerStateFin, title = { Text("Fecha fin") }) }
     }
 
-    // --- DIÁLOGO CUSTOM (Card + Dialog) ---
+    // --- DIÁLOGO PRINCIPAL ---
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp) // Margen vertical de seguridad
+            colors = CardDefaults.cardColors(
+                // ✅ Fondo Dialogo Adaptable
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
 
-                // 1. Título Fijo
                 Text(
                     text = "Reservar: ${recurso.nombre}",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(Modifier.height(16.dp))
 
-                // 2. Contenido Scrollable (Campos)
-                // weight(1f, fill = false) permite que se encoja si sale el teclado
                 Column(
-                    modifier = Modifier
-                        .weight(weight = 1f, fill = false)
-                        .verticalScroll(scrollState)
+                    modifier = Modifier.weight(weight = 1f, fill = false).verticalScroll(scrollState)
                 ) {
-                    Text("Define fechas y motivo.", color = Color.Gray)
+                    Text("Define fechas y motivo.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(16.dp))
 
                     // Inicio
@@ -408,7 +419,6 @@ private fun SolicitudDialog(
                         maxLines = 3
                     )
 
-                    // Error Fechas
                     if (datePickerStateInicio.selectedDateMillis != null &&
                         datePickerStateFin.selectedDateMillis != null &&
                         datePickerStateInicio.selectedDateMillis!! > datePickerStateFin.selectedDateMillis!!) {
@@ -419,18 +429,12 @@ private fun SolicitudDialog(
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
-
-                    // Espacio final para que el último campo no quede pegado al borde al scrollear
                     Spacer(Modifier.height(16.dp))
                 }
 
                 Spacer(Modifier.height(24.dp))
 
-                // 3. Botones Fijos Abajo
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f)
@@ -451,7 +455,7 @@ private fun SolicitudDialog(
                             }
                         },
                         enabled = isFormValid,
-                        colors = ButtonDefaults.buttonColors(containerColor = tuColorPrincipal),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Confirmar")
@@ -466,9 +470,9 @@ private fun SolicitudDialog(
 private fun EmptyRecursos(onRecargar: () -> Unit) {
     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Filled.LibraryBooks, null, tint = Color.Gray, modifier = Modifier.size(48.dp))
-            Text("No hay recursos disponibles", color = Color.Gray)
-            Button(onClick = onRecargar) { Text("Recargar") }
+            Icon(Icons.Filled.LibraryBooks, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(48.dp))
+            Text("No hay recursos disponibles", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = onRecargar, modifier = Modifier.padding(top = 8.dp)) { Text("Recargar") }
         }
     }
 }

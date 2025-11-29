@@ -9,8 +9,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Visibility      // <--- IMPORTANTE
-import androidx.compose.material.icons.filled.VisibilityOff   // <--- IMPORTANTE
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -27,26 +27,21 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.R
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.ui.theme.AppColors
 
-/* Paleta/gradientes exclusivos para el LOGIN - REFERENCIAN A AppColors */
+/* Paleta/gradientes exclusivos para el LOGIN (Identidad de Marca) */
 private val projectHeaderGradient = AppColors.GradientePrincipal
 private val projectButtonGradient = Brush.linearGradient(listOf(AppColors.Principal, AppColors.Secundario))
-private val projectTextLink = AppColors.Principal
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
-    // Variable genérica para aceptar usuario O correo
     var loginInput by rememberSaveable { mutableStateOf("") }
-
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
-    // Recolectamos el estado del ViewModel
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(loginInput, password) {
@@ -56,7 +51,8 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            // ✅ Fondo Dinámico (Blanco en día, Oscuro en noche)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         AuthHeader(
             title = "Iniciar Sesión",
@@ -77,19 +73,26 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 label = { Text("Usuario o Correo") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Person, null) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Person,
+                        null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 shape = RoundedCornerShape(12.dp),
                 enabled = !uiState.isLoading,
-
-                // Configuración de teclado para mostrar '@' pero permitir texto libre
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
                 ),
-
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = projectTextLink,
-                    focusedLabelColor = projectTextLink
+                    // ✅ Colores dinámicos del tema
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
 
@@ -101,29 +104,33 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 modifier = Modifier.fillMaxWidth(),
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Lock, null) },
-
-                //  AQUÍ ESTÁ EL CAMBIO DEL ÍCONO
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Lock,
+                        null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        val image = if (passwordVisible)
-                            Icons.Filled.Visibility
-                        else
-                            Icons.Filled.VisibilityOff
-
+                        val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                         val description = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
-
-                        Icon(imageVector = image, contentDescription = description)
+                        Icon(
+                            imageVector = image,
+                            contentDescription = description,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 },
-
                 shape = RoundedCornerShape(12.dp),
                 enabled = !uiState.isLoading,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = projectTextLink,
-                    focusedLabelColor = projectTextLink
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 ),
-                // Al dar 'Enter' en la contraseña, intenta loguear
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
@@ -132,8 +139,10 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
 
             Text(
                 text = "¿Olvidaste tu contraseña?",
-                color = projectTextLink,
+                // ✅ Color primario del tema
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMedium, // Tipografía escalable
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { /* TODO: recuperar contraseña */ },
@@ -155,14 +164,12 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 text = "Iniciar Sesión",
                 isLoading = uiState.isLoading,
                 enabled = !uiState.isLoading && loginInput.isNotBlank() && password.isNotBlank(),
-                // Llamamos a la función con el input híbrido
                 onClick = { viewModel.login(loginInput, password) }
             )
         }
     }
 }
 
-// ... (El resto de tus Composables AuthHeader y AuthButton se mantienen igual) ...
 @Composable
 private fun AuthHeader(title: String, subtitle: String) {
     Box(
@@ -180,9 +187,19 @@ private fun AuthHeader(title: String, subtitle: String) {
                 modifier = Modifier.size(100.dp)
             )
             Spacer(Modifier.height(16.dp))
-            Text(text = title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            // Mantenemos blanco sobre gradiente azul para contraste
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineMedium, // Escalable
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
             Spacer(Modifier.height(4.dp))
-            Text(text = subtitle, fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium, // Escalable
+                color = Color.White.copy(alpha = 0.9f)
+            )
         }
     }
 }
@@ -200,6 +217,7 @@ private fun AuthButton(
             .fillMaxWidth()
             .height(56.dp),
         enabled = enabled,
+        // El contenedor es transparente porque dibujamos el gradiente en el Box interno
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
         shape = RoundedCornerShape(16.dp),
         contentPadding = PaddingValues(0.dp)
@@ -207,13 +225,21 @@ private fun AuthButton(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(projectButtonGradient, RoundedCornerShape(16.dp)),
+                .background(projectButtonGradient, RoundedCornerShape(16.dp))
+                .then(
+                    // Opacidad visual si está deshabilitado
+                    if (!enabled) Modifier.background(Color.Gray.copy(alpha = 0.5f)) else Modifier
+                ),
             contentAlignment = Alignment.Center
         ) {
             if (isLoading) {
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 3.dp)
             } else {
-                Text(text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text,
+                    style = MaterialTheme.typography.titleMedium, // Escalable
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

@@ -10,12 +10,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Today
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,16 +37,18 @@ fun ReunionesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FB))
+            // ✅ 1. Fondo dinámico (Gris en claro, Negro/Gris oscuro en noche)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // ----------------- CABECERA AZUL -----------------
+            // ----------------- CABECERA AZUL (Mantiene Gradiente) -----------------
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(190.dp)
+                    // Mantenemos el gradiente de la marca, ya que es identidad visual
                     .background(AppColors.GradientePrincipal)
                     .padding(horizontal = 20.dp, vertical = 24.dp)
             ) {
@@ -66,7 +63,7 @@ fun ReunionesScreen(
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
                                 contentDescription = "Volver",
-                                tint = Color.White
+                                tint = Color.White // Mantenemos blanco sobre el gradiente azul
                             )
                         }
                         Spacer(Modifier.width(8.dp))
@@ -152,7 +149,10 @@ fun ReunionCategoryCard(
             .graphicsLayer { this.alpha = alpha },   // más opaco si está deshabilitada
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE7F2FF)
+            // ✅ 2. Color de Tarjeta Dinámico:
+            // "surface" será blanco en Modo Claro y gris oscuro en Modo Oscuro.
+            // Eliminamos el 'Color(0xFFE7F2FF)' que forzaba el celeste claro.
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(elevation)
     ) {
@@ -192,20 +192,23 @@ fun ReunionCategoryCard(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1F2937)
+                    // ✅ 3. Color de texto principal (Negro o Blanco según tema)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF6B7280)
+                    // ✅ 4. Color de texto secundario (Gris adaptativo)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = null,
-                tint = Color(0xFF9CA3AF)
+                // ✅ 5. Icono de flecha adaptable
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -218,7 +221,7 @@ fun ReunionesScreenPreview() {
         ReunionesScreen(
             realizadasCount = 3,
             programadasCount = 1,
-            enCursoCount = 0, // aquí se verá opaca y sin click
+            enCursoCount = 0,
             onVerRealizadas = {},
             onVerProgramadas = {},
             onVerEnCurso = {},

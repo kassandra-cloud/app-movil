@@ -2,187 +2,206 @@ package com.example.proyecto.ui.actas
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect // <-- Importar LaunchedEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel // <-- Importar viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.reuniones.ActaDto
-import com.example.proyecto.ui.theme.AppColors
-import com.example.proyecto.viewmodel.ActasViewModel // <-- Importar ActasViewModel
-
-val ColorPrincipal = AppColors.Principal
-val ColorSecundario = AppColors.Secundario
-val ColorCardBg = AppColors.GrisClaroFondo
-val ColorTextPrimary = AppColors.TextPrimary
-val ColorGrisOscuroTexto = AppColors.GrisOscuroTexto
+import com.example.proyecto.ui.theme.AppColors // 👈 Importamos tus colores
+import com.example.proyecto.viewmodel.ActasViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActaDetalleScreen(
     acta: ActaDto,
     onBack: () -> Unit,
-    // 🆕 Se inyecta el ViewModel (o una función de registro)
     viewModel: ActasViewModel = viewModel()
 ) {
     BackHandler { onBack() }
 
-    // 🆕 LÓGICA CLAVE: Registra la consulta del acta la primera vez que se carga la pantalla
+    // Registramos la consulta
     LaunchedEffect(key1 = acta.reunion) {
         viewModel.registrarConsulta(acta.reunion)
     }
-    // -------------------------------------------------------------------------------------
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White) // Fondo BLANCO
-    ) {
-        Column(
+    Scaffold(
+        // 1. BARRA SUPERIOR CON GRADIENTE (Consistente con otras pantallas)
+        topBar = {
+            TopAppBar(
+                title = { Text("Detalle de Acta") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent, // Transparente para ver el gradiente
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                ),
+                modifier = Modifier.background(AppColors.GradientePrincipal)
+            )
+        }
+    ) { paddingValues ->
+
+        // 2. CONTENIDO PRINCIPAL
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .background(MaterialTheme.colorScheme.background) // ✅ Fondo Dinámico
+                .padding(paddingValues)
         ) {
-
-            // 1. Barra de título
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                IconButton(onClick = onBack) {
-                    // Icono oscuro
-                    Icon(
-                        Icons.Default.ArrowBack,
-                        contentDescription = "Volver",
-                        tint = ColorTextPrimary // Usando el color de texto primario
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    acta.reunionTitulo,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    // Título oscuro
-                    color = ColorTextPrimary // Usando el color de texto primario
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // 2. Tarjeta principal de Contenido
-            Card(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = ColorCardBg), // Gris claro para fondo de tarjeta
-                elevation = CardDefaults.cardElevation(8.dp)
+                    .fillMaxSize()
+                    .padding(16.dp)
             ) {
-                Column(
+
+                // Título del Acta
+                Text(
+                    text = acta.reunionTitulo,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                // Tarjeta de Contenido
+                Card(
                     modifier = Modifier
-                        .padding(18.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .fillMaxWidth()
+                        .weight(1f), // Ocupa el espacio disponible
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        // ✅ Tarjeta Dinámica (Blanco / Gris Oscuro)
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(4.dp)
                 ) {
-                    Text(
-                        text = acta.reunionFecha,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = ColorGrisOscuroTexto // Gris oscuro para texto secundario
-                    )
+                    Column(
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .verticalScroll(rememberScrollState()), // Scroll interno
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Fecha y Estado
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = acta.reunionFecha,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
-                    // Chip de estado (Aprobada/No Aprobada)
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(if (acta.aprobada) "Aprobada" else "No aprobada")
-                        },
-                        shape = RoundedCornerShape(50.dp),
-                        colors = if (acta.aprobada) {
-                            // CHIP APROBADA: Usa el Azul Secundario/Claro (#5C9FF7)
-                            AssistChipDefaults.assistChipColors(
-                                containerColor = ColorSecundario,
-                                labelColor = Color.White,
-                                leadingIconContentColor = Color.White
-                            )
-                        } else {
-                            // CHIP NO APROBADA: Usa tonos de gris consistentes (AppColors.GrisClaroFondo)
-                            AssistChipDefaults.assistChipColors(
-                                containerColor = ColorCardBg,
-                                labelColor = ColorGrisOscuroTexto,
-                                leadingIconContentColor = ColorGrisOscuroTexto
-                            )
-                        },
-                        leadingIcon = {
-                            if (acta.aprobada) {
-                                Icon(Icons.Filled.CheckCircle, "Aprobada")
-                            } else {
-                                Icon(Icons.Filled.Close, "No aprobada")
-                            }
+                            // Chip de Estado Mejorado
+                            StatusChip(aprobada = acta.aprobada)
                         }
-                    )
 
-                    Divider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                    // Contenido del Acta
-                    Text(
-                        text = acta.contenido.ifBlank { "Sin contenido." },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = ColorTextPrimary // Color de texto principal
-                    )
+                        // Texto del Acta
+                        Text(
+                            text = acta.contenido.ifBlank { "Sin contenido." },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.2 // Mejor legibilidad
+                        )
+                    }
                 }
-            }
 
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(16.dp))
 
-            // 3. Botón "Volver"
-            Button(
-                onClick = onBack,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ColorPrincipal) // Usa el Azul Principal (#287BFF)
-            ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Volver")
+                // Botón Inferior "Volver"
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Volver al listado", fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
 }
 
+// COMPONENTE VISUAL: CHIP DE ESTADO
+@Composable
+fun StatusChip(aprobada: Boolean) {
+    // Usamos colores semánticos pero adaptados ligeramente para que se vean bien
+    val containerColor = if (aprobada) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
+    val contentColor = if (aprobada) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
+    val icon = if (aprobada) Icons.Filled.CheckCircle else Icons.Filled.Close
+    val text = if (aprobada) "Aprobada" else "No aprobada"
 
-// ----------- PREVIEW PARA ANDROID STUDIO -----------
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(50),
+        border = if (!aprobada) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewActaDetalleScreen() {
     val actaEjemplo = ActaDto(
         reunion = 1,
-        contenido = "Este es el contenido completo del acta. Aquí se detallan todos los puntos discutidos y acuerdos alcanzados.\n\nEl contenido es largo y demostramos que el scroll funciona correctamente.",
+        contenido = "Este es el contenido del acta de prueba.\nAquí se detallan los acuerdos.",
         aprobada = true,
-        reunionTitulo = "Reunión de aprobación de cuentas",
-        reunionFecha = "2025-11-01",
+        reunionTitulo = "Reunión General de Vecinos",
+        reunionFecha = "2025-11-28",
         reunionTipo = "Ordinaria",
-        autorUsername = "admin_kassandra",
-        resumen = "Resumen de ejemplo"
+        autorUsername = "admin",
+        resumen = "Resumen corto"
     )
 
+    // Simulamos el tema para ver los colores correctos
     MaterialTheme {
         ActaDetalleScreen(
             acta = actaEjemplo,
-            onBack = {},
-            // Nota: Aquí el preview no tiene un ViewModel real, pero la llamada de registro no fallará.
+            onBack = {}
         )
     }
 }

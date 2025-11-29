@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels // 👈 IMPORTANTE
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -39,6 +40,7 @@ import com.example.proyecto.ui.actas.ActaDetalleScreen
 import com.example.proyecto.ui.actas.ActasScreen
 import com.example.proyecto.ui.talleres.TalleresScreen
 import com.example.proyecto.ui.theme.AppColors
+import com.example.proyecto.ui.theme.ConfiguracionScreen // 👈 IMPORTANTE
 import com.example.proyecto.ui.theme.ProyectoTheme
 import com.example.proyecto.ui.theme.anuncios.AnunciosScreen
 import com.example.proyecto.ui.theme.auth.ChangePasswordScreen
@@ -51,6 +53,7 @@ import com.example.proyecto.ui.theme.votaciones.VotacionesScreen
 import com.example.proyecto.viewmodel.LoginViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
+import com.example.proyecto.viewmodel.ThemeViewModel // 👈 IMPORTANTE
 import com.google.firebase.messaging.FirebaseMessaging
 
 // ---------------- Colores menú y globales ----------------
@@ -88,10 +91,20 @@ class MainActivity : ComponentActivity() {
         // 3. Capturar notificación si la app se abre desde cero (Cold Start)
         notificationDataState.value = capturarDatosNotificacion(intent)
 
+        // 4. Instanciar ViewModel del Tema
+        val themeViewModel: ThemeViewModel by viewModels()
+
         setContent {
-            ProyectoTheme {
-                // Pasamos el estado observable a la pantalla principal
-                MainScreen(notificationDataState = notificationDataState)
+            // 5. Envolver la app con el Tema Dinámico usando el ViewModel
+            ProyectoTheme(
+                darkTheme = themeViewModel.isDarkMode,
+                fontScale = themeViewModel.fontScale
+            ) {
+                // Pasamos el themeViewModel a la pantalla principal
+                MainScreen(
+                    notificationDataState = notificationDataState,
+                    themeViewModel = themeViewModel
+                )
             }
         }
     }
@@ -110,7 +123,6 @@ class MainActivity : ComponentActivity() {
     private fun capturarDatosNotificacion(intent: Intent?): Map<String, String>? {
         intent?.extras?.let { bundle ->
             val tipo = bundle.getString("tipo")
-            // Capturamos cualquier ID relevante que venga en el payload
             val reunionId = bundle.getString("reunion_id")
             val actaId = bundle.getString("acta_id")
 
@@ -130,15 +142,14 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(
     viewModel: LoginViewModel = viewModel(),
     reunionesVM: ReunionesViewModel = viewModel(),
+    themeViewModel: ThemeViewModel, // 👈 Nuevo Parámetro
     notificationDataState: MutableState<Map<String, String>?>
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val token = uiState.token
 
-    // Obtenemos el valor actual de la notificación
     val notificationData = notificationDataState.value
 
-    // --- MANEJO CENTRALIZADO DE NOTIFICACIONES ---
     LaunchedEffect(notificationData, token) {
         if (notificationData != null && !token.isNullOrBlank()) {
             val tipo = notificationData["tipo"]
@@ -154,18 +165,15 @@ fun MainScreen(
                     }
                 }
                 "acta_aprobada" -> {
-                    // Si llega un acta aprobada, navegamos directo a ella
                     if (actaId != null) {
                         viewModel.openActaDesdeReunion(actaId)
                     }
                 }
             }
-            // Limpiamos el estado para no reprocesar la misma notificación al rotar pantalla
             notificationDataState.value = null
         }
     }
 
-    // --- NAVEGACIÓN ---
     when (uiState.currentScreen) {
 
         LOGIN -> LoginScreen(viewModel)
@@ -174,7 +182,14 @@ fun MainScreen(
 
         MAIN_MENU -> MainMenuScreen(viewModel)
 
-        // CAMBIO CLAVE: Llama a AnunciosScreen con el callback onBack
+        // 👇 NUEVA PANTALLA DE CONFIGURACIÓN
+        CONFIGURACION -> ContenidoProtegido(viewModel) {
+            ConfiguracionScreen(
+                themeViewModel = themeViewModel,
+                onBack = { viewModel.goBackToMainMenu() }
+            )
+        }
+
         ANUNCIOS -> ContenidoProtegido(viewModel) {
             AnunciosScreen(onBack = { viewModel.goBackToMainMenu() })
         }
@@ -286,9 +301,6 @@ fun MainScreen(
     }
 }
 
-/**
- * Wrapper de seguridad: Si no hay token, redirige al login y muestra carga.
- */
 @Composable
 fun ContenidoProtegido(viewModel: LoginViewModel, content: @Composable () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
@@ -300,7 +312,6 @@ fun ContenidoProtegido(viewModel: LoginViewModel, content: @Composable () -> Uni
     }
 }
 
-// ---------------- UI MENÚ PRINCIPAL ----------------
 private data class Module(val title: String, val subtitle: String, val icon: ImageVector, val color: Color, val screen: AppScreen)
 
 @Composable
@@ -321,7 +332,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 
     var isGridView by rememberSaveable { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxSize().background(tuColorBlanco)) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { // Uso color del tema
         Column(Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier.fillMaxWidth().height(200.dp)
@@ -340,18 +351,26 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                         Text("$userName", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
+
+                        // ⚙️ BOTÓN DE CONFIGURACIÓN (NUEVO)
+                        IconButton(onClick = { viewModel.navigateTo(CONFIGURACION) }) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Configuración",
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+
                         IconButton(onClick = { isGridView = !isGridView }) {
                             Icon(if (isGridView) Icons.Default.ViewList else Icons.Default.GridView, "Cambiar vista", tint = Color.White.copy(alpha = 0.9f))
                         }
-                        Button(
+
+                        // Botón Salir (más pequeño para que quepa todo)
+                        IconButton(
                             onClick = { viewModel.logout() },
-                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.BotonSalir, contentColor = Color.White),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = ButtonDefaults.buttonElevation(4.dp)
                         ) {
-                            Text("Salir", fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.width(4.dp))
-                            Icon(Icons.Default.ExitToApp, null, Modifier.size(18.dp))
+                            Icon(Icons.Default.ExitToApp, "Salir", tint = Color.White)
                         }
                     }
                 }
@@ -378,7 +397,7 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
 fun GridModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().height(160.dp),
-        colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Uso color del tema
         elevation = CardDefaults.cardElevation(6.dp), shape = RoundedCornerShape(20.dp)
     ) {
         Column(
@@ -389,8 +408,8 @@ fun GridModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: C
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             }
             Spacer(Modifier.height(16.dp))
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f), textAlign = TextAlign.Center)
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         }
     }
 }
@@ -399,7 +418,7 @@ fun GridModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: C
 fun ModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = tuColorBlanco),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Uso color del tema
         elevation = CardDefaults.cardElevation(6.dp), shape = RoundedCornerShape(20.dp)
     ) {
         Row(
@@ -411,10 +430,10 @@ fun ModuleItem(title: String, subtitle: String, icon: ImageVector, iconBg: Color
             }
             Spacer(Modifier.width(20.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = tuColorTextoPrimario)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = tuColorTextoSecundario.copy(alpha = 0.7f))
+                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             }
-            Icon(Icons.Default.KeyboardArrowRight, null, tint = tuColorTextoSecundario.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
+            Icon(Icons.Default.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
         }
     }
 }

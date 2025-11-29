@@ -15,7 +15,7 @@ enum class AppScreen {
     // Actas
     ACTAS,
     ACTA_DETALLE,
-
+    CONFIGURACION,
     // Otros módulos
     ASISTENCIA,
     ASISTENCIA_DETALLE,

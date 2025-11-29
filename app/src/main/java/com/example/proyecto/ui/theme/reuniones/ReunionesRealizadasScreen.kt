@@ -12,7 +12,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.SearchOff // Icono para estado vacío
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.reuniones.ReunionDto
 import com.example.proyecto.data.reuniones.AsistenciaDto
-import com.example.proyecto.ui.theme.AppColors
+import com.example.proyecto.ui.theme.AppColors // 👈 Importamos tus colores
 import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
 
@@ -33,6 +33,11 @@ import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
 
 private enum class FiltroActa { TODAS, APROBADAS, NO_APROBADAS }
 private enum class FiltroAsistencia { TODAS, PRESENTE, AUSENTE, SIN_REGISTRO }
+
+// --- COLORES SEMÁNTICOS (Fijos por significado) ---
+val ColorPositivo = Color(0xFF16A34A) // Verde
+val ColorNegativo = Color(0xFFDC2626) // Rojo
+val ColorNeutral = Color(0xFF9CA3AF)  // Gris
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,17 +51,14 @@ fun ReunionesRealizadasScreen(
     )
     val misAsistencias by reunionesVM.miAsistenciaPorReunion.collectAsState()
 
-    // Filtros seleccionados
     var filtroActa by remember { mutableStateOf(FiltroActa.TODAS) }
     var filtroAsistencia by remember { mutableStateOf(FiltroAsistencia.TODAS) }
 
-    // Carga inicial de reuniones + MIS asistencias
     LaunchedEffect(Unit) {
         reunionesVM.ensureLoaded(ReunionEstado.REALIZADA)
         reunionesVM.cargarMisAsistencias()
     }
 
-    // Etiquetas para los combos
     val opcionesActa = mapOf(
         FiltroActa.TODAS        to "Todas",
         FiltroActa.APROBADAS    to "Solo aprobadas",
@@ -70,7 +72,6 @@ fun ReunionesRealizadasScreen(
         FiltroAsistencia.SIN_REGISTRO to "Solo sin registro"
     )
 
-    // Aplico filtros en memoria
     val reunionesFiltradas = remember(state.items, misAsistencias, filtroActa, filtroAsistencia) {
         state.items.filter { reunion ->
             val actaAprobada = reunion.actaAprobada == true
@@ -96,16 +97,18 @@ fun ReunionesRealizadasScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FB)) // Fondo gris muy suave
+            // ✅ Fondo Dinámico
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // ---------- CABECERA AZUL ----------
+            // ---------- CABECERA AZUL CON GRADIENTE ----------
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(190.dp)
+                    // ✅ Usamos el gradiente de la marca
                     .background(AppColors.GradientePrincipal)
                     .padding(horizontal = 20.dp, vertical = 24.dp)
             ) {
@@ -145,17 +148,18 @@ fun ReunionesRealizadasScreen(
                     .padding(horizontal = 20.dp)
             ) {
 
-                // --- NUEVA TARJETA DE FILTROS UNIFICADA ---
+                // --- TARJETA DE FILTROS ---
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(8.dp), // Sombra suave
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    elevation = CardDefaults.cardElevation(8.dp),
+                    // ✅ Color de Tarjeta Dinámico
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(IntrinsicSize.Min) // Permite que el separador se ajuste
+                            .height(IntrinsicSize.Min)
                     ) {
                         // Filtro 1: ACTA
                         Box(modifier = Modifier.weight(1f)) {
@@ -173,8 +177,9 @@ fun ReunionesRealizadasScreen(
                             modifier = Modifier
                                 .width(1.dp)
                                 .fillMaxHeight()
-                                .padding(vertical = 10.dp) // Margen interno para que no toque los bordes
-                                .background(Color.LightGray)
+                                .padding(vertical = 10.dp)
+                                // ✅ Color de separador adaptable
+                                .background(MaterialTheme.colorScheme.outlineVariant)
                         )
 
                         // Filtro 2: ASISTENCIA
@@ -189,18 +194,14 @@ fun ReunionesRealizadasScreen(
                         }
                     }
                 }
-                // -----------------------------------------
 
                 Spacer(Modifier.height(20.dp))
 
                 // LÓGICA DE LISTA / ESTADOS
                 when {
                     state.loading && state.items.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = AppColors.Principal)
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
 
@@ -209,7 +210,6 @@ fun ReunionesRealizadasScreen(
                     }
 
                     reunionesFiltradas.isEmpty() -> {
-                        // --- NUEVO ESTADO VACÍO MEJORADO ---
                         EstadoVacio(
                             filtroActivo = (filtroActa != FiltroActa.TODAS || filtroAsistencia != FiltroAsistencia.TODAS),
                             onLimpiar = {
@@ -266,7 +266,7 @@ fun <T> FiltroDropdownMinimalista(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = AppColors.Principal,
+                tint = MaterialTheme.colorScheme.primary, // ✅ Tinte dinámico
                 modifier = Modifier.size(24.dp)
             )
 
@@ -274,15 +274,15 @@ fun <T> FiltroDropdownMinimalista(
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // ✅ Color secundario
                 )
                 Text(
                     text = text,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF374151),
-                    maxLines = 1, // IMPORTANTE: Evita que el texto se rompa en dos líneas
-                    overflow = TextOverflow.Ellipsis // Pone "..." si es muy largo
+                    color = MaterialTheme.colorScheme.onSurface, // ✅ Color principal
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -290,7 +290,8 @@ fun <T> FiltroDropdownMinimalista(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(Color.White)
+            // ✅ Fondo del menú adaptable
+            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
         ) {
             options.forEach { (key, value) ->
                 DropdownMenuItem(
@@ -298,7 +299,7 @@ fun <T> FiltroDropdownMinimalista(
                         Text(
                             text = value,
                             fontWeight = if(key == selectedValue) FontWeight.Bold else FontWeight.Normal,
-                            color = if(key == selectedValue) AppColors.Principal else Color.Black
+                            color = if(key == selectedValue) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     },
                     onClick = {
@@ -324,28 +325,28 @@ private fun EstadoVacio(filtroActivo: Boolean, onLimpiar: () -> Unit) {
             imageVector = Icons.Default.SearchOff,
             contentDescription = null,
             modifier = Modifier.size(70.dp),
-            tint = Color(0xFFD1D5DB)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
         Spacer(Modifier.height(16.dp))
         Text(
             text = "No se encontraron reuniones",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF4B5563)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = "Intenta cambiar los criterios de búsqueda.",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         if (filtroActivo) {
             Spacer(Modifier.height(24.dp))
             OutlinedButton(
                 onClick = onLimpiar,
-                border = BorderStroke(1.dp, AppColors.Principal),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Principal)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Limpiar filtros")
             }
@@ -363,13 +364,13 @@ private fun EstadoError(error: String) {
         Text(
             text = "Ocurrió un error",
             style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFFB91C1C)
+            color = MaterialTheme.colorScheme.error
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = error,
             style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -389,9 +390,11 @@ private fun ReunionRealizadaItem(
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE7F2FF)
+            // ✅ Tarjeta adaptable (Blanco en día, Gris en noche)
+            // Eliminamos el azul claro fijo (0xFFE7F2FF)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(2.dp) // Sombra más sutil
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -409,20 +412,21 @@ private fun ReunionRealizadaItem(
                         text = reunion.titulo,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827)
+                        // ✅ Color primario del tema
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = reunion.fechaInicio,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color(0xFF9CA3AF)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
 
@@ -433,7 +437,7 @@ private fun ReunionRealizadaItem(
                     text = reunion.tabla.take(100) +
                             if (reunion.tabla.length > 100) "..." else "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF4B5563)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -448,16 +452,15 @@ private fun ReunionRealizadaItem(
                 ) {
                     val chipText: String
                     val chipBg: Color
-                    val chipFg: Color
+                    // Mantenemos texto blanco en los chips de estado para contraste
+                    val chipFg: Color = Color.White
 
                     if (actaAprobada) {
                         chipText = "Acta aprobada"
-                        chipBg = Color(0xFF16A34A)
-                        chipFg = Color.White
+                        chipBg = ColorPositivo
                     } else {
                         chipText = "No aprobada"
-                        chipBg = Color(0xFF9CA3AF)
-                        chipFg = Color.White
+                        chipBg = ColorNeutral
                     }
 
                     Box(
@@ -478,7 +481,8 @@ private fun ReunionRealizadaItem(
                             Text(
                                 text = "Ver acta",
                                 style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -492,30 +496,14 @@ private fun ReunionRealizadaItem(
                 Text(
                     text = "Tu asistencia: ",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 val (label, bg, fg) = when {
-                    miAsistencia == null -> Triple(
-                        "Sin registro",
-                        Color(0xFF9CA3AF),
-                        Color.White
-                    )
-                    miAsistencia?.presente == true -> Triple(
-                        "Presente",
-                        Color(0xFF16A34A),
-                        Color.White
-                    )
-                    miAsistencia?.presente == false -> Triple(
-                        "Ausente",
-                        Color(0xFFDC2626),
-                        Color.White
-                    )
-                    else -> Triple(
-                        "Sin registro",
-                        Color(0xFF9CA3AF),
-                        Color.White
-                    )
+                    miAsistencia == null -> Triple("Sin registro", ColorNeutral, Color.White)
+                    miAsistencia?.presente == true -> Triple("Presente", ColorPositivo, Color.White)
+                    miAsistencia?.presente == false -> Triple("Ausente", ColorNegativo, Color.White)
+                    else -> Triple("Sin registro", ColorNeutral, Color.White)
                 }
 
                 Box(

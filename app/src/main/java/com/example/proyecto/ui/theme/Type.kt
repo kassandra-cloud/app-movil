@@ -6,29 +6,27 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Set of Material typography styles to start with
-val Typography = Typography(
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
+// Función que genera la tipografía según una escala
+fun getTypography(scale: Float): Typography {
+    return Typography(
+        bodyLarge = TextStyle(
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp * scale,
+            lineHeight = 24.sp * scale,
+            letterSpacing = 0.5.sp
+        ),
+        titleLarge = TextStyle(
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Normal,
+            fontSize = 22.sp * scale,
+            lineHeight = 28.sp * scale,
+            letterSpacing = 0.sp
+        )
+        // Puedes agregar más estilos aquí (labelSmall, headlineMedium, etc.)
+        // multiplicando siempre el fontSize y lineHeight por 'scale'.
     )
-    /* Other default text styles to override
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
-    ),
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
-    )
-    */
-)
+}
+
+// Mantenemos la variable original por compatibilidad si algo falla, pero usando escala 1.0
+val Typography = getTypography(1.0f)

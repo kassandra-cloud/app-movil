@@ -13,17 +13,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-// Se removió: import androidx.navigation.NavController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import com.example.proyecto.data.AnuncioDto
 import com.example.proyecto.viewmodel.AnunciosViewModel
 import com.example.proyecto.viewmodel.AnunciosViewModelFactory
+// 👇 IMPORTANTE: Importamos tus colores personalizados
+import com.example.proyecto.ui.theme.AppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnunciosScreen(
-    // 1. CAMBIO CLAVE: Usa el callback de retroceso
     onBack: () -> Unit,
     viewModel: AnunciosViewModel = viewModel(factory = AnunciosViewModelFactory())
 ) {
@@ -35,16 +35,20 @@ fun AnunciosScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Anuncios Directiva") },
-                // 2. Añadimos el icono de navegación y usamos el callback
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                // 🖌️ CONFIGURACIÓN DEL GRADIENTE
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1976D2), // Azul fuerte
-                    titleContentColor = Color.White
-                )
+                    // 1. Hacemos transparente el contenedor para que se vea el fondo (el gradiente)
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                ),
+                // 2. Aplicamos el gradiente "De la Bienvenida" en el Modifier
+                modifier = Modifier.background(AppColors.GradientePrincipal)
             )
         }
     ) { paddingValues ->
@@ -52,25 +56,30 @@ fun AnunciosScreen(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5)) // Fondo gris claro
+                .background(MaterialTheme.colorScheme.background)
         ) {
             if (viewModel.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (viewModel.errorMessage != null) {
-                //  Muestra el error en ROJO grande para que lo veamos
                 Column(modifier = Modifier.align(Alignment.Center).padding(16.dp)) {
-                    Text("OCURRIÓ UN ERROR:", color = Color.Red, fontWeight = FontWeight.Bold)
-                    Text(viewModel.errorMessage!!, color = Color.Red)
+                    Text(
+                        "OCURRIÓ UN ERROR:",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        viewModel.errorMessage!!,
+                        color = MaterialTheme.colorScheme.error
+                    )
                     Button(onClick = { viewModel.cargarAnuncios() }) { Text("Reintentar") }
                 }
             } else if (viewModel.anuncios.isEmpty()) {
                 Text(
                     "La lista está vacía (0 anuncios).",
                     modifier = Modifier.align(Alignment.Center),
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             } else {
-                //  Muestra la lista
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -89,7 +98,9 @@ fun AnunciosScreen(
 fun AnuncioCard(anuncio: AnuncioDto) {
     Card(
         elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -97,19 +108,20 @@ fun AnuncioCard(anuncio: AnuncioDto) {
                 text = anuncio.titulo,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1976D2)
+                // Usamos el azul principal para el título (se ve mejor en texto)
+                color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "${anuncio.autorNombre ?: "Directiva"} • ${anuncio.fechaCreacion}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             Text(
                 text = anuncio.contenido,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

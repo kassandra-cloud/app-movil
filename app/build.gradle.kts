@@ -23,7 +23,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Activa la ofuscación de código (Seguridad OWASP)
+            isMinifyEnabled = true
+            // Elimina recursos no usados para hacer la app más ligera (Optimización)
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

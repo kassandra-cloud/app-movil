@@ -19,3 +19,20 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# --- Reglas de Seguridad para Tesis (Retrofit & Moshi) ---
+# Evita que R8/ProGuard rompa los modelos de datos al ofuscar
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes EnclosingMethod
+
+# Protege tus modelos de datos (DTOs) para que Moshi pueda leerlos
+-keep class com.example.proyecto.data.** { *; }
+
+# Protege la conexión con la API
+-keep class com.example.proyecto.api.** { *; }
+
+# Reglas especificas para librerías usadas
+-dontwarn okio.**
+-dontwarn javax.annotation.**
+-keep class retrofit2.** { *; }

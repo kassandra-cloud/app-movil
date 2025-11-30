@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
 import com.example.proyecto.api.ActasApi // <-- Importar ActasApi
-import com.example.proyecto.data.SessionData // <-- Necesario para el token
 import com.example.proyecto.data.reuniones.ActaDto
 import com.example.proyecto.data.reuniones.AsistenciaDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.Response
-
+import com.example.proyecto.data.SessionData
 class ActasViewModel : ViewModel() {
 
     // ---- Estado principal ----

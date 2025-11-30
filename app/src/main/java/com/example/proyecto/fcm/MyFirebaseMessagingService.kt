@@ -9,13 +9,13 @@ import androidx.core.app.NotificationCompat
 import com.example.proyecto.R
 import com.example.proyecto.api.ApiService
 import com.example.proyecto.api.ApiClient
-import com.example.proyecto.data.SessionData // Para obtener el token JWT guardado
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.example.proyecto.api.FcmTokenRequest
+import com.example.proyecto.data.SessionData
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 

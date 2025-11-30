@@ -3,12 +3,6 @@ package com.example.proyecto.data
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
-// ==============================================================
-// 1. ESTO ES LO QUE TE FALTA: EL ALMACÉN DE SESIÓN
-// ==============================================================
-object SessionData {
-    var token: String? = null
-}
 
 // -------------------- Petición de Login --------------------
 @JsonClass(generateAdapter = true)

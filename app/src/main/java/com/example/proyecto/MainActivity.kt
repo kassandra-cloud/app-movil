@@ -58,6 +58,8 @@ import com.example.proyecto.viewmodel.ReunionesViewModel
 import com.example.proyecto.viewmodel.ReunionesViewModel.ReunionEstado
 import com.example.proyecto.viewmodel.ThemeViewModel
 import com.google.firebase.messaging.FirebaseMessaging
+import androidx.activity.compose.BackHandler
+import android.app.Activity
 
 class MainActivity : ComponentActivity() {
 
@@ -195,6 +197,17 @@ fun MainScreen(
     }
 
     when (uiState.currentScreen) {
+        // --- AGREGAR ESTE CASO ---
+        SPLASH -> {
+            Box(
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                // Muestra un indicador de carga mientras se decide si va a LOGIN o al MENÚ
+                CircularProgressIndicator()
+            }
+        }
+        // -------------------------
         LOGIN -> LoginScreen(viewModel)
 
         RECOVER_PASSWORD -> ForgotPasswordScreen(
@@ -373,6 +386,13 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val userName = uiState.currentUser ?: "Usuario"
     val context = LocalContext.current
+    // --- LÓGICA FALTANTE: MINIMIZAR APP AL PULSAR ATRÁS ---
+    // Esto evita que la app se "mate" por error al dar atrás en el menú
+    BackHandler {
+        val activity = context as? Activity
+        activity?.moveTaskToBack(true)
+    }
+    // -------------------------------------------------------
 
     val modules = remember {
         listOf(

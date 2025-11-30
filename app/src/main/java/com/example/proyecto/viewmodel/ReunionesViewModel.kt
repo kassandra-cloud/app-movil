@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
 import com.example.proyecto.api.ReunionesApi
 import com.example.proyecto.data.Page
-import com.example.proyecto.data.SessionData
 import com.example.proyecto.data.reuniones.AsistenciaDto
 import com.example.proyecto.data.reuniones.ReunionDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.example.proyecto.data.SessionData
 
 class ReunionesViewModel : ViewModel() {
 

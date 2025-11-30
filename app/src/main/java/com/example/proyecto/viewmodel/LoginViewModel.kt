@@ -21,7 +21,11 @@ data class LoginUiState(
     val successMessage: String? = null,
     val token: String? = null,
     val currentUser: String? = null,
-    val currentScreen: AppScreen = AppScreen.LOGIN,
+
+    // --- CAMBIO CLAVE AQUÍ ---
+    // Iniciamos en SPLASH (carga) para dar tiempo a verificar si hay sesión guardada.
+    // Antes tenías: = AppScreen.LOGIN
+    val currentScreen: AppScreen = AppScreen.SPLASH,
 
     // Datos extra para navegación
     val selectedReunionEnCurso: com.example.proyecto.data.reuniones.ReunionDto? = null,

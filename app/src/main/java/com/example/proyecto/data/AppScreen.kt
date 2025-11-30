@@ -1,6 +1,7 @@
 package com.example.proyecto.data
 
 enum class AppScreen {
+    SPLASH,
     LOGIN,
     CHANGE_PASSWORD,
     RECOVER_PASSWORD,

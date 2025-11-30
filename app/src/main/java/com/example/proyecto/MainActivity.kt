@@ -1,12 +1,12 @@
 package com.example.proyecto
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -73,10 +73,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Permiso de notificaciones (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (
-                ContextCompat.checkSelfPermission(
+            if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
@@ -85,18 +83,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Suscripción a tópicos FCM
         suscribirseATopicos()
         notificationDataState.value = capturarDatosNotificacion(intent)
 
-        // ViewModel de tema
+        // ViewModel del Tema (Inyectado)
         val themeViewModel: ThemeViewModel by viewModels()
-
-        // 👉 Cargar preferencias de tema (oscuro / claro + escala de fuente)
-        val prefsSettings = getSharedPreferences("app_settings", MODE_PRIVATE)
-        val savedDark = prefsSettings.getBoolean("dark_mode", false)
-        val savedScale = prefsSettings.getFloat("font_scale", 1.0f)
-        themeViewModel.setInitialTheme(savedDark, savedScale)
 
         setContent {
             ProyectoTheme(
@@ -149,40 +140,37 @@ fun MainScreen(
     val notificationData = notificationDataState.value
     val context = LocalContext.current
 
-    // 👉 1) Restaurar sesión guardada al abrir la app
+    // 🔹 Restaurar sesión si hay token + nombre guardado
     LaunchedEffect(Unit) {
-        val prefs = context.getSharedPreferences("app_session", Context.MODE_PRIVATE)
-        val savedToken = prefs.getString("token", null)
-        val savedUser = prefs.getString("user_name", null)
+        if (uiState.token == null) {
+            val prefs = context.getSharedPreferences("proyecto_prefs", Context.MODE_PRIVATE)
+            val savedToken = prefs.getString("auth_token", null)
+            val savedName = prefs.getString("user_name", null)
 
-        if (!savedToken.isNullOrBlank() && uiState.token.isNullOrBlank()) {
-            viewModel.restoreSession(savedToken, savedUser)
+            if (!savedToken.isNullOrBlank()) {
+                viewModel.restoreSession(savedToken, savedName)
+            }
         }
     }
 
-    // 👉 2) Guardar / limpiar sesión cuando cambie token o pantalla
-    LaunchedEffect(uiState.token, uiState.currentScreen) {
-        val prefs = context.getSharedPreferences("app_session", Context.MODE_PRIVATE)
-        if (!uiState.token.isNullOrBlank() && uiState.currentScreen == MAIN_MENU) {
-            prefs.edit()
-                .putString("token", uiState.token)
-                .putString("user_name", uiState.currentUser)
-                .apply()
-        } else if (uiState.token.isNullOrBlank()) {
-            prefs.edit().clear().apply()
+    // 🔹 Guardar token cuando haya login exitoso
+    LaunchedEffect(token) {
+        if (!token.isNullOrBlank()) {
+            val prefs = context.getSharedPreferences("proyecto_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putString("auth_token", token).apply()
         }
     }
 
-    // 👉 3) Guardar tema (oscuro/claro + escala) cada vez que cambie
-    LaunchedEffect(themeViewModel.isDarkMode, themeViewModel.fontScale) {
-        val prefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        prefs.edit()
-            .putBoolean("dark_mode", themeViewModel.isDarkMode)
-            .putFloat("font_scale", themeViewModel.fontScale)
-            .apply()
+    // 🔹 Guardar nombre cuando cambie currentUser
+    LaunchedEffect(uiState.currentUser) {
+        val name = uiState.currentUser
+        if (!name.isNullOrBlank()) {
+            val prefs = context.getSharedPreferences("proyecto_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putString("user_name", name).apply()
+        }
     }
 
-    // 👉 4) Manejo de notificaciones push
+    // Manejo de notificación (reunión iniciada / acta aprobada)
     LaunchedEffect(notificationData, token) {
         if (notificationData != null && !token.isNullOrBlank()) {
             val tipo = notificationData["tipo"]
@@ -206,7 +194,6 @@ fun MainScreen(
         }
     }
 
-    // Navegación central según pantalla actual
     when (uiState.currentScreen) {
         LOGIN -> LoginScreen(viewModel)
 
@@ -236,15 +223,9 @@ fun MainScreen(
                 reunionesVM.refresh(ReunionEstado.PROGRAMADA)
                 reunionesVM.refresh(ReunionEstado.EN_CURSO)
             }
-            val stRealizadas by reunionesVM.realizadas.collectAsState(
-                ReunionesViewModel.SectionState()
-            )
-            val stProgramadas by reunionesVM.programadas.collectAsState(
-                ReunionesViewModel.SectionState()
-            )
-            val stEnCurso by reunionesVM.enCurso.collectAsState(
-                ReunionesViewModel.SectionState()
-            )
+            val stRealizadas by reunionesVM.realizadas.collectAsState(ReunionesViewModel.SectionState())
+            val stProgramadas by reunionesVM.programadas.collectAsState(ReunionesViewModel.SectionState())
+            val stEnCurso by reunionesVM.enCurso.collectAsState(ReunionesViewModel.SectionState())
 
             ReunionesScreen(
                 realizadasCount = stRealizadas.items.size,
@@ -291,8 +272,8 @@ fun MainScreen(
                     reunion = reunion,
                     onBack = { viewModel.closeReunionEnCurso() },
                     onRefresh = {
-                        reunionesVM.refrescarReunionPorId(reunion.id) { ref ->
-                            if (ref != null) viewModel.updateSelectedReunionEnCurso(ref)
+                        reunionesVM.refrescarReunionPorId(reunion.id) {
+                            if (it != null) viewModel.updateSelectedReunionEnCurso(it)
                         }
                     }
                 )
@@ -391,51 +372,16 @@ private data class Module(
 fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val userName = uiState.currentUser ?: "Usuario"
+    val context = LocalContext.current
 
     val modules = remember {
         listOf(
-            Module(
-                "Anuncios",
-                "Novedades y noticias",
-                Icons.Default.Campaign,
-                Color(0xFFFF9800),
-                ANUNCIOS
-            ),
-            Module(
-                "Reuniones",
-                "Realizadas y programadas",
-                Icons.Default.List,
-                AppColors.IconoReuniones,
-                REUNIONES
-            ),
-            Module(
-                "Foro",
-                "Espacio de debate",
-                Icons.Default.Person,
-                AppColors.IconoForo,
-                ASISTENCIA
-            ),
-            Module(
-                "Votación",
-                "Sistema de votaciones",
-                Icons.Default.CheckCircle,
-                AppColors.IconoVotacion,
-                VOTACION
-            ),
-            Module(
-                "Talleres",
-                "Visualizar talleres",
-                Icons.Default.Build,
-                AppColors.IconoTalleres,
-                TALLERES
-            ),
-            Module(
-                "Recursos",
-                "Ver documentos",
-                Icons.Default.LibraryBooks,
-                AppColors.Principal,
-                RECURSOS
-            )
+            Module("Anuncios", "Novedades y noticias", Icons.Default.Campaign, Color(0xFFFF9800), ANUNCIOS),
+            Module("Reuniones", "Realizadas y programadas", Icons.Default.List, AppColors.IconoReuniones, REUNIONES),
+            Module("Foro", "Espacio de debate", Icons.Default.Person, AppColors.IconoForo, ASISTENCIA),
+            Module("Votación", "Sistema de votaciones", Icons.Default.CheckCircle, AppColors.IconoVotacion, VOTACION),
+            Module("Talleres", "Visualizar talleres", Icons.Default.Build, AppColors.IconoTalleres, TALLERES),
+            Module("Recursos", "Ver documentos", Icons.Default.LibraryBooks, AppColors.Principal, RECURSOS)
         )
     }
 
@@ -447,12 +393,16 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(Modifier.fillMaxSize()) {
-            // Cabecera con bienvenida
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
-                    .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
+                    .clip(
+                        RoundedCornerShape(
+                            bottomStart = 40.dp,
+                            bottomEnd = 40.dp
+                        )
+                    )
                     .background(AppColors.GradientePrincipal)
                     .padding(horizontal = 24.dp, vertical = 32.dp),
                 contentAlignment = Alignment.TopCenter
@@ -493,18 +443,18 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                                 tint = Color.White.copy(alpha = 0.9f)
                             )
                         }
-                        IconButton(onClick = { viewModel.logout() }) {
-                            Icon(
-                                Icons.Default.ExitToApp,
-                                "Salir",
-                                tint = Color.White
-                            )
+                        IconButton(onClick = {
+                            // Cerrar sesión + limpiar token guardado
+                            viewModel.logout()
+                            val prefs = context.getSharedPreferences("proyecto_prefs", Context.MODE_PRIVATE)
+                            prefs.edit().remove("auth_token").remove("user_name").apply()
+                        }) {
+                            Icon(Icons.Default.ExitToApp, "Salir", tint = Color.White)
                         }
                     }
                 }
             }
 
-            // Contenido: grid o lista
             if (isGridView) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -518,10 +468,10 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                 ) {
                     items(modules) { m ->
                         GridModuleItem(
-                            title = m.title,
-                            subtitle = m.subtitle,
-                            icon = m.icon,
-                            iconBg = m.color
+                            m.title,
+                            m.subtitle,
+                            m.icon,
+                            m.color
                         ) { viewModel.navigateTo(m.screen) }
                     }
                 }
@@ -536,10 +486,10 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                 ) {
                     items(modules) { m ->
                         ModuleItem(
-                            title = m.title,
-                            subtitle = m.subtitle,
-                            icon = m.icon,
-                            iconBg = m.color
+                            m.title,
+                            m.subtitle,
+                            m.icon,
+                            m.color
                         ) { viewModel.navigateTo(m.screen) }
                     }
                 }
@@ -560,7 +510,9 @@ fun GridModuleItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(160.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
     ) {
@@ -612,7 +564,9 @@ fun ModuleItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp)
     ) {

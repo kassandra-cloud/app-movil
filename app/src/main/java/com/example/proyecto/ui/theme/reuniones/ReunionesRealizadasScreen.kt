@@ -230,6 +230,7 @@ fun ReunionesRealizadasScreen(
                                 ReunionRealizadaItem(
                                     reunion = reunion,
                                     miAsistencia = miAsistencia,
+                                    // 🚀 Esta es la acción que lleva a ActaDetalleScreen
                                     onClick = { onOpen(reunion) }
                                 )
                             }
@@ -379,7 +380,7 @@ private fun EstadoError(error: String) {
 private fun ReunionRealizadaItem(
     reunion: ReunionDto,
     miAsistencia: AsistenciaDto?,
-    onClick: () -> Unit
+    onClick: () -> Unit // 👈 Esta función es la que llama a onOpen(reunion) en el padre
 ) {
     val actaAprobada = reunion.actaAprobada == true
     val tieneActa = reunion.actaId != null
@@ -387,6 +388,7 @@ private fun ReunionRealizadaItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            // 🚀 Toda la tarjeta es clicable
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
@@ -477,6 +479,7 @@ private fun ReunionRealizadaItem(
                     }
 
                     if (actaAprobada) {
+                        // 🚀 El botón "Ver acta" también llama a la función onClick (onOpen)
                         TextButton(onClick = onClick) {
                             Text(
                                 text = "Ver acta",

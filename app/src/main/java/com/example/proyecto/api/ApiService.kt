@@ -71,5 +71,9 @@ interface ApiService {
 
     @POST("api/auth/reset-password-code/")
     suspend fun restablecerPassword(@Body body: Map<String, String>): Response<Map<String, String>>
-
+    @GET("reuniones/api/actas/{id}/")
+    suspend fun getActaById(
+        @Header("Authorization") auth: String,
+        @Path("id") actaId: Int
+    ): Response<com.example.proyecto.data.reuniones.ActaDto> // Retorna Response<ActaDto>
 }

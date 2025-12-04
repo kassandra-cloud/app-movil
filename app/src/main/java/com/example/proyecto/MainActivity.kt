@@ -151,6 +151,9 @@ fun MainScreen(
 
             if (!savedToken.isNullOrBlank()) {
                 viewModel.restoreSession(savedToken, savedName)
+            } else {
+                // 👇 ¡ESTA ES LA LÍNEA QUE FALTABA!
+                viewModel.navigateTo(AppScreen.LOGIN)
             }
         }
     }

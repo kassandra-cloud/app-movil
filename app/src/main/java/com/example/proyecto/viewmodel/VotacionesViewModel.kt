@@ -73,13 +73,21 @@ class VotacionesViewModel : ViewModel() {
     }
 
     // --------------------------------------------------
-    // Solicitar código MFA para votar
+    // Solicitar código MFA para votar (MODIFICADO)
     // --------------------------------------------------
     fun solicitarCodigo(token: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            _ui.update { it.copy(error = null, mensaje = null) } // Limpiamos mensajes anteriores
             try {
                 val resp = api.solicitarCodigoVotacion(authHeader(token))
-                if (!resp.isSuccessful) {
+                if (resp.isSuccessful) {
+                    // AGREGADO: Mensaje de éxito para el reenvío
+                    _ui.update {
+                        it.copy(
+                            mensaje = "Se ha reenviado el código de verificación a tu correo."
+                        )
+                    }
+                } else {
                     _ui.update {
                         it.copy(
                             error = "No pudimos enviar el código. Revisa tu correo y vuelve a intentarlo."

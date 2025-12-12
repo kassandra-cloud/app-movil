@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.votaciones.ResultadoVotacionDto
 import com.example.proyecto.data.votaciones.VotacionDto
-import com.example.proyecto.ui.theme.AppColors // 👈 Importante: Tus colores
+import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.viewmodel.VotacionesViewModel
 import kotlinx.coroutines.delay
 
@@ -47,7 +47,8 @@ fun VotacionesScreen(
     LaunchedEffect(token) { vm.cargarAbiertas(token) }
 
     LaunchedEffect(ui.mensaje) {
-        if (ui.mensaje != null) {
+        // Retraso para mensajes de la pantalla principal (no de reenvío)
+        if (ui.mensaje != null && ui.mensaje?.contains("reenviado") != true) {
             delay(3000)
             vm.clearMessages()
         }
@@ -92,8 +93,11 @@ fun VotacionesScreen(
             ui.error?.let {
                 Text("Error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
             }
-            ui.mensaje?.let {
-                Text(it, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            // Muestra mensaje solo si no estamos en el diálogo de verificación (para evitar duplicados)
+            if (!showVerificationDialog) {
+                ui.mensaje?.let {
+                    Text(it, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -131,25 +135,46 @@ fun VotacionesScreen(
         )
     }
 
+    // Mantenemos la lógica de reenvío
     if (showVerificationDialog) {
+        val resendMsg = if (ui.mensaje?.contains("reenviado") == true) ui.mensaje else null
+
         VerificationVoteDialog(
-            onDismiss = { showVerificationDialog = false },
+            onDismiss = {
+                showVerificationDialog = false
+                vm.clearMessages()
+            },
             onConfirm = { codigo ->
                 if (pendingVotacionId != null && pendingOpcionId != null) {
                     vm.votar(token, pendingVotacionId!!, pendingOpcionId!!, codigo)
                     showVerificationDialog = false
+                    vm.clearMessages()
                 }
-            }
+            },
+            onResendCode = { vm.solicitarCodigo(token) },
+            resendMessage = resendMsg
         )
     }
 }
 
+// Mantenemos la lógica de reenvío
 @Composable
 fun VerificationVoteDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String) -> Unit,
+    onResendCode: () -> Unit,
+    resendMessage: String?
 ) {
     var code by remember { mutableStateOf("") }
+    var showResendFeedback by remember { mutableStateOf(false) }
+
+    LaunchedEffect(resendMessage) {
+        if (resendMessage != null) {
+            showResendFeedback = true
+            delay(3000)
+            showResendFeedback = false
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -170,12 +195,24 @@ fun VerificationVoteDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = onResendCode,
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = !showResendFeedback
+                ) {
+                    Text(
+                        if (showResendFeedback) resendMessage ?: "Reenviando..." else "¿No te llegó? Vuelve a pedirlo",
+                        color = if (showResendFeedback) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = { onConfirm(code) },
-                enabled = code.length >= 4,
+                enabled = code.length == 6,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Validar y Votar")
@@ -184,18 +221,18 @@ fun VerificationVoteDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancelar") }
         },
-        containerColor = MaterialTheme.colorScheme.surface, // ✅ Fondo diálogo dinámico
+        containerColor = MaterialTheme.colorScheme.surface,
         textContentColor = MaterialTheme.colorScheme.onSurface,
         titleContentColor = MaterialTheme.colorScheme.onSurface
     )
 }
 
+// MODIFICADO: Lógica para mostrar resultados solo si la votación no está abierta
 @Composable
 private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowResults: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        // ✅ Tarjeta dinámica (blanca en día, gris en noche)
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -211,7 +248,7 @@ private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowRes
             Text(
                 votacion.pregunta,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface, // ✅ Texto principal
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Spacer(Modifier.height(12.dp))
@@ -226,31 +263,44 @@ private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowRes
                 Spacer(Modifier.height(8.dp))
             }
 
-            if (!votacion.yaVote) {
-                votacion.opciones.forEach { opcion ->
-                    Button(
-                        onClick = { onVote(opcion.id) },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        // ✅ Botones con color secundario del tema
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary,
-                            contentColor = MaterialTheme.colorScheme.onSecondary
-                        )
-                    ) {
-                        Text(opcion.texto, style = MaterialTheme.typography.labelLarge)
+            if (votacion.estaAbierta) { // Si está abierta, se muestran las opciones de voto (si no ha votado)
+                if (!votacion.yaVote) {
+                    votacion.opciones.forEach { opcion ->
+                        Button(
+                            onClick = { onVote(opcion.id) },
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary,
+                                contentColor = MaterialTheme.colorScheme.onSecondary
+                            )
+                        ) {
+                            Text(opcion.texto, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
+                    Spacer(Modifier.height(8.dp))
+                } else {
+                    // Muestra el mensaje de espera si ya votó y la votación está abierta
+                    Text(
+                        "Resultados disponibles al cierre de la votación.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(Modifier.height(8.dp))
                 }
-                Spacer(Modifier.height(8.dp))
             }
 
-            OutlinedButton(
-                onClick = onShowResults,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text(if (votacion.yaVote) "Ver resultados" else "Ver resultados parciales")
+            // 🔥 NUEVA LÓGICA: Solo muestra el botón de resultados si NO está abierta
+            if (!votacion.estaAbierta) {
+                OutlinedButton(
+                    onClick = onShowResults,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Ver resultados finales")
+                }
             }
         }
     }

@@ -111,7 +111,8 @@ private fun TallerCard(
     onDesinscribir: () -> Unit
 ) {
     val sinCupos = t.cuposDisponibles <= 0
-    val yaInscrito = t.inscritosCount > 0
+    // CORRECCIÓN 1: Usar el campo correcto para el estado de inscripción del usuario actual
+    val yaInscrito = t.estaInscrito
 
     // Color del ícono depende del estado
     val colorIcono = if (yaInscrito) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
@@ -202,14 +203,17 @@ private fun TallerCard(
 
                 Button(
                     onClick = onInscribir,
+                    // Se deshabilita si: yaInscrito, o sinCupos, o inscribiendo
                     enabled = !yaInscrito && !sinCupos && !inscribiendo,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        // ✅ Fondo del botón: Gris si ya inscrito, Primario si disponible
-                        containerColor = if (yaInscrito) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
-                        // Texto: OnSurfaceVariant si gris, OnPrimary si azul
-                        contentColor = if (yaInscrito) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        // CORRECCIÓN 2: Al eliminar la condicional, si 'enabled' es false,
+                        // Compose usará disabledContainerColor y disabledContentColor
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        // Usamos un color neutro (gris) cuando el botón está deshabilitado
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     if (inscribiendo) {
@@ -221,8 +225,10 @@ private fun TallerCard(
                         Spacer(Modifier.width(8.dp))
                         Text("Procesando...")
                     } else if (yaInscrito) {
+                        // Muestra "Inscrito" cuando el botón está deshabilitado por yaInscrito=true
                         Text("Inscrito")
                     } else {
+                        // Muestra "Sin cupos" (si sinCupos=true) o "Inscribirme" (si está disponible)
                         Text(if (sinCupos) "Sin cupos" else "Inscribirme")
                     }
                 }

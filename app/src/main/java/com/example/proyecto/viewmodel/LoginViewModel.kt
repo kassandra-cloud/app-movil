@@ -1,5 +1,6 @@
 package com.example.proyecto.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
@@ -8,6 +9,7 @@ import com.example.proyecto.api.ActasApi
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.LoginRequest
 import com.example.proyecto.data.SessionData
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,9 +24,7 @@ data class LoginUiState(
     val token: String? = null,
     val currentUser: String? = null,
 
-    // --- CAMBIO CLAVE AQUÍ ---
-    // Iniciamos en SPLASH (carga) para dar tiempo a verificar si hay sesión guardada.
-    // Antes tenías: = AppScreen.LOGIN
+    // Iniciamos en SPLASH para dar tiempo a verificar sesión guardada
     val currentScreen: AppScreen = AppScreen.SPLASH,
 
     // Datos extra para navegación
@@ -57,6 +57,43 @@ class LoginViewModel : ViewModel() {
 
                         // Guardamos el token en la sesión global
                         SessionData.token = loginResponse.token
+
+                        // 🔹 REGISTRO FCM DESPUÉS DEL LOGIN
+                        FirebaseMessaging.getInstance().token
+                            .addOnCompleteListener { task ->
+                                if (!task.isSuccessful) {
+                                    Log.e(
+                                        "LoginViewModel",
+                                        "No se pudo obtener el token FCM tras login",
+                                        task.exception
+                                    )
+                                    return@addOnCompleteListener
+                                }
+
+                                val fcmToken = task.result ?: return@addOnCompleteListener
+                                val authHeader = "Token ${SessionData.token}"
+
+                                viewModelScope.launch {
+                                    try {
+                                        val body = mapOf(
+                                            "fcm_token" to fcmToken,
+                                            "plataforma" to "android",
+                                            "nombre_dispositivo" to android.os.Build.MODEL
+                                        )
+                                        ApiClient.apiService.registrarFCMToken(authHeader, body)
+                                        Log.d(
+                                            "LoginViewModel",
+                                            "FCM registrado tras login: $fcmToken"
+                                        )
+                                    } catch (e: Exception) {
+                                        Log.e(
+                                            "LoginViewModel",
+                                            "Error registrando FCM tras login: ${e.message}",
+                                            e
+                                        )
+                                    }
+                                }
+                            }
 
                         // === LÓGICA DE NOMBRE REAL ===
                         val nombre = loginResponse.user?.first_name
@@ -112,16 +149,13 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                // 1. Obtenemos el token de la sesión actual
                 val token = SessionData.token
                 if (token == null) {
                     throw Exception("No hay sesión activa. Por favor, inicia sesión nuevamente.")
                 }
 
-                // 2. Preparamos el header Auth
                 val authHeader = "Token $token"
 
-                // 3. Llamamos al endpoint del backend
                 val response = ApiClient.apiService.cambiarPasswordInicial(
                     auth = authHeader,
                     body = mapOf("new_password" to newPass)
@@ -129,9 +163,9 @@ class LoginViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     val body = response.body()
-                    val msg = body?.get("message")?.toString() ?: "Contraseña actualizada exitosamente"
+                    val msg = body?.get("message")?.toString()
+                        ?: "Contraseña actualizada exitosamente"
 
-                    // 4. Éxito: Navegamos al menú principal
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -194,7 +228,12 @@ class LoginViewModel : ViewModel() {
     // -----------------------------------------------------------
     // RECUPERACIÓN PASO 2: CAMBIAR CON CÓDIGO
     // -----------------------------------------------------------
-    fun resetPasswordWithCode(email: String, code: String, newPass: String, onSuccess: () -> Unit) {
+    fun resetPasswordWithCode(
+        email: String,
+        code: String,
+        newPass: String,
+        onSuccess: () -> Unit
+    ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
@@ -262,7 +301,6 @@ class LoginViewModel : ViewModel() {
         _uiState.update { LoginUiState(currentScreen = AppScreen.LOGIN) }
     }
 
-    // 🔹 Restaurar sesión desde token + nombre guardados
     fun restoreSession(savedToken: String, savedUserName: String?) {
         // Si ya hay token en memoria, no hacemos nada
         if (uiState.value.token != null) return
@@ -324,7 +362,7 @@ class LoginViewModel : ViewModel() {
                 try {
                     api.registrarConsultaActa(actaId)
                 } catch (e: Exception) {
-                    android.util.Log.w(
+                    Log.w(
                         "LoginViewModel",
                         "No se pudo registrar consulta de acta: ${e.message}"
                     )
@@ -340,7 +378,8 @@ class LoginViewModel : ViewModel() {
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        errorMessage = e.message ?: "No se pudo abrir el acta desde la reunión."
+                        errorMessage = e.message
+                            ?: "No se pudo abrir el acta desde la reunión."
                     )
                 }
             }
@@ -360,7 +399,7 @@ class LoginViewModel : ViewModel() {
         _uiState.update {
             it.copy(
                 selectedActa = null,
-                currentScreen = AppScreen.MAIN_MENU   // vuelve al menú
+                currentScreen = AppScreen.MAIN_MENU
             )
         }
     }

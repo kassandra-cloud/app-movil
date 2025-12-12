@@ -28,7 +28,7 @@ object RetrofitInstance {
     private val retrofit by lazy {
         Retrofit.Builder()
             // Asegúrate que esta IP sea correcta para tu red
-            .baseUrl("http://192.168.1.8:8000/")
+            .baseUrl("https://junta-de-vecinos-villa-vista-al-mar.onrender.com/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

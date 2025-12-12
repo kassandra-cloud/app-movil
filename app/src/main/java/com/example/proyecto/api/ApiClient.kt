@@ -11,8 +11,8 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    // Ajusta la IP según tu entorno (10.0.2.2 para emulador, IP local para físico)
-    private const val BASE_URL = "http://192.168.1.8:8000/"
+
+    private const val BASE_URL = "https://junta-de-vecinos-villa-vista-al-mar.onrender.com/"
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -73,7 +73,7 @@ object ApiClient {
 
     // --- HELPERS ---
 
-    // 👇 ESTA ES LA FUNCIÓN QUE FALTABA
+
     fun <T> createPublic(service: Class<T>): T =
         retrofit.create(service)
 

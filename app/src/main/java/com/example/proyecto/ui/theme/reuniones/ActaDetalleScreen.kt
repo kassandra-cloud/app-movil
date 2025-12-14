@@ -11,8 +11,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,7 +21,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.proyecto.data.reuniones.ActaDto
-import com.example.proyecto.ui.theme.AppColors // 👈 Importamos tus colores
+import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.viewmodel.ActasViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,13 +33,18 @@ fun ActaDetalleScreen(
 ) {
     BackHandler { onBack() }
 
-    // Registramos la consulta
-    LaunchedEffect(key1 = acta.reunion) {
-        viewModel.registrarConsulta(acta.reunion)
+    // ✅ Anti-doble: evita que se registre 2 veces por recomposición
+    val actaId = acta.reunion
+    var registrado by rememberSaveable(actaId) { mutableStateOf(false) }
+
+    LaunchedEffect(actaId) {
+        if (!registrado) {
+            viewModel.registrarConsulta(actaId)
+            registrado = true
+        }
     }
 
     Scaffold(
-        // 1. BARRA SUPERIOR CON GRADIENTE (Consistente con otras pantallas)
         topBar = {
             TopAppBar(
                 title = { Text("Detalle de Acta") },
@@ -49,7 +54,7 @@ fun ActaDetalleScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent, // Transparente para ver el gradiente
+                    containerColor = Color.Transparent,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 ),
@@ -58,11 +63,10 @@ fun ActaDetalleScreen(
         }
     ) { paddingValues ->
 
-        // 2. CONTENIDO PRINCIPAL
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background) // ✅ Fondo Dinámico
+                .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
         ) {
             Column(
@@ -71,7 +75,6 @@ fun ActaDetalleScreen(
                     .padding(16.dp)
             ) {
 
-                // Título del Acta
                 Text(
                     text = acta.reunionTitulo,
                     style = MaterialTheme.typography.headlineSmall,
@@ -81,14 +84,12 @@ fun ActaDetalleScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                // Tarjeta de Contenido
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f), // Ocupa el espacio disponible
+                        .weight(1f),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
-                        // ✅ Tarjeta Dinámica (Blanco / Gris Oscuro)
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
                     elevation = CardDefaults.cardElevation(4.dp)
@@ -96,10 +97,9 @@ fun ActaDetalleScreen(
                     Column(
                         modifier = Modifier
                             .padding(24.dp)
-                            .verticalScroll(rememberScrollState()), // Scroll interno
+                            .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Fecha y Estado
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -111,28 +111,27 @@ fun ActaDetalleScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
-                            // Chip de Estado Mejorado
                             StatusChip(aprobada = acta.aprobada)
                         }
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                        // Texto del Acta
                         Text(
                             text = acta.contenido.ifBlank { "Sin contenido." },
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.2 // Mejor legibilidad
+                            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.2
                         )
                     }
                 }
 
                 Spacer(Modifier.height(16.dp))
 
-                // Botón Inferior "Volver"
                 Button(
                     onClick = onBack,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -151,7 +150,6 @@ fun ActaDetalleScreen(
 // COMPONENTE VISUAL: CHIP DE ESTADO
 @Composable
 fun StatusChip(aprobada: Boolean) {
-    // Usamos colores semánticos pero adaptados ligeramente para que se vean bien
     val containerColor = if (aprobada) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
     val contentColor = if (aprobada) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
     val icon = if (aprobada) Icons.Filled.CheckCircle else Icons.Filled.Close
@@ -197,7 +195,6 @@ fun PreviewActaDetalleScreen() {
         resumen = "Resumen corto"
     )
 
-    // Simulamos el tema para ver los colores correctos
     MaterialTheme {
         ActaDetalleScreen(
             acta = actaEjemplo,

@@ -88,7 +88,6 @@ class MainActivity : ComponentActivity() {
         suscribirseATopicos()
         notificationDataState.value = capturarDatosNotificacion(intent)
 
-        // ViewModel del Tema (Inyectado)
         val themeViewModel: ThemeViewModel by viewModels()
 
         setContent {
@@ -152,7 +151,6 @@ fun MainScreen(
             if (!savedToken.isNullOrBlank()) {
                 viewModel.restoreSession(savedToken, savedName)
             } else {
-                // 👇 ¡ESTA ES LA LÍNEA QUE FALTABA!
                 viewModel.navigateTo(AppScreen.LOGIN)
             }
         }
@@ -175,7 +173,7 @@ fun MainScreen(
         }
     }
 
-    // Manejo de notificación (reunión iniciada / acta aprobada)
+    // ✅ Manejo de notificaciones (incluye CANCELADA)
     LaunchedEffect(notificationData, token) {
         if (notificationData != null && !token.isNullOrBlank()) {
             val tipo = notificationData["tipo"]
@@ -194,23 +192,35 @@ fun MainScreen(
                 "acta_aprobada" -> {
                     if (actaId != null) viewModel.openActaDesdeReunion(actaId)
                 }
+
+                // ✅ NUEVO
+                "reunion_cancelada" -> {
+                    // refresca listas para que desaparezca de programadas/en_curso
+                    reunionesVM.refresh(ReunionEstado.REALIZADA)
+                    reunionesVM.refresh(ReunionEstado.PROGRAMADA)
+                    reunionesVM.refresh(ReunionEstado.EN_CURSO)
+
+                    // manda al módulo reuniones (o a programadas si quieres)
+                    viewModel.navigateTo(AppScreen.REUNIONES)
+                    // opcional:
+                    // viewModel.navigateTo(AppScreen.REUNIONES_PROGRAMADAS)
+                }
             }
+
             notificationDataState.value = null
         }
     }
 
     when (uiState.currentScreen) {
-        // --- AGREGAR ESTE CASO ---
         SPLASH -> {
             Box(
                 Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                 contentAlignment = Alignment.Center
             ) {
-                // Muestra un indicador de carga mientras se decide si va a LOGIN o al MENÚ
                 CircularProgressIndicator()
             }
         }
-        // -------------------------
+
         LOGIN -> LoginScreen(viewModel)
 
         RECOVER_PASSWORD -> ForgotPasswordScreen(
@@ -389,13 +399,11 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val userName = uiState.currentUser ?: "Usuario"
     val context = LocalContext.current
-    // --- LÓGICA FALTANTE: MINIMIZAR APP AL PULSAR ATRÁS ---
-    // Esto evita que la app se "mate" por error al dar atrás en el menú
+
     BackHandler {
         val activity = context as? Activity
         activity?.moveTaskToBack(true)
     }
-    // -------------------------------------------------------
 
     val modules = remember {
         listOf(
@@ -467,7 +475,6 @@ fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
                             )
                         }
                         IconButton(onClick = {
-                            // Cerrar sesión + limpiar token guardado
                             viewModel.logout()
                             val prefs = context.getSharedPreferences("proyecto_prefs", Context.MODE_PRIVATE)
                             prefs.edit().remove("auth_token").remove("user_name").apply()

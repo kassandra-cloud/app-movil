@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyecto.api.ApiClient
-import com.example.proyecto.api.ActasApi // <-- Importar ActasApi
+import com.example.proyecto.api.ActasApi
 import com.example.proyecto.data.reuniones.ActaDto
 import com.example.proyecto.data.reuniones.AsistenciaDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +13,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import com.example.proyecto.data.SessionData
+// Importar solo si fuera necesario, pero el set se inicializa sin él
+// import kotlin.collections.mutableSetOf
+
 class ActasViewModel : ViewModel() {
+
+    // 🆕 NUEVO: Un set para registrar los IDs de acta que ya hemos reportado al servidor
+    // Esto previene los logs duplicados generados por una sola acción de la UI.
+    private val registeredActaConsultations = mutableSetOf<Int>()
 
     // ---- Estado principal ----
     private val _actas = MutableStateFlow<List<ActaDto>>(emptyList())
@@ -75,8 +82,15 @@ class ActasViewModel : ViewModel() {
         _error.value = null
     }
 
-    // 🆕 NUEVA FUNCIÓN: Registra la consulta del acta
+    // 🆕 FUNCIÓN MODIFICADA: Implementa la deduplicación a nivel de sesión.
     fun registrarConsulta(actaId: Int) {
+        // CORRECCIÓN CLAVE: Si ya fue registrada en esta sesión del ViewModel,
+        // ignoramos cualquier llamada duplicada de la UI (LaunchedEffect).
+        if (registeredActaConsultations.contains(actaId)) {
+            Log.d("ActasVM", "Consulta de Acta $actaId ya fue registrada en esta sesión. Ignorando.")
+            return
+        }
+
         val token = SessionData.token ?: run {
             Log.w("ActasVM", "No se puede registrar consulta sin token de sesión.")
             return
@@ -91,6 +105,9 @@ class ActasViewModel : ViewModel() {
                 val response = api.registrarConsultaActa(actaId)
 
                 if (response.isSuccessful) {
+                    // CORRECCIÓN CLAVE: Si tiene éxito, REGISTRAR el ID para que las
+                    // llamadas futuras sean ignoradas por el chequeo de arriba.
+                    registeredActaConsultations.add(actaId)
                     Log.d("ActasVM", "Consulta de Acta $actaId registrada con éxito. (HTTP 204)")
                 } else {
                     // Si falla (ej: 404 si el acta no existe), lo logueamos

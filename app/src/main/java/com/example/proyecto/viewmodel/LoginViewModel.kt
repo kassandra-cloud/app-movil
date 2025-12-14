@@ -346,6 +346,12 @@ class LoginViewModel : ViewModel() {
         _uiState.update { it.copy(selectedReunionEnCurso = dto) }
     }
 
+    /**
+     * ✅ CORREGIDO:
+     * - Ya NO registra consulta aquí.
+     * - Solo obtiene el acta y navega al detalle.
+     * - El registro de consulta debe hacerse SOLO en ActaDetalleScreen (una vez).
+     */
     fun openActaDesdeReunion(actaId: Int) {
         val token = SessionData.token ?: run {
             _uiState.update {
@@ -359,14 +365,8 @@ class LoginViewModel : ViewModel() {
                 val api = ApiClient.createAuthorized(token, ActasApi::class.java)
                 val acta = api.getActaDetalle(actaId)
 
-                try {
-                    api.registrarConsultaActa(actaId)
-                } catch (e: Exception) {
-                    Log.w(
-                        "LoginViewModel",
-                        "No se pudo registrar consulta de acta: ${e.message}"
-                    )
-                }
+                // ❌ ELIMINADO: api.registrarConsultaActa(actaId)
+                // Esto causaba el +2 junto con el registro en la pantalla.
 
                 _uiState.update {
                     it.copy(

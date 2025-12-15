@@ -25,6 +25,8 @@ import com.example.proyecto.data.votaciones.ResultadoVotacionDto
 import com.example.proyecto.data.votaciones.VotacionDto
 import com.example.proyecto.ui.theme.AppColors
 import com.example.proyecto.viewmodel.VotacionesViewModel
+// Importamos el Enum del filtro y la versión corregida del ViewModel
+import com.example.proyecto.viewmodel.VotacionFilter
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +38,11 @@ fun VotacionesScreen(
 ) {
     val ui by vm.ui.collectAsState()
     val resultados by vm.resultados.collectAsState()
+
+    // 🔥 NUEVOS ESTADOS PARA FILTRADO
+    val filteredVotaciones by vm.filteredVotaciones.collectAsState()
+    val currentFilter by vm.filtro.collectAsState()
+    val tabs = listOf(VotacionFilter.EN_CURSO, VotacionFilter.CERRADAS)
 
     var votacionPreview by remember { mutableStateOf<VotacionDto?>(null) }
 
@@ -63,7 +70,7 @@ fun VotacionesScreen(
 
     Scaffold(
         topBar = {
-            // ✅ BARRA SUPERIOR ESTÁNDAR CON GRADIENTE
+            // BARRA SUPERIOR ESTÁNDAR CON GRADIENTE
             TopAppBar(
                 title = { Text("Votaciones abiertas") },
                 navigationIcon = {
@@ -83,7 +90,7 @@ fun VotacionesScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background) // ✅ Fondo Dinámico
+                .background(MaterialTheme.colorScheme.background) // Fondo Dinámico
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
@@ -102,11 +109,36 @@ fun VotacionesScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            if (ui.abiertas.isEmpty() && !ui.cargando) {
+            // 🔥 AÑADIDO: TabRow para seleccionar el estado de la votación
+            TabRow(
+                selectedTabIndex = tabs.indexOf(currentFilter),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                tabs.forEach { filter ->
+                    Tab(
+                        selected = currentFilter == filter,
+                        onClick = { vm.setFilter(filter) }, // Llama a la función del ViewModel
+                        text = {
+                            Text(
+                                when (filter) {
+                                    VotacionFilter.EN_CURSO -> "Votaciones en curso"
+                                    VotacionFilter.CERRADAS -> "Votaciones cerradas"
+                                    VotacionFilter.TODAS -> "Todas" // Solo se deja para completar el enum, no se usa aquí
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // 🔥 USAMOS la lista filtrada: 'filteredVotaciones'
+            if (filteredVotaciones.isEmpty() && !ui.cargando) {
                 EmptyVotaciones(onRecargar = { vm.cargarAbiertas(token) })
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(ui.abiertas, key = { it.id }) { votacion ->
+                    items(filteredVotaciones, key = { it.id }) { votacion ->
                         VotacionItem(
                             votacion = votacion,
                             onShowResults = {
@@ -227,7 +259,7 @@ fun VerificationVoteDialog(
     )
 }
 
-// MODIFICADO: Lógica para mostrar resultados solo si la votación no está abierta
+// Mantenemos la lógica de visualización de ítems
 @Composable
 private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowResults: () -> Unit) {
     Card(
@@ -291,7 +323,7 @@ private fun VotacionItem(votacion: VotacionDto, onVote: (Int) -> Unit, onShowRes
                 }
             }
 
-            // 🔥 NUEVA LÓGICA: Solo muestra el botón de resultados si NO está abierta
+            // Solo muestra el botón de resultados si NO está abierta
             if (!votacion.estaAbierta) {
                 OutlinedButton(
                     onClick = onShowResults,

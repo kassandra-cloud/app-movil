@@ -104,22 +104,30 @@ class ForoViewModel : ViewModel() {
 
     fun eliminarComentario(token: String, comentarioId: Int, publicacionId: Int) {
         viewModelScope.launch {
+            uiState = uiState.copy(error = null) // Limpiar error antes de intentar
             try {
                 val api = ApiClient.createAuthorized(token, ForoApi::class.java)
                 api.eliminarComentario(comentarioId)
                 recargarLista(api)
-            } catch (e: Exception) { /* Manejo error */
+            } catch (e: Exception) {
+                // ✅ CORRECCIÓN: Se registra y notifica el error de eliminación
+                Log.e("ForoViewModel", "Error al eliminar comentario $comentarioId: ${e.message}", e)
+                uiState = uiState.copy(error = "No se pudo eliminar el comentario: ${e.message}")
             }
         }
     }
 
     fun eliminarAdjunto(token: String, adjuntoId: Int, publicacionId: Int) {
         viewModelScope.launch {
+            uiState = uiState.copy(error = null) // Limpiar error antes de intentar
             try {
                 val api = ApiClient.createAuthorized(token, ForoApi::class.java)
                 api.eliminarAdjunto(adjuntoId)
                 recargarLista(api)
-            } catch (e: Exception) { /* Manejo error */
+            } catch (e: Exception) {
+                // ✅ CORRECCIÓN: Se registra y notifica el error de eliminación
+                Log.e("ForoViewModel", "Error al eliminar adjunto $adjuntoId: ${e.message}", e)
+                uiState = uiState.copy(error = "No se pudo eliminar el archivo: ${e.message}")
             }
         }
     }

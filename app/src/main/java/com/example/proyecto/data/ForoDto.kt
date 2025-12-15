@@ -24,7 +24,7 @@ data class AdjuntoDto(
 @JsonClass(generateAdapter = true)
 data class ComentarioDto(
     val id: Int = 0,
-    @Json(name = "autor_username") val autor: String? = "Anónimo",
+    @Json(name = "autor") val autor: String? = "Anónimo",
     val contenido: String? = "",
     @Json(name = "fecha_creacion") val fechaCreacion: String? = null,
     val parent: Int? = null,

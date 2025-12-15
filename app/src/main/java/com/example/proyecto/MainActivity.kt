@@ -340,7 +340,7 @@ fun MainScreen(
             } else {
                 ForoDetalleScreen(
                     token = token ?: "",
-                    usuarioActual = uiState.currentUser ?: "",
+                    usuarioActual = uiState.currentUsername ?: "", // CORREGIDO
                     publicacion = pub,
                     onBack = { viewModel.closePublicacionDetalle() }
                 )
@@ -394,6 +394,7 @@ private data class Module(
     val screen: AppScreen
 )
 
+// ÚNICA DEFINICIÓN DE MAINMENUSCREEN
 @Composable
 fun MainMenuScreen(viewModel: LoginViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()

@@ -3,9 +3,9 @@ package com.example.proyecto.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.proyecto.api.ActasApi
 import com.example.proyecto.api.ApiClient
 import com.example.proyecto.api.ApiService
-import com.example.proyecto.api.ActasApi
 import com.example.proyecto.data.AppScreen
 import com.example.proyecto.data.LoginRequest
 import com.example.proyecto.data.SessionData
@@ -22,7 +22,12 @@ data class LoginUiState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val token: String? = null,
+
+    // ✅ UI: nombre bonito (first + last si existe)
     val currentUser: String? = null,
+
+    // ✅ LÓGICA: username real para Foro (derecha/izquierda, eliminar)
+    val currentUsername: String? = null,
 
     // Iniciamos en SPLASH para dar tiempo a verificar sesión guardada
     val currentScreen: AppScreen = AppScreen.SPLASH,
@@ -43,99 +48,90 @@ class LoginViewModel : ViewModel() {
     // -----------------------------------------------------------
     fun login(user: String, pass: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
             try {
                 val cleanUser = user.trim()
 
                 // Llamada a la API
                 val response = ApiClient.apiService.login(LoginRequest(cleanUser, pass))
 
-                if (response.isSuccessful) {
-                    val loginResponse = response.body()
+                if (!response.isSuccessful) {
+                    throw Exception("Error del servidor: ${response.code()} ${response.message()}")
+                }
 
-                    if (loginResponse != null && loginResponse.token != null) {
+                val loginResponse = response.body()
+                    ?: throw Exception("Respuesta vacía del servidor")
 
-                        // Guardamos el token en la sesión global
-                        SessionData.token = loginResponse.token
+                if (loginResponse.token.isNullOrBlank()) {
+                    val msg = loginResponse.message ?: "Error en las credenciales"
+                    throw Exception(msg)
+                }
 
-                        // 🔹 REGISTRO FCM DESPUÉS DEL LOGIN
-                        FirebaseMessaging.getInstance().token
-                            .addOnCompleteListener { task ->
-                                if (!task.isSuccessful) {
-                                    Log.e(
-                                        "LoginViewModel",
-                                        "No se pudo obtener el token FCM tras login",
-                                        task.exception
-                                    )
-                                    return@addOnCompleteListener
-                                }
+                // Guardamos token global
+                SessionData.token = loginResponse.token
 
-                                val fcmToken = task.result ?: return@addOnCompleteListener
-                                val authHeader = "Token ${SessionData.token}"
+                // ✅ username real (para lógica)
+                val usernameReal = loginResponse.user?.username ?: cleanUser
 
-                                viewModelScope.launch {
-                                    try {
-                                        val body = mapOf(
-                                            "fcm_token" to fcmToken,
-                                            "plataforma" to "android",
-                                            "nombre_dispositivo" to android.os.Build.MODEL
-                                        )
-                                        ApiClient.apiService.registrarFCMToken(authHeader, body)
-                                        Log.d(
-                                            "LoginViewModel",
-                                            "FCM registrado tras login: $fcmToken"
-                                        )
-                                    } catch (e: Exception) {
-                                        Log.e(
-                                            "LoginViewModel",
-                                            "Error registrando FCM tras login: ${e.message}",
-                                            e
-                                        )
-                                    }
-                                }
-                            }
-
-                        // === LÓGICA DE NOMBRE REAL ===
-                        val nombre = loginResponse.user?.first_name
-                        val apellido = loginResponse.user?.last_name
-
-                        val nombreMostrar = if (!nombre.isNullOrBlank()) {
-                            "$nombre ${apellido ?: ""}".trim()
-                        } else {
-                            loginResponse.user?.username ?: cleanUser
-                        }
-
-                        // === LÓGICA DE REDIRECCIÓN (CAMBIO DE CONTRASEÑA) ===
-                        val debeCambiarPass = loginResponse.must_change_password == true
-
-                        val proximaPantalla = if (debeCambiarPass) {
-                            AppScreen.CHANGE_PASSWORD
-                        } else {
-                            AppScreen.MAIN_MENU
-                        }
-
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                token = loginResponse.token,
-                                currentUser = nombreMostrar,
-                                currentScreen = proximaPantalla
-                            )
-                        }
-                    } else {
-                        val msg = loginResponse?.message ?: "Error en las credenciales"
-                        throw Exception(msg)
-                    }
+                // ✅ nombre para mostrar (UI)
+                val nombre = loginResponse.user?.first_name
+                val apellido = loginResponse.user?.last_name
+                val nombreMostrar = if (!nombre.isNullOrBlank()) {
+                    "$nombre ${apellido ?: ""}".trim()
                 } else {
-                    val errorMsg = "Error del servidor: ${response.code()} ${response.message()}"
-                    throw Exception(errorMsg)
+                    usernameReal
+                }
+
+                // Registro FCM tras login
+                FirebaseMessaging.getInstance().token
+                    .addOnCompleteListener { task ->
+                        if (!task.isSuccessful) {
+                            Log.e("LoginViewModel", "No se pudo obtener token FCM", task.exception)
+                            return@addOnCompleteListener
+                        }
+
+                        val fcmToken = task.result ?: return@addOnCompleteListener
+                        val authHeader = "Token ${SessionData.token}"
+
+                        viewModelScope.launch {
+                            try {
+                                val body = mapOf(
+                                    "fcm_token" to fcmToken,
+                                    "plataforma" to "android",
+                                    "nombre_dispositivo" to android.os.Build.MODEL
+                                )
+                                ApiClient.apiService.registrarFCMToken(authHeader, body)
+                                Log.d("LoginViewModel", "FCM registrado tras login: $fcmToken")
+                            } catch (e: Exception) {
+                                Log.e("LoginViewModel", "Error registrando FCM: ${e.message}", e)
+                            }
+                        }
+                    }
+
+                // Redirección si debe cambiar password
+                val debeCambiarPass = loginResponse.must_change_password == true
+                val proximaPantalla = if (debeCambiarPass) {
+                    AppScreen.CHANGE_PASSWORD
+                } else {
+                    AppScreen.MAIN_MENU
+                }
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        token = loginResponse.token,
+                        currentUser = nombreMostrar,        // UI
+                        currentUsername = usernameReal,     // ✅ Asigna username real
+                        currentScreen = proximaPantalla
+                    )
                 }
 
             } catch (e: Exception) {
-                val msg = if (e.message?.contains("401") == true)
+                val msg = if (e.message?.contains("401") == true) {
                     "Usuario o contraseña incorrectos"
-                else
+                } else {
                     e.message ?: "Error desconocido"
+                }
 
                 _uiState.update { it.copy(isLoading = false, errorMessage = msg) }
             }
@@ -147,12 +143,10 @@ class LoginViewModel : ViewModel() {
     // -----------------------------------------------------------
     fun changeInitialPassword(newPass: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
             try {
                 val token = SessionData.token
-                if (token == null) {
-                    throw Exception("No hay sesión activa. Por favor, inicia sesión nuevamente.")
-                }
+                    ?: throw Exception("No hay sesión activa. Inicia sesión nuevamente.")
 
                 val authHeader = "Token $token"
 
@@ -161,21 +155,19 @@ class LoginViewModel : ViewModel() {
                     body = mapOf("new_password" to newPass)
                 )
 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    val msg = body?.get("message")?.toString()
-                        ?: "Contraseña actualizada exitosamente"
+                if (!response.isSuccessful) {
+                    throw Exception("Error al actualizar: ${response.message()}")
+                }
 
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = msg,
-                            currentScreen = AppScreen.MAIN_MENU
-                        )
-                    }
-                } else {
-                    val errorMsg = response.message()
-                    throw Exception("Error al actualizar: $errorMsg")
+                val body = response.body()
+                val msg = body?.get("message")?.toString() ?: "Contraseña actualizada exitosamente"
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        successMessage = msg,
+                        currentScreen = AppScreen.MAIN_MENU
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
@@ -184,7 +176,7 @@ class LoginViewModel : ViewModel() {
     }
 
     // -----------------------------------------------------------
-    // RECUPERACIÓN PASO 1: ENVIAR CÓDIGO
+    // RECUPERACIÓN PASO 1
     // -----------------------------------------------------------
     fun sendRecoveryCode(email: String, onSuccess: () -> Unit) {
         if (email.isBlank()) {
@@ -226,7 +218,7 @@ class LoginViewModel : ViewModel() {
     }
 
     // -----------------------------------------------------------
-    // RECUPERACIÓN PASO 2: CAMBIAR CON CÓDIGO
+    // RECUPERACIÓN PASO 2
     // -----------------------------------------------------------
     fun resetPasswordWithCode(
         email: String,
@@ -235,7 +227,7 @@ class LoginViewModel : ViewModel() {
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
             try {
                 val api = ApiClient.createPublic(ApiService::class.java)
                 val response = api.restablecerPassword(
@@ -277,13 +269,7 @@ class LoginViewModel : ViewModel() {
     // NAVEGACIÓN Y SESIÓN
     // -----------------------------------------------------------
     fun navigateTo(screen: AppScreen) {
-        _uiState.update {
-            it.copy(
-                currentScreen = screen,
-                errorMessage = null,
-                successMessage = null
-            )
-        }
+        _uiState.update { it.copy(currentScreen = screen, errorMessage = null, successMessage = null) }
     }
 
     fun goBackToMainMenu() {
@@ -302,7 +288,6 @@ class LoginViewModel : ViewModel() {
     }
 
     fun restoreSession(savedToken: String, savedUserName: String?) {
-        // Si ya hay token en memoria, no hacemos nada
         if (uiState.value.token != null) return
 
         SessionData.token = savedToken
@@ -310,6 +295,7 @@ class LoginViewModel : ViewModel() {
             it.copy(
                 token = savedToken,
                 currentUser = savedUserName ?: it.currentUser,
+                currentUsername = it.currentUsername,
                 currentScreen = AppScreen.MAIN_MENU,
                 errorMessage = null,
                 successMessage = null
@@ -346,17 +332,9 @@ class LoginViewModel : ViewModel() {
         _uiState.update { it.copy(selectedReunionEnCurso = dto) }
     }
 
-    /**
-     * ✅ CORREGIDO:
-     * - Ya NO registra consulta aquí.
-     * - Solo obtiene el acta y navega al detalle.
-     * - El registro de consulta debe hacerse SOLO en ActaDetalleScreen (una vez).
-     */
     fun openActaDesdeReunion(actaId: Int) {
         val token = SessionData.token ?: run {
-            _uiState.update {
-                it.copy(errorMessage = "No hay sesión activa para abrir el acta.")
-            }
+            _uiState.update { it.copy(errorMessage = "No hay sesión activa para abrir el acta.") }
             return
         }
 
@@ -364,9 +342,6 @@ class LoginViewModel : ViewModel() {
             try {
                 val api = ApiClient.createAuthorized(token, ActasApi::class.java)
                 val acta = api.getActaDetalle(actaId)
-
-                // ❌ ELIMINADO: api.registrarConsultaActa(actaId)
-                // Esto causaba el +2 junto con el registro en la pantalla.
 
                 _uiState.update {
                     it.copy(
@@ -377,10 +352,7 @@ class LoginViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(
-                        errorMessage = e.message
-                            ?: "No se pudo abrir el acta desde la reunión."
-                    )
+                    it.copy(errorMessage = e.message ?: "No se pudo abrir el acta desde la reunión.")
                 }
             }
         }

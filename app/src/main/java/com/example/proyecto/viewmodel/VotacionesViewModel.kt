@@ -13,8 +13,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+// 🔥 Imports necesarios para el filtro combinado
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+
+// --------------------------------------------------
+// 🔥 Enum para los estados de filtrado
+// --------------------------------------------------
+enum class VotacionFilter {
+    EN_CURSO, // Votaciones abiertas
+    CERRADAS, // Votaciones cerradas
+    TODAS // Mostrar todas (usado como valor inicial/fallback)
+}
 
 // Estado de la pantalla de votaciones
 data class VotacionesUi(
@@ -34,9 +47,34 @@ class VotacionesViewModel : ViewModel() {
     private val _resultados = MutableStateFlow<Map<Int, ResultadoVotacionDto>>(emptyMap())
     val resultados: StateFlow<Map<Int, ResultadoVotacionDto>> = _resultados.asStateFlow()
 
+    private val _filtro = MutableStateFlow(VotacionFilter.EN_CURSO)
+    val filtro: StateFlow<VotacionFilter> = _filtro.asStateFlow()
+
     private var autoJob: Job? = null
 
     private fun authHeader(token: String) = "Token $token"
+
+    // --------------------------------------------------
+    // 🔥 NUEVO: Lista de votaciones filtrada (se combina con ui y filtro)
+    // --------------------------------------------------
+    val filteredVotaciones: StateFlow<List<VotacionDto>> = combine(ui, filtro) { ui, currentFilter ->
+        when (currentFilter) {
+            VotacionFilter.EN_CURSO -> ui.abiertas.filter { it.estaAbierta }
+            VotacionFilter.CERRADAS -> ui.abiertas.filter { !it.estaAbierta }
+            VotacionFilter.TODAS -> ui.abiertas
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = _ui.value.abiertas.filter { it.estaAbierta }
+    )
+
+    // --------------------------------------------------
+    // 🔥 NUEVO: Función para cambiar el filtro
+    // --------------------------------------------------
+    fun setFilter(filter: VotacionFilter) {
+        _filtro.value = filter
+    }
 
     // --------------------------------------------------
     // Cargar votaciones abiertas
@@ -73,7 +111,7 @@ class VotacionesViewModel : ViewModel() {
     }
 
     // --------------------------------------------------
-    // Solicitar código MFA para votar (MODIFICADO)
+    // Solicitar código MFA para votar
     // --------------------------------------------------
     fun solicitarCodigo(token: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -81,7 +119,7 @@ class VotacionesViewModel : ViewModel() {
             try {
                 val resp = api.solicitarCodigoVotacion(authHeader(token))
                 if (resp.isSuccessful) {
-                    // AGREGADO: Mensaje de éxito para el reenvío
+                    // Mensaje de éxito para el reenvío
                     _ui.update {
                         it.copy(
                             mensaje = "Se ha reenviado el código de verificación a tu correo."
@@ -166,7 +204,7 @@ class VotacionesViewModel : ViewModel() {
     }
 
     // --------------------------------------------------
-    // Resultados parciales
+    // Resultados parciales (CORREGIDO Y ROBUSTO)
     // --------------------------------------------------
     fun cargarResultados(token: String, votacionId: Int) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -176,9 +214,25 @@ class VotacionesViewModel : ViewModel() {
                     resp.body()?.let { r ->
                         _resultados.update { it + (votacionId to r) }
                     }
+                } else {
+                    // Si la respuesta HTTP no es exitosa (ej. 404, 500)
+                    _ui.update {
+                        it.copy(
+                            error = "API Falló (${resp.code()}). Resultados no disponibles."
+                        )
+                    }
+                    // Limpiamos la entrada del mapa para cerrar el spinner
+                    _resultados.update { it - votacionId }
                 }
-            } catch (_: Exception) {
-                // Silencioso, no es crítico
+            } catch (e: Exception) {
+                // Notificamos el error de conexión o de serialización (JSON Mismatch)
+                _ui.update {
+                    it.copy(
+                        error = "Error al procesar datos: ${e.message?.take(50)}"
+                    )
+                }
+                // Limpiamos la entrada del mapa para cerrar el spinner
+                _resultados.update { it - votacionId }
             }
         }
     }
